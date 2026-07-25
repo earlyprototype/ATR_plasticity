@@ -72,14 +72,16 @@ jobs:
             | grep -oE '[0-9]+' | sort -un || true)
 
           # --- who else is already on those issues? ---------------------------
-          open_prs=$(gh pr list --state open --limit 100 --json number,title,url,body)
+          # No actions/checkout in this job, so gh has no git remote to infer from —
+          # every repo-scoped call must name the repo explicitly.
+          open_prs=$(gh pr list --repo "$REPO" --state open --limit 100 --json number,title,url,body)
 
           claims_md=""
           overlap_md=""
           if [ -n "$claimed" ]; then
             while read -r n; do
               [ -z "$n" ] && continue
-              title=$(gh issue view "$n" --json title -q .title 2>/dev/null || echo "(not readable)")
+              title=$(gh issue view "$n" --repo "$REPO" --json title -q .title 2>/dev/null || echo "(not readable)")
               claims_md="${claims_md}- #${n} — ${title}"$'\n'
 
               others=$(jq -r --arg n "$n" --argjson me "$PR_NUMBER" '
@@ -155,7 +157,7 @@ jobs:
 
           # Back-link on the PR. The marker is how the mirror workflow finds this
           # thread again — keep it on its own line and keep the format stable.
-          gh pr comment "$PR_NUMBER" --body "$(cat <<EOF
+          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$(cat <<EOF
           📋 **Board thread opened:** ${disc_url}
 
           Agents working in this repo: flag overlaps, concerns or context there — or
