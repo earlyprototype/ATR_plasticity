@@ -96,9 +96,10 @@ class OjaPlasticity:
     cadence : int
         Informational only; you decide when to call apply().
     max_delta_frac : float
-        Hard ceiling on ||delta||_F / ||W_0||_F. Updates are scaled down to
-        respect it and `clipped` is flagged in report(). This is the guard
-        against silently destroying the model.
+        Ceiling on ||delta||_F / ||W_0||_F. Updates are scaled down to respect
+        it and `clipped` is flagged in report(). This is the guard against
+        silently destroying the model. Held to float32 precision rather than
+        exactly -- expect overshoot of order 1e-8 relative on a large matrix.
     transposed : bool
         Set True for nn.Linear (weight is (n_out, n_in)). False for Conv1D.
     device / dtype
@@ -135,7 +136,11 @@ class OjaPlasticity:
 
         # Frozen reference copy. Everything is measured against this.
         self.W0 = self.module.weight.detach().clone()
-        self.W0_norm = self.W0.norm().item()
+        # float64 throughout for the norms: a float32 Frobenius norm of a
+        # 3072x768 matrix carries ~3e-4 relative error from summation alone,
+        # and delta_frac -- the number every run logs -- is a ratio of two of
+        # them. The ceiling is enforced on the same quantity report() prints.
+        self.W0_norm = self.W0.double().norm().item()
 
         # The accumulated change, kept explicitly so it can be inspected,
         # measured, and reverted. (A dense stored delta gives the same
@@ -241,11 +246,15 @@ class OjaPlasticity:
             return self.report()
 
         if self.mode == "random":
-            target_norm = upd.norm()
+            # Match in float64. C2's entire verdict rests on these two arms
+            # carrying the same magnitude, and a float32 match leaves ~3e-4
+            # relative error on a matrix this size -- small, but avoidable
+            # error in the control the README calls decisive.
+            target_norm = upd.double().norm().item()
             noise = torch.randn(
                 upd.shape, generator=self._rng, device=upd.device, dtype=upd.dtype
             )
-            upd = noise * (target_norm / (noise.norm() + 1e-12))
+            upd = noise * (target_norm / (noise.double().norm().item() + 1e-12))
 
         if self.transposed:
             # Rule convention is (n_in, n_out); nn.Linear stores (n_out, n_in).
@@ -262,9 +271,27 @@ class OjaPlasticity:
         new_delta = self.delta + step
 
         # Enforce the ceiling on total drift from W0.
+        #
+        # The norm is taken in float64 because a float32 one overflows to inf
+        # on a delta that has blown up -- and the rescale below would then be
+        # ceiling/inf, i.e. exactly zero, which wipes the delta and reports
+        # delta_frac == 0.0 with nonfinite == False. A blow-up that reads as
+        # "nothing happened" is the worst possible failure for a diagnostic,
+        # and c3_divergence_demo runs with max_delta_frac=1e9 by design, so
+        # this is reachable from inside the repo rather than only in theory.
         ceiling = self.max_delta_frac * self.W0_norm
-        nd = new_delta.norm().item()
+        nd = new_delta.double().norm().item()
+        if not math.isfinite(nd):
+            # Past float range entirely: reject the update, keep the last good
+            # delta, and say so rather than silently zeroing it.
+            self.nonfinite = True
+            return self.report()
         if ceiling > 0 and nd > ceiling:
+            # Holds to float32 precision, not exactly: rounding the rescaled
+            # matrix back into float32 can leave the norm a hair over the
+            # ceiling (measured 2.7e-8 relative on GPT-2's 3072x768 matrix),
+            # and correcting again is a no-op because the correction factor
+            # rounds to 1.0 in float32. Immaterial at any usable eta.
             new_delta = new_delta * (ceiling / (nd + 1e-12))
             self.clipped = True
 
@@ -289,7 +316,7 @@ class OjaPlasticity:
     # --------------------------------------------------------------- report
 
     def report(self) -> dict:
-        dn = self.delta.norm().item()
+        dn = self.delta.double().norm().item()
         return {
             "site": self.site,
             "mode": self.mode,
