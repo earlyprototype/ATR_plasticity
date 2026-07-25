@@ -4,8 +4,20 @@
 change under the loop?*
 
 > **Status: scaffold. Nothing here has been executed against real weights.**
-> The code is written and syntax-checked; it is not tested. Control C0 must pass
-> bit-exactly before anything in this repo produces a result worth recording.
+> There is now a test suite (`pytest`, no download required) covering the
+> learning rules and the controls against a toy network, and it found three
+> defects, recorded as strict `xfail` and left unfixed in the source:
+>
+> 1. `transposed=True` never transposes — `_hook`'s branch is a bare `pass`, so
+>    non-square `nn.Linear` raises in `apply()` and square `nn.Linear` silently
+>    learns the update transposed.
+> 2. `mode="random"` is norm-matched to the raw Hebb term, not to Oja — so **C2
+>    is biased**, worst at the large eta it is actually run at.
+> 3. C1, C2 and C3 leak their forward hook and leave the weights drifted if
+>    `atr_step` raises, where C0 uses a `with` block and does not.
+>
+> A green suite is not C0 passing. Control C0 must still pass bit-exactly
+> against real weights before anything here produces a result worth recording.
 
 ## The question
 
