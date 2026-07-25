@@ -1,0 +1,14 @@
+# Test configuration only. This repo is a scaffold, not a distributable package,
+# so there is no [build-system] or [project] table.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# -m "not slow" is the default so a bare `pytest` never reaches the network.
+# A -m on the command line replaces it: `pytest -m slow` runs the excluded set,
+# `pytest -m ""` runs everything.
+addopts = "-q --strict-markers --strict-config -m 'not slow'"
+
+markers = [
+  "slow: needs a real HuggingFace model download; excluded from the default run",
+]

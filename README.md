@@ -154,13 +154,43 @@ That is experiment E3 in the parent repo's normalisation issue. **The homeostasi
 experiment and the plasticity experiment are the same experiment, run in the
 other order** — which is the strongest reason to keep both repos in view at once.
 
+## Running the test suite
+
+The controls above are the gate on *results*. The test suite below is the gate on
+the code that runs them — it does not need a real model, a download, or a GPU.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest
+```
+
+A Claude Code session does this for you: `.claude/hooks/session-start.sh` builds
+the venv on session start and exits early once it is there.
+
+Everything runs against a toy network in `tests/conftest.py` whose module tree
+mirrors the parts of GPT-2 the plasticity layer reaches for — Conv1D weights of
+shape `(n_in, n_out)`, dotted paths like `transformer.h.1.mlp.c_proj`. That keeps
+the default suite offline and fast. Tests that would need real GPT-2 weights are
+marked `slow` and excluded from a bare `pytest`; run them with `pytest -m slow`.
+
+**A passing suite is not C0 passing.** The tests check that the learning rules
+compute what they claim, that the ceiling and `revert()` hold, and that each
+control can fail when handed the defect it exists to catch. They say nothing about
+whether the hooks perturb a real transformer's trajectory. That is still C0's job,
+against real weights, and it is still the first thing to run.
+
 ## Files
 
 ```
 plasticity.py   OjaPlasticity: hooks, Oja/Hebb/random rules, delta tracking, revert
 controls.py     C0-C3, each taking your atr_step as an argument
+tests/          pytest suite: toy-model fixtures, rule correctness, control gates
 DESIGN.md       measurement plan, failure modes, what would falsify what
-requirements.txt
+requirements.txt        torch, transformers -- the experiment
+requirements-dev.txt    pytest -- the suite
+pyproject.toml          pytest configuration
 ```
 
 ## License

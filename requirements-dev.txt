@@ -1,0 +1,2 @@
+# Test-time only. Runtime deps (torch, transformers) stay in requirements.txt.
+pytest>=7.0
