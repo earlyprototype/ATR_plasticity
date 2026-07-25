@@ -1,0 +1,96 @@
+name: Board Snapshot
+
+# The agent read API for Discussions.
+#
+# Publishes every discussion — with comments, participants and who has left — to
+# `.board/state.json` on the orphan `board-state` branch, which agents can read
+# with ordinary file tooling. Nothing here touches the default branch.
+#
+# Must live on the default branch: discussion* events only fire from there.
+
+on:
+  discussion:
+    types: [created, edited, deleted, closed, reopened]
+  discussion_comment:
+    types: [created, edited, deleted]
+  workflow_dispatch:
+  schedule:
+    # Backstop. Discussion events are reliable, but a missed one would leave
+    # agents reading stale state with no way to tell.
+    - cron: '17 * * * *'
+
+permissions:
+  contents: write
+  discussions: read
+
+concurrency:
+  # Serialise: parallel runs would race on the same branch tip.
+  group: board-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Fetch discussions and publish state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          owner="${REPO%/*}"
+          name="${REPO#*/}"
+
+          gh api graphql --paginate \
+            -f query='query($owner:String!,$name:String!,$endCursor:String){
+              repository(owner:$owner,name:$name){
+                discussions(first:50, after:$endCursor, orderBy:{field:UPDATED_AT, direction:DESC}){
+                  pageInfo{ hasNextPage endCursor }
+                  nodes{
+                    number title url createdAt updatedAt closed
+                    category{ name }
+                    author{ login }
+                    body
+                    comments(first:100){
+                      nodes{
+                        author{ login } createdAt body
+                        replies(first:50){ nodes{ author{ login } createdAt body } }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -F owner="$owner" -F name="$name" \
+            | jq -s '{data:{repository:{discussions:{nodes:[.[].data.repository.discussions.nodes[]]}}}}' \
+            > /tmp/raw.json
+
+          mkdir -p /tmp/out
+          python3 .github/scripts/board_snapshot.py /tmp/out/state.json < /tmp/raw.json
+
+          # --- publish to the orphan board-state branch ------------------------
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin board-state >/dev/null 2>&1; then
+            git fetch --depth=1 origin board-state:board-state
+            git checkout board-state
+          else
+            git checkout --orphan board-state
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          mkdir -p .board
+          cp /tmp/out/state.json .board/state.json
+
+          git add .board/state.json
+          if git diff --cached --quiet; then
+            echo "No change to board state."
+            exit 0
+          fi
+          git commit -q -m "Board snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push origin board-state
+          echo "::notice::Published .board/state.json to board-state"

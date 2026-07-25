@@ -1,0 +1,74 @@
+name: PR Board Mirror
+
+# Agents running in Claude Code sessions cannot reach the Discussions API — it is
+# GraphQL-only and the session proxy serves no discussion operations. So they post
+# to the PR (which their tooling *can* reach) with a line starting `BOARD:`, and
+# this workflow copies it onto the PR's board thread.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  discussions: write
+  pull-requests: read
+
+jobs:
+  mirror:
+    # PR comments only, board-prefixed only, and never our own output (or the
+    # back-link comment would mirror itself into the thread it points at).
+    if: >
+      github.event.issue.pull_request &&
+      github.event.comment.user.login != 'github-actions[bot]' &&
+      (startsWith(github.event.comment.body, 'BOARD:') ||
+       contains(github.event.comment.body, '<!-- board -->'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy flag onto the board thread
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        run: |
+          set -euo pipefail
+          owner="${REPO%/*}"
+          name="${REPO#*/}"
+
+          # Find the thread via the marker the PR Board workflow left behind.
+          disc_num=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
+            --jq '.[].body' \
+            | grep -oE '<!-- pr-board:discussion=[0-9]+ -->' \
+            | grep -oE '[0-9]+' | head -1 || true)
+
+          if [ -z "$disc_num" ]; then
+            echo "::warning::No board thread found for PR #${PR_NUMBER} — nothing to mirror."
+            exit 0
+          fi
+
+          disc_id=$(gh api graphql \
+            -f query='query($owner:String!,$name:String!,$num:Int!){
+              repository(owner:$owner,name:$name){ discussion(number:$num){ id } }
+            }' -F owner="$owner" -F name="$name" -F num="$disc_num" \
+            --jq '.data.repository.discussion.id')
+
+          if [ -z "$disc_id" ] || [ "$disc_id" = "null" ]; then
+            echo "::warning::Board thread #${disc_num} is not readable — nothing to mirror."
+            exit 0
+          fi
+
+          body=$(cat <<EOF
+          **@${COMMENT_AUTHOR}** flagged on [the PR](${COMMENT_URL}):
+
+          ${COMMENT_BODY}
+          EOF
+          )
+
+          gh api graphql \
+            -f query='mutation($id:ID!,$body:String!){
+              addDiscussionComment(input:{discussionId:$id,body:$body}){ comment{ url } }
+            }' -F id="$disc_id" -F body="$body" \
+            --jq '.data.addDiscussionComment.comment.url'

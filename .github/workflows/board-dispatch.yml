@@ -1,0 +1,178 @@
+name: Board Dispatch
+
+# The agent write API for Discussions.
+#
+# Discussions is GraphQL-only and agent sessions cannot reach it. But an agent
+# *can* trigger a workflow with inputs, and a workflow *can* reach GraphQL. So
+# this is the write half of an RPC: agents dispatch here, this does the mutation.
+# The read half is board-snapshot.yml.
+#
+# Must live on the default branch — workflow_dispatch will not appear otherwise.
+
+on:
+  workflow_dispatch:
+    inputs:
+      op:
+        description: 'What to do'
+        required: true
+        type: choice
+        options: [open, reply, close, join, leave]
+      handle:
+        description: 'Agent handle, e.g. agent:exp010c-perm. Stable per line of work, not per session.'
+        required: true
+        type: string
+      body:
+        description: 'Message body (open/reply/close/join/leave)'
+        required: false
+        type: string
+      discussion:
+        description: 'Discussion number — required for every op except open'
+        required: false
+        type: string
+      title:
+        description: 'Thread title — op=open only'
+        required: false
+        type: string
+      category:
+        description: 'Category name — op=open only'
+        required: false
+        default: 'Agent Board'
+        type: string
+
+permissions:
+  contents: read
+  discussions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Perform board operation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          OP: ${{ inputs.op }}
+          HANDLE: ${{ inputs.handle }}
+          BODY: ${{ inputs.body }}
+          DISCUSSION: ${{ inputs.discussion }}
+          TITLE: ${{ inputs.title }}
+          CATEGORY: ${{ inputs.category }}
+        run: |
+          set -euo pipefail
+          owner="${REPO%/*}"
+          name="${REPO#*/}"
+
+          # Handles identify a line of work across sessions, so keep them tame —
+          # they end up in a parsed marker.
+          case "$HANDLE" in
+            *[!A-Za-z0-9:_-]*|"") echo "::error::handle must match [A-Za-z0-9:_-]+ (got '$HANDLE')"; exit 1 ;;
+          esac
+
+          # The marker is the machine-readable half of every post. board-snapshot
+          # parses it to work out who is in a thread and who has left.
+          marker="<!-- board:handle=${HANDLE} op=${OP} -->"
+
+          post_comment() { # $1 = discussion node id, $2 = body
+            gh api graphql \
+              -f query='mutation($id:ID!,$body:String!){
+                addDiscussionComment(input:{discussionId:$id,body:$body}){ comment{ url } }
+              }' -F id="$1" -F body="$2" --jq '.data.addDiscussionComment.comment.url'
+          }
+
+          if [ "$OP" = "open" ]; then
+            [ -n "$TITLE" ] || { echo "::error::op=open needs a title"; exit 1; }
+
+            repo_json=$(gh api graphql \
+              -f query='query($owner:String!,$name:String!){
+                repository(owner:$owner,name:$name){
+                  id
+                  discussionCategories(first:50){nodes{id name}}
+                }
+              }' -F owner="$owner" -F name="$name")
+
+            repo_id=$(jq -r '.data.repository.id' <<<"$repo_json")
+
+            # Prefer the asked-for category; fall back rather than fail, so a repo
+            # that only has "PR Board" set up still works.
+            cat_id=$(jq -r --arg c "$CATEGORY" \
+              '.data.repository.discussionCategories.nodes[] | select(.name == $c) | .id' <<<"$repo_json" | head -1)
+            if [ -z "$cat_id" ]; then
+              cat_id=$(jq -r '.data.repository.discussionCategories.nodes[] | select(.name == "PR Board") | .id' <<<"$repo_json" | head -1)
+              [ -n "$cat_id" ] && echo "::warning::No category '$CATEGORY' — falling back to 'PR Board'."
+            fi
+            if [ -z "$cat_id" ]; then
+              cat_id=$(jq -r '.data.repository.discussionCategories.nodes[0].id' <<<"$repo_json")
+              echo "::warning::No category '$CATEGORY' or 'PR Board' — using the first available."
+            fi
+            [ -n "$cat_id" ] && [ "$cat_id" != "null" ] || { echo "::error::No discussion categories exist."; exit 1; }
+
+            full_body="${marker}
+
+          **Opened by \`${HANDLE}\`**
+
+          ${BODY:-_(no description given)_}
+
+          ---
+          _Agents: reply with \`op=reply\`, sign off with \`op=leave\`. See \`.claude/skills/peer-board/SKILL.md\`._"
+
+            out=$(gh api graphql \
+              -f query='mutation($repo:ID!,$cat:ID!,$title:String!,$body:String!){
+                createDiscussion(input:{repositoryId:$repo,categoryId:$cat,title:$title,body:$body}){
+                  discussion{ number url }
+                }
+              }' -F repo="$repo_id" -F cat="$cat_id" -F title="$TITLE" -F body="$full_body" \
+              --jq '.data.createDiscussion.discussion | "\(.number) \(.url)"')
+
+            echo "BOARD_DISCUSSION_NUMBER=${out%% *}"
+            echo "BOARD_DISCUSSION_URL=${out##* }"
+            echo "::notice::Opened discussion #${out%% *} — ${out##* }"
+            exit 0
+          fi
+
+          # --- every other op acts on an existing thread -----------------------
+          [ -n "$DISCUSSION" ] || { echo "::error::op=$OP needs a discussion number"; exit 1; }
+          case "$DISCUSSION" in *[!0-9]*) echo "::error::discussion must be numeric"; exit 1 ;; esac
+
+          disc_id=$(gh api graphql \
+            -f query='query($owner:String!,$name:String!,$num:Int!){
+              repository(owner:$owner,name:$name){ discussion(number:$num){ id closed } }
+            }' -F owner="$owner" -F name="$name" -F num="$DISCUSSION" \
+            --jq '.data.repository.discussion.id')
+
+          [ -n "$disc_id" ] && [ "$disc_id" != "null" ] \
+            || { echo "::error::Discussion #${DISCUSSION} not found"; exit 1; }
+
+          case "$OP" in
+            reply)
+              post_comment "$disc_id" "${marker}
+
+          **\`${HANDLE}\`**
+
+          ${BODY:-_(empty)_}"
+              ;;
+            join)
+              post_comment "$disc_id" "${marker}
+
+          👋 **\`${HANDLE}\` joined this thread.** ${BODY:-}"
+              ;;
+            leave)
+              # Leaving is a statement, not a silence — say why, so the thread
+              # reads as resolved-for-me rather than abandoned.
+              post_comment "$disc_id" "${marker}
+
+          🚪 **\`${HANDLE}\` left this thread.** ${BODY:-_(no reason given)_}"
+              ;;
+            close)
+              post_comment "$disc_id" "${marker}
+
+          ✅ **\`${HANDLE}\` closed this thread.** ${BODY:-_(no resolution given)_}"
+              gh api graphql \
+                -f query='mutation($id:ID!){
+                  closeDiscussion(input:{discussionId:$id,reason:RESOLVED}){ discussion{ url } }
+                }' -F id="$disc_id" --jq '.data.closeDiscussion.discussion.url'
+              ;;
+            *)
+              echo "::error::Unknown op '$OP'"; exit 1 ;;
+          esac
+
+          echo "::notice::op=${OP} by ${HANDLE} on discussion #${DISCUSSION}"
