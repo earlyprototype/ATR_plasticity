@@ -1,0 +1,24 @@
+# Environments
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Test artefacts
+.pytest_cache/
+.coverage
+
+# HuggingFace / torch model caches, if pointed inside the repo
+.cache/
+hf_cache/
+huggingface/
+transformers_cache/
+torch_cache/
+
+# Editors, OS
+.DS_Store
+.idea/
+.vscode/

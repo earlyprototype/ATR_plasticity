@@ -1,0 +1,22 @@
+# Test configuration only. This repo is a scaffold, not a distributable package,
+# so there is no [build-system] or [project] table.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# plasticity.py and controls.py sit at the repo root and are not installed as a
+# package. `python -m pytest` happens to work because it puts the CWD on
+# sys.path; the `pytest` console script does not, so a bare `pytest` -- which is
+# what CI and the session-start hook both tell you to run -- fails collection
+# with ModuleNotFoundError. Making the path explicit fixes every invocation
+# rather than the one that accidentally worked.
+pythonpath = ["."]
+
+# -m "not slow" is the default so a bare `pytest` never reaches the network.
+# A -m on the command line replaces it: `pytest -m slow` runs the excluded set,
+# `pytest -m ""` runs everything.
+addopts = "-q --strict-markers --strict-config -m 'not slow'"
+
+markers = [
+  "slow: needs a real HuggingFace model download; excluded from the default run",
+]

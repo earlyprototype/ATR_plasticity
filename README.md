@@ -4,8 +4,22 @@
 change under the loop?*
 
 > **Status: scaffold. Nothing here has been executed against real weights.**
-> The code is written and syntax-checked; it is not tested. Control C0 must pass
-> bit-exactly before anything in this repo produces a result worth recording.
+> There is now a test suite (`pytest`, no download required) covering the
+> learning rules and the controls against a toy network. It found three defects,
+> all since fixed and each now held by a test that fails if it returns:
+>
+> 1. `transposed=True` never transposed — `_hook`'s branch was a bare `pass`, so
+>    non-square `nn.Linear` raised in `apply()` and square `nn.Linear` silently
+>    learned the update transposed. The flip now happens in `apply()`.
+> 2. `mode="random"` was norm-matched to the raw Hebb term rather than to Oja,
+>    which **biased C2** — worst at the large eta C2 is actually run at. The
+>    decay term is now subtracted for `"random"` as well as `"oja"`.
+> 3. C1, C2 and C3 leaked their forward hook and left the weights drifted if
+>    `atr_step` raised, where C0 used a `with` block and did not. All three now
+>    remove the hook and revert the weights on the way out.
+>
+> A green suite is not C0 passing. Control C0 must still pass bit-exactly
+> against real weights before anything here produces a result worth recording.
 
 ## The question
 
@@ -154,13 +168,43 @@ That is experiment E3 in the parent repo's normalisation issue. **The homeostasi
 experiment and the plasticity experiment are the same experiment, run in the
 other order** — which is the strongest reason to keep both repos in view at once.
 
+## Running the test suite
+
+The controls above are the gate on *results*. The test suite below is the gate on
+the code that runs them — it does not need a real model, a download, or a GPU.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest
+```
+
+A Claude Code session does this for you: `.claude/hooks/session-start.sh` builds
+the venv on session start and exits early once it is there.
+
+Everything runs against a toy network in `tests/conftest.py` whose module tree
+mirrors the parts of GPT-2 the plasticity layer reaches for — Conv1D weights of
+shape `(n_in, n_out)`, dotted paths like `transformer.h.1.mlp.c_proj`. That keeps
+the default suite offline and fast. Tests that would need real GPT-2 weights are
+marked `slow` and excluded from a bare `pytest`; run them with `pytest -m slow`.
+
+**A passing suite is not C0 passing.** The tests check that the learning rules
+compute what they claim, that the ceiling and `revert()` hold, and that each
+control can fail when handed the defect it exists to catch. They say nothing about
+whether the hooks perturb a real transformer's trajectory. That is still C0's job,
+against real weights, and it is still the first thing to run.
+
 ## Files
 
 ```
 plasticity.py   OjaPlasticity: hooks, Oja/Hebb/random rules, delta tracking, revert
 controls.py     C0-C3, each taking your atr_step as an argument
+tests/          pytest suite: toy-model fixtures, rule correctness, control gates
 DESIGN.md       measurement plan, failure modes, what would falsify what
-requirements.txt
+requirements.txt        torch, transformers -- the experiment
+requirements-dev.txt    pytest -- the suite
+pyproject.toml          pytest configuration
 ```
 
 ## License
