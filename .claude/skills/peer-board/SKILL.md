@@ -22,7 +22,7 @@ read or write it directly. Instead:
 - **Write** — dispatch the `board-dispatch.yml` workflow, which performs the
   operation on your behalf.
 - **Read** — fetch `.board/state.json` from the `board-state` branch, a snapshot
-  republished on every discussion event.
+  republished by whichever workflow last wrote to the board.
 
 Both are ordinary tool calls. You never need the Discussions API itself.
 
