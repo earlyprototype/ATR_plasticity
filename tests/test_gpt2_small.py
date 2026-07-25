@@ -237,9 +237,15 @@ class TestConv1DConvention:
 
         x = torch.randn(2, 3, n_in, generator=g)
         with torch.no_grad():
+            # Bit-exact is the right bar here: both run the same torch.addmm
+            # on the same shapes, so any difference is a real divergence.
             assert torch.equal(toy(x), real(x))
-            # ...and both are the closed form the learning rules assume.
-            assert torch.equal(real(x), (x @ w + b))
+            # ...and both are the closed form the learning rules assume. This
+            # one is allclose, not equal: addmm is a fused kernel and
+            # `x @ w + b` is matmul-then-add, so the two are not guaranteed
+            # bit-identical across backends or thread counts -- the same
+            # nondeterminism class as the C0 note above.
+            assert torch.allclose(real(x), (x @ w + b), rtol=1e-6, atol=1e-6)
 
 
 # --------------------------------------------------------------------------
@@ -378,30 +384,37 @@ class TestApplyRevert:
         """
         w_before = resolve(gpt2, site).weight.detach().clone()
 
+        # try/finally, not a trailing revert(): the model fixture is
+        # session-scoped, so an assertion that fails partway would otherwise
+        # hand every later test in this file a modified GPT-2.
         p = OjaPlasticity(gpt2, site=site, eta=1e-5, mode="oja")
-        with p:
-            r = r0
-            for _ in range(3):
-                r = atr_step(gpt2, r)
-            rep = p.apply()
+        try:
+            with p:
+                r = r0
+                for _ in range(3):
+                    r = atr_step(gpt2, r)
+                rep = p.apply()
 
-        assert set(rep) == set(REPORT_TYPES)
-        for key, typ in REPORT_TYPES.items():
-            assert isinstance(rep[key], typ), f"{key}: {type(rep[key])}"
-        assert rep["site"] == site
-        assert rep["mode"] == "oja"
-        assert rep["n_applied"] == 1
-        assert rep["nonfinite"] is False
-        assert rep["clipped"] is False
-        assert 0.0 < rep["delta_frac"] < 0.05
-        assert math.isfinite(rep["delta_norm"]) and rep["delta_norm"] > 0
-        assert rep["delta_frac"] == pytest.approx(rep["delta_norm"] / p.W0_norm, rel=1e-9)
+            assert set(rep) == set(REPORT_TYPES)
+            for key, typ in REPORT_TYPES.items():
+                assert isinstance(rep[key], typ), f"{key}: {type(rep[key])}"
+            assert rep["site"] == site
+            assert rep["mode"] == "oja"
+            assert rep["n_applied"] == 1
+            assert rep["nonfinite"] is False
+            assert rep["clipped"] is False
+            assert 0.0 < rep["delta_frac"] < 0.05
+            assert math.isfinite(rep["delta_norm"]) and rep["delta_norm"] > 0
+            assert rep["delta_frac"] == pytest.approx(
+                rep["delta_norm"] / p.W0_norm, rel=1e-9
+            )
 
-        w_after = resolve(gpt2, site).weight
-        assert not torch.equal(w_after, w_before)
-        assert torch.isfinite(w_after).all()
+            w_after = resolve(gpt2, site).weight
+            assert not torch.equal(w_after, w_before)
+            assert torch.isfinite(w_after).all()
+        finally:
+            p.revert()
 
-        p.revert()
         assert torch.equal(resolve(gpt2, site).weight, w_before)
         assert torch.equal(p.delta, torch.zeros_like(p.W0))
         assert p.report()["delta_norm"] == 0.0
@@ -422,15 +435,19 @@ class TestApplyRevert:
         baseline = run()
 
         p = OjaPlasticity(gpt2, site=site, eta=1e-4, mode="oja")
-        with p:
-            r = r0
-            for _ in range(2):
-                r = atr_step(gpt2, r)
-                p.apply()
-        perturbed = run()
-        assert not torch.equal(perturbed, baseline)   # the run was non-vacuous
+        try:
+            with p:
+                r = r0
+                for _ in range(2):
+                    r = atr_step(gpt2, r)
+                    p.apply()
+            perturbed = run()
+            assert not torch.equal(perturbed, baseline)  # the run was non-vacuous
+        finally:
+            # Same reason as above: a failed assertion must not leave the
+            # session-scoped model perturbed for whatever runs next.
+            p.revert()
 
-        p.revert()
         assert torch.equal(run(), baseline)
 
 

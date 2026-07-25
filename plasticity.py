@@ -296,7 +296,7 @@ class OjaPlasticity:
             self.clipped = True
 
         self.delta = new_delta
-        self._last_update_norm = step.norm().item()
+        self._last_update_norm = step.double().norm().item()
         self._write_weight()
         self.n_applied += 1
         return self.report()
