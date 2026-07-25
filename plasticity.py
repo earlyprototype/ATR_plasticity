@@ -201,13 +201,17 @@ class OjaPlasticity:
             self.nonfinite = True
             return
 
-        if self.transposed:
-            # Linear: y = x @ W^T, so the (n_in, n_out) convention needs a flip
-            # at the end. Collect in (n_in, n_out) and transpose on apply.
-            pass
-
+        # Everything here is in the rule's (n_in, n_out) convention, including
+        # for nn.Linear -- `_effective_W` hands the decay term a flipped view.
+        # The flip back into the weight's own layout happens in apply(), which
+        # is the only place that touches module.weight.
         upd = _hebb_term(x, y)
-        if self.mode in ("oja",):
+        if self.mode in ("oja", "random"):
+            # "random" subtracts the decay too: apply() norm-matches the noise
+            # to whatever is accumulated here, and the docstring promises that
+            # target is "what Oja would have applied". Matching the raw Hebb
+            # term instead biases C2 -- and the bias grows with weight scale,
+            # since the Hebb term does not depend on W and the decay does.
             w_eff = self._effective_W()
             upd = upd - _oja_decay(w_eff, y)
 
@@ -242,6 +246,13 @@ class OjaPlasticity:
                 upd.shape, generator=self._rng, device=upd.device, dtype=upd.dtype
             )
             upd = noise * (target_norm / (noise.norm() + 1e-12))
+
+        if self.transposed:
+            # Rule convention is (n_in, n_out); nn.Linear stores (n_out, n_in).
+            # Flip once, here, so delta and the ceiling below are both in the
+            # weight's own layout. Frobenius norm is transpose-invariant, so
+            # the random norm-match above is unaffected by where this sits.
+            upd = upd.transpose(0, 1)
 
         step = self.eta * upd
         if not torch.isfinite(step).all():

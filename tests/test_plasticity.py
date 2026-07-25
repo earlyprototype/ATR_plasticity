@@ -475,12 +475,6 @@ class TestModeRandom:
 
         assert abs(cosine(p_r.delta, p_o.delta)) < 0.2
 
-    @pytest.mark.xfail(
-        reason="plasticity.py:210 -- _hook only subtracts the Oja decay term when "
-               "mode=='oja', so mode=='random' norm-matches the *Hebb* term instead "
-               "of 'what Oja would have applied' (docstring, plasticity.py:93)",
-        strict=True,
-    )
     def test_random_is_norm_matched_to_oja(self, toy_model, site, r0, atr_step):
         """
         The class docstring defines "random" as norm-matched to what Oja would
@@ -846,13 +840,6 @@ class TestTransposed:
         assert p._acc.shape == (p.W0.shape[1], p.W0.shape[0])
 
     @pytest.mark.parametrize("site_name", ["proj", "out"])
-    @pytest.mark.xfail(
-        reason="plasticity.py:204-207 -- the `if self.transposed:` branch in _hook is a "
-               "bare `pass`, so the promised flip never happens: delta stays (n_in, n_out) "
-               "while W0/module.weight are (n_out, n_in) and apply() raises RuntimeError "
-               "on a non-square nn.Linear (silently writes transposed on a square one)",
-        strict=True,
-    )
     def test_transposed_apply_keeps_a_valid_weight(self, linear_model, r0, atr_step, site_name):
         """
         The documented contract for transposed=True: the weight stays a valid
@@ -877,11 +864,6 @@ class TestTransposed:
         p.revert()
         assert torch.equal(p.module.weight, w_before)
 
-    @pytest.mark.xfail(
-        reason="plasticity.py:204-207 -- same bare-`pass` stub: with transposed=True the "
-               "update is never flipped into the (n_out, n_in) layout of the live weight",
-        strict=True,
-    )
     def test_transposed_update_is_written_in_the_weight_layout(self, linear_model, r0, atr_step):
         """
         Stronger form: the applied delta must be the transpose of the (n_in, n_out)

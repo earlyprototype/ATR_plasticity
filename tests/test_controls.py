@@ -511,16 +511,6 @@ def test_c0_cleans_up_when_the_engine_raises(toy_model, r0, atr_step, site):
     assert torch.equal(before, module.weight)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "c1_revert/c2_random_direction/c3_divergence_demo call install() and "
-        "revert()/remove() as bare statements (controls.py:93-97, 130-138, "
-        "169-182) instead of the `with` block c0_identity uses at line 60, so "
-        "an exception from atr_step leaks the forward hook and leaves the "
-        "weights perturbed"
-    ),
-)
 @pytest.mark.parametrize(
     "control, kwargs",
     [

@@ -5,16 +5,18 @@ change under the loop?*
 
 > **Status: scaffold. Nothing here has been executed against real weights.**
 > There is now a test suite (`pytest`, no download required) covering the
-> learning rules and the controls against a toy network, and it found three
-> defects, recorded as strict `xfail` and left unfixed in the source:
+> learning rules and the controls against a toy network. It found three defects,
+> all since fixed and each now held by a test that fails if it returns:
 >
-> 1. `transposed=True` never transposes — `_hook`'s branch is a bare `pass`, so
->    non-square `nn.Linear` raises in `apply()` and square `nn.Linear` silently
->    learns the update transposed.
-> 2. `mode="random"` is norm-matched to the raw Hebb term, not to Oja — so **C2
->    is biased**, worst at the large eta it is actually run at.
-> 3. C1, C2 and C3 leak their forward hook and leave the weights drifted if
->    `atr_step` raises, where C0 uses a `with` block and does not.
+> 1. `transposed=True` never transposed — `_hook`'s branch was a bare `pass`, so
+>    non-square `nn.Linear` raised in `apply()` and square `nn.Linear` silently
+>    learned the update transposed. The flip now happens in `apply()`.
+> 2. `mode="random"` was norm-matched to the raw Hebb term rather than to Oja,
+>    which **biased C2** — worst at the large eta C2 is actually run at. The
+>    decay term is now subtracted for `"random"` as well as `"oja"`.
+> 3. C1, C2 and C3 leaked their forward hook and left the weights drifted if
+>    `atr_step` raised, where C0 used a `with` block and did not. All three now
+>    remove the hook and revert the weights on the way out.
 >
 > A green suite is not C0 passing. Control C0 must still pass bit-exactly
 > against real weights before anything here produces a result worth recording.

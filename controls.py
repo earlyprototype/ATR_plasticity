@@ -90,11 +90,15 @@ def c1_revert(
     """
     baseline = _trajectory(model, r0, atr_step, n_iter)
 
-    plast = OjaPlasticity(model, site=site, eta=eta, mode="oja").install()
-    _trajectory(model, r0, atr_step, n_iter, plast=plast)
-    drifted = plast.report()["delta_frac"]
-    plast.revert()
-    plast.remove()
+    # `with` removes the hook, `finally` restores the weights -- both have to
+    # hold even when atr_step raises, or the next control in the sweep runs on
+    # a model this one quietly left modified.
+    with OjaPlasticity(model, site=site, eta=eta, mode="oja") as plast:
+        try:
+            _trajectory(model, r0, atr_step, n_iter, plast=plast)
+            drifted = plast.report()["delta_frac"]
+        finally:
+            plast.revert()
 
     after = _trajectory(model, r0, atr_step, n_iter)
 
@@ -127,15 +131,17 @@ def c2_random_direction(
     """
     out = {}
     for mode in ("oja", "random"):
-        plast = OjaPlasticity(model, site=site, eta=eta, mode=mode).install()
-        states = _trajectory(model, r0, atr_step, n_iter, plast=plast)
-        final = states[-1]
-        out[mode] = {
-            "delta_frac": plast.report()["delta_frac"],
-            "final_state": final,
-        }
-        plast.revert()
-        plast.remove()
+        with OjaPlasticity(model, site=site, eta=eta, mode=mode) as plast:
+            try:
+                states = _trajectory(model, r0, atr_step, n_iter, plast=plast)
+                out[mode] = {
+                    "delta_frac": plast.report()["delta_frac"],
+                    "final_state": states[-1],
+                }
+            finally:
+                # The second arm must start from the original weights, not from
+                # wherever the first one left them.
+                plast.revert()
 
     a, b = out["oja"]["final_state"], out["random"]["final_state"]
     cos = torch.nn.functional.cosine_similarity(
@@ -166,20 +172,23 @@ def c3_divergence_demo(
     """
     traces = {}
     for mode in ("hebb", "oja"):
-        plast = OjaPlasticity(
+        with OjaPlasticity(
             model, site=site, eta=eta, mode=mode, max_delta_frac=1e9
-        ).install()
-        fracs = []
-        r = r0.clone()
-        for _ in range(n_iter):
-            r = atr_step(model, r)
-            plast.apply()
-            fracs.append(plast.report()["delta_frac"])
-            if not torch.isfinite(r).all():
-                break
-        traces[mode] = fracs
-        plast.revert()
-        plast.remove()
+        ) as plast:
+            fracs = []
+            try:
+                r = r0.clone()
+                for _ in range(n_iter):
+                    r = atr_step(model, r)
+                    plast.apply()
+                    fracs.append(plast.report()["delta_frac"])
+                    if not torch.isfinite(r).all():
+                        break
+            finally:
+                # This control deliberately runs with the ceiling off, so an
+                # un-reverted hebb arm would hand the oja arm a wrecked matrix.
+                traces[mode] = fracs
+                plast.revert()
     return {"control": "C3_divergence_demo", "delta_frac_traces": traces}
 
 
