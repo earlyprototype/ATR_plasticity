@@ -1,0 +1,166 @@
+name: PR Board
+
+# Opens a Discussion thread for every new PR, so agents working in this repo
+# have one place to flag overlaps, raise concerns and hand context to each other.
+#
+# Advisory only: nothing here blocks a merge. See .github/PEER_BOARD_SETUP.md.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+permissions:
+  contents: read
+  discussions: write
+  pull-requests: write
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open board thread
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Everything from the event goes through env, never inline ${{ }} in
+          # run:, so a crafted PR title or body cannot inject shell.
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BOARD_CATEGORY: ${{ vars.BOARD_CATEGORY || 'PR Board' }}
+        run: |
+          set -euo pipefail
+          owner="${REPO%/*}"
+          name="${REPO#*/}"
+
+          # --- resolve the board category -------------------------------------
+          # A missing category means Discussions was never set up. That is a
+          # setup gap, not a reason to fail someone's PR.
+          repo_json=$(gh api graphql \
+            -f query='query($owner:String!,$name:String!){
+              repository(owner:$owner,name:$name){
+                id
+                hasDiscussionsEnabled
+                discussionCategories(first:50){nodes{id name}}
+              }
+            }' -F owner="$owner" -F name="$name")
+
+          enabled=$(jq -r '.data.repository.hasDiscussionsEnabled' <<<"$repo_json")
+          if [ "$enabled" != "true" ]; then
+            echo "::warning::Discussions is not enabled on $REPO — skipping board thread. See .github/PEER_BOARD_SETUP.md"
+            exit 0
+          fi
+
+          repo_id=$(jq -r '.data.repository.id' <<<"$repo_json")
+          cat_id=$(jq -r --arg c "$BOARD_CATEGORY" \
+            '.data.repository.discussionCategories.nodes[] | select(.name == $c) | .id' <<<"$repo_json")
+
+          if [ -z "$cat_id" ] || [ "$cat_id" = "null" ]; then
+            echo "::warning::No discussion category named '$BOARD_CATEGORY' — skipping. See .github/PEER_BOARD_SETUP.md"
+            exit 0
+          fi
+
+          # --- what does this PR claim? ---------------------------------------
+          # Closing keywords plus the bare "issue #N" form these repos use in
+          # spec and results prose.
+          claimed=$(printf '%s' "${PR_BODY:-}" \
+            | grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?|issue)[[:space:]]+#[0-9]+' \
+            | grep -oE '[0-9]+' | sort -un || true)
+
+          # --- who else is already on those issues? ---------------------------
+          open_prs=$(gh pr list --state open --limit 100 --json number,title,url,body)
+
+          claims_md=""
+          overlap_md=""
+          if [ -n "$claimed" ]; then
+            while read -r n; do
+              [ -z "$n" ] && continue
+              title=$(gh issue view "$n" --json title -q .title 2>/dev/null || echo "(not readable)")
+              claims_md="${claims_md}- #${n} — ${title}"$'\n'
+
+              others=$(jq -r --arg n "$n" --argjson me "$PR_NUMBER" '
+                [ .[]
+                  | select(.number != $me)
+                  | select((.body // "") | test("#" + $n + "([^0-9]|$)"))
+                  | "  - [#\(.number)](\(.url)) — \(.title)"
+                ] | .[]' <<<"$open_prs")
+
+              if [ -n "$others" ]; then
+                overlap_md="${overlap_md}- **#${n}** is also claimed by:"$'\n'"${others}"$'\n'
+              fi
+            done <<<"$claimed"
+          fi
+
+          [ -n "$claims_md" ] || claims_md="- _none declared in the PR body_"$'\n'
+
+          if [ -n "$overlap_md" ]; then
+            overlap_section="> [!WARNING]
+          > **Another open PR already claims this work.** Before reviewing further,
+          > read the overlapping PRs — if they duplicate each other, say so on this
+          > thread rather than letting both land.
+
+          ${overlap_md}"
+          else
+            overlap_section="_No other open PR claims these issues._"
+          fi
+
+          # --- open the thread -------------------------------------------------
+          body=$(cat <<EOF
+          **[#${PR_NUMBER} — ${PR_TITLE}](${PR_URL})**
+          opened by \`${PR_AUTHOR}\` · \`${PR_HEAD}\` → \`${PR_BASE}\`
+
+          ### Claimed issues
+          ${claims_md}
+          ### Overlap check
+          ${overlap_section}
+
+          ---
+
+          ### Agents: this thread is the board for this PR
+
+          Post here if you are working on anything this PR touches, or if you can
+          see something its author cannot. To post, comment **on the PR** with a
+          line starting \`BOARD:\` — it mirrors into this thread automatically.
+
+          | Prefix | Use it for |
+          |---|---|
+          | \`BOARD: CONCUR\` | Read it, no objection — worth recording so silence isn't ambiguous |
+          | \`BOARD: CONTEXT\` | Something the author likely didn't know (prior result, related run, a spec that already covers this) |
+          | \`BOARD: CONCERN\` | A methodological worry that should be answered before merge |
+          | \`BOARD: DUPLICATE\` | This repeats work already done or in flight — name the PR or commit |
+          | \`BOARD: COLLISION\` | An identifier clash: hypothesis number, experiment ID, spec filename |
+
+          Nothing here blocks the merge. A \`CONCERN\` or \`DUPLICATE\` is a flag for
+          TC to weigh, not a gate — the record matters more than the enforcement.
+          EOF
+          )
+
+          disc_url=$(gh api graphql \
+            -f query='mutation($repo:ID!,$cat:ID!,$title:String!,$body:String!){
+              createDiscussion(input:{repositoryId:$repo,categoryId:$cat,title:$title,body:$body}){
+                discussion{ number url }
+              }
+            }' \
+            -F repo="$repo_id" -F cat="$cat_id" \
+            -F title="PR #${PR_NUMBER}: ${PR_TITLE}" \
+            -F body="$body" \
+            --jq '.data.createDiscussion.discussion.url')
+
+          disc_num="${disc_url##*/}"
+          echo "Opened $disc_url"
+
+          # Back-link on the PR. The marker is how the mirror workflow finds this
+          # thread again — keep it on its own line and keep the format stable.
+          gh pr comment "$PR_NUMBER" --body "$(cat <<EOF
+          📋 **Board thread opened:** ${disc_url}
+
+          Agents working in this repo: flag overlaps, concerns or context there — or
+          comment here with a line starting \`BOARD:\` and it will be mirrored across.
+
+          <!-- pr-board:discussion=${disc_num} -->
+          EOF
+          )"
