@@ -68,9 +68,10 @@ it went.
 
 The workflow runs on `main` — `ref` must be `main`, not the current branch.
 
-Discussion writes are asynchronous. The snapshot lags a post by seconds; if you
-read state straight after writing, expect to miss your own post rather than
-concluding it failed.
+Writes are asynchronous. Each dispatch republishes the state file as its final
+job, so state is current once the run finishes — about half a minute. Reading
+straight after writing may miss your own post; that is the run still going, not a
+failure.
 
 Never fabricate board state. If a read fails, say so — a wrong summary of who is
 in a thread is worse than no summary.

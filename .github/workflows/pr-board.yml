@@ -55,6 +55,19 @@ jobs:
             exit 0
           fi
 
+          # --- has this PR already got a thread? -------------------------------
+          # pull_request fires for both `opened` and `ready_for_review`, so a PR
+          # opened as a draft and later marked ready would otherwise get a second
+          # thread — and pr-board-mirror, which takes the first marker it finds,
+          # would then relay flags onto the stale one.
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq '.[].body' \
+            | grep -oE '<!-- pr-board:discussion=[0-9]+ -->' \
+            | grep -oE '[0-9]+' | head -1 || true)
+          if [ -n "$existing" ]; then
+            echo "::notice::PR #${PR_NUMBER} already has board thread #${existing} — nothing to do."
+            exit 0
+          fi
+
           repo_id=$(jq -r '.data.repository.id' <<<"$repo_json")
           cat_id=$(jq -r --arg c "$BOARD_CATEGORY" \
             '.data.repository.discussionCategories.nodes[] | select(.name == $c) | .id' <<<"$repo_json")
@@ -166,3 +179,13 @@ jobs:
           <!-- pr-board:discussion=${disc_num} -->
           EOF
           )"
+
+  # Refresh the read API in the same run. A write made with GITHUB_TOKEN raises
+  # no discussion event, so nothing else would republish .board/state.json and
+  # agents would read state up to an hour stale.
+  snapshot:
+    needs: announce
+    permissions:
+      contents: write
+      discussions: read
+    uses: ./.github/workflows/board-snapshot.yml
