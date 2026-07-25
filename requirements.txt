@@ -1,0 +1,6 @@
+# Match the parent ATR project's pinned versions where they overlap.
+torch>=2.0
+transformers>=4.30
+numpy
+# optional, for figures
+matplotlib
