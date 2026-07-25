@@ -553,7 +553,7 @@ def test_controls_clean_up_when_the_engine_raises(
 # Module entry point
 # --------------------------------------------------------------------------
 
-def test_running_controls_directly_refuses(tmp_path):
+def test_running_controls_directly_refuses():
     """
     Failure means `python controls.py` runs something. The module deliberately
     has no default loop -- inventing one here would put an untested ATR
