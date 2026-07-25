@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import math
 
 import pytest
 import torch
@@ -707,6 +708,42 @@ class TestNonFinite:
         assert torch.equal(p.module.weight, w_before)
         assert torch.isfinite(p.module.weight).all()
         assert torch.equal(p.delta, torch.zeros_like(p.W0))
+
+    def test_overflowing_accumulated_delta_is_flagged_not_silently_zeroed(
+        self, toy_model, site, r0, atr_step
+    ):
+        """
+        The step itself stays finite, so the isfinite(step) guard above lets it
+        through; it is the *accumulated* delta whose float32 norm overflows.
+
+        Failure means the ceiling rescale computes ceiling/inf == 0, zeroes the
+        delta, and reports delta_frac == 0.0 with nonfinite == False -- a run
+        that blew up and reads as a run where nothing happened. c3_divergence_demo
+        sets max_delta_frac=1e9 deliberately, so this is on a path the repo
+        itself takes, and it was found only against real GPT-2 weights.
+        """
+        p = OjaPlasticity(toy_model, site=site, eta=1e22, mode="hebb",
+                          max_delta_frac=1e9)
+        w_before = p.module.weight.detach().clone()
+        with p:
+            drive(toy_model, r0, atr_step, n=1)
+
+            # The regime this test exists for: entries representable, float32
+            # sum-of-squares not. eta is tuned to sit exactly there.
+            step = p.eta * (p._acc / p._n_batches)
+            assert torch.isfinite(step).all(), "entries must stay finite"
+            assert step.norm().isinf(), "float32 norm must overflow; lower eta"
+            assert math.isfinite(step.double().norm().item())
+
+            rep = p.apply()
+
+        ceiling = p.max_delta_frac * p.W0_norm
+        assert rep["delta_norm"] > 0.0, "delta was silently zeroed by ceiling/inf"
+        assert rep["clipped"] is True
+        assert rep["delta_norm"] == pytest.approx(ceiling, rel=1e-5)
+        assert torch.isfinite(p.module.weight).all()
+        p.revert()
+        assert torch.equal(p.module.weight, w_before)
 
     def test_finite_run_does_not_raise_the_flag(self, toy_model, site, r0, atr_step):
         """A flag that fires on healthy runs is worse than no flag."""

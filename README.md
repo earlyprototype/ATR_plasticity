@@ -183,11 +183,41 @@ python3 -m venv .venv
 A Claude Code session does this for you: `.claude/hooks/session-start.sh` builds
 the venv on session start and exits early once it is there.
 
-Everything runs against a toy network in `tests/conftest.py` whose module tree
+The default run drives a toy network in `tests/conftest.py` whose module tree
 mirrors the parts of GPT-2 the plasticity layer reaches for — Conv1D weights of
-shape `(n_in, n_out)`, dotted paths like `transformer.h.1.mlp.c_proj`. That keeps
-the default suite offline and fast. Tests that would need real GPT-2 weights are
-marked `slow` and excluded from a bare `pytest`; run them with `pytest -m slow`.
+shape `(n_in, n_out)`, dotted paths like `transformer.h.1.mlp.c_proj`. That is
+what keeps it offline and fast enough to run on every push, and small enough that
+the learning rules can be checked against a closed form.
+
+### The GPT-2 small suite
+
+A toy alone is not enough, and the reason is specific: the toy's `Conv1D` is
+**our own reimplementation**, so any way in which it diverges from HuggingFace's
+would pass every test in the default run. The `slow` suite closes that gap
+against real weights.
+
+```bash
+.venv/bin/pip install -r requirements.txt     # transformers, for the real model
+.venv/bin/pytest -m slow                      # downloads gpt2 (~500MB) once
+```
+
+It checks what the toy cannot: that the real `transformer.h.6.mlp.c_proj` is a
+`Conv1D` of shape `(3072, 768)` in the `(n_in, n_out)` convention the rules
+assume, that our toy `Conv1D` reproduces HuggingFace's forward exactly, that C0
+holds bit-exactly on 124M real parameters, that `revert()` restores a real matrix
+bit-exactly, and that the C2 norm-match holds at real activation scale — which is
+where the old Hebb-vs-Oja bias was largest.
+
+CI runs the fast suite on every push and the GPT-2 suite on manual dispatch only.
+
+**One observation worth recording.** C0 on real GPT-2 has been seen to fail
+intermittently on CPU, twice, at deviations of 8.6e-05 and 6.3e-05 — and could
+not be reproduced in 80 controlled repeats, quiet and under load, nor in 16 cold
+processes. An unhooked-vs-unhooked control never differed. The hooks do not
+mutate anything, so the likely cause is nondeterministic parallel reduction
+order rather than contamination. If a `bit_exact` failure appears at that
+magnitude, suspect this before suspecting the hook — and note that DESIGN.md
+already lists nondeterminism as a way to get a wrong answer here.
 
 **A passing suite is not C0 passing.** The tests check that the learning rules
 compute what they claim, that the ceiling and `revert()` hold, and that each
@@ -201,6 +231,7 @@ against real weights, and it is still the first thing to run.
 plasticity.py   OjaPlasticity: hooks, Oja/Hebb/random rules, delta tracking, revert
 controls.py     C0-C3, each taking your atr_step as an argument
 tests/          pytest suite: toy-model fixtures, rule correctness, control gates
+                test_gpt2_small.py is the `slow` layer, run against real weights
 DESIGN.md       measurement plan, failure modes, what would falsify what
 requirements.txt        torch, transformers -- the experiment
 requirements-dev.txt    pytest -- the suite

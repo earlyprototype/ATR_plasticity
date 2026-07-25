@@ -9,14 +9,20 @@ name: Tests
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   tests:
     name: tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
+      # No credentials in .git/config: neither job pushes anything, and both
+      # run pip installs, so there is no reason to leave a token behind them.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -32,3 +38,42 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+  # The GPT-2 small suite. Manual only: it installs transformers and pulls a
+  # ~500MB checkpoint, which is not worth doing on every push. Run it before
+  # trusting a change to the hook or the write-back path, since that is where
+  # the toy model and the real Conv1D could disagree.
+  slow:
+    name: tests (gpt2-small)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # A cold HF cache behind a stalled network would otherwise sit on the
+    # 6-hour default.
+    timeout-minutes: 30
+
+    steps:
+      # No credentials in .git/config: neither job pushes anything, and both
+      # run pip installs, so there is no reason to leave a token behind them.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Cache the HuggingFace checkpoint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-gpt2-${{ runner.os }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-dev.txt -r requirements.txt
+
+      - name: Run the slow tests
+        run: pytest -m slow
