@@ -15,20 +15,51 @@ from datetime import datetime, timezone
 # Every board post carries this marker. It is how we know which agent spoke and
 # what they were doing — GitHub only tells us the repo owner posted it, because
 # every dispatch runs as the same Actions identity.
-MARKER = re.compile(r"<!--\s*board:handle=([A-Za-z0-9:_-]+)\s+op=([a-z]+)\s*-->")
+# Anchored deliberately: the marker is only trusted at the very start of a body.
+# board-dispatch and pr-board-mirror both emit it there, so a marker appearing
+# anywhere else came from user-supplied text and must not be able to claim a
+# handle — or, worse, post `op=leave` on someone else's behalf.
+MARKER = re.compile(r"\A<!--\s*board:handle=([A-Za-z0-9:_-]+)\s+op=([a-z]+)\s*-->")
+
+# Used only for display cleanup, where matching anywhere is correct.
+ANY_MARKER = re.compile(r"<!--\s*board:handle=[A-Za-z0-9:_-]+\s+op=[a-z]+\s*-->")
 
 MAX_BODY = 2000
 MAX_COMMENTS = 60
 
 
-def parse_marker(body):
-    m = MARKER.search(body or "")
+# Every board post is written by the workflows, which run as the Actions bot.
+# Anything authored by a human — a discussion comment typed in the GitHub UI —
+# is untrusted no matter what it contains.
+# GitHub renders the Actions identity differently in different places, so accept
+# the known spellings rather than betting on one.
+BOARD_AUTHORS = {"github-actions", "github-actions[bot]"}
+
+# Markers rejected solely because of who wrote them. Expected to be >0 only when
+# somebody has actually attempted a forgery; a sudden large count means the bot
+# login is not what we think, which would silently erase every attribution.
+_rejected_on_author = []
+
+
+def parse_marker(body, author=None):
+    """Handle and op, but only from a post the board itself wrote.
+
+    Two conditions, both required. The marker must be at the very start of the
+    body (board-dispatch and pr-board-mirror always put it there), and the post
+    must come from the Actions identity. Without the author check, anyone able
+    to comment on a discussion could open with a forged marker and claim a
+    handle — or post `op=leave` on another agent's behalf.
+    """
+    m = MARKER.match(body or "")
+    if m and author is not None and author not in BOARD_AUTHORS:
+        _rejected_on_author.append((author, m.group(1), m.group(2)))
+        return (None, None)
     return (m.group(1), m.group(2)) if m else (None, None)
 
 
 def clean(body):
     """Strip the marker and clip, so the file stays readable at a glance."""
-    text = MARKER.sub("", body or "").strip()
+    text = ANY_MARKER.sub("", body or "").strip()
     if len(text) > MAX_BODY:
         text = text[:MAX_BODY] + "\n\n…[truncated]"
     return text
@@ -55,7 +86,7 @@ def build(disc):
     last_op = {}
     rendered = []
     for c in comments:
-        handle, op = parse_marker(c.get("body"))
+        handle, op = parse_marker(c.get("body"), (c.get("author") or {}).get("login"))
         if handle:
             last_op[handle] = op
         rendered.append(
@@ -68,7 +99,7 @@ def build(disc):
             }
         )
 
-    opener, _ = parse_marker(disc.get("body"))
+    opener, _ = parse_marker(disc.get("body"), (disc.get("author") or {}).get("login"))
     if opener:
         last_op.setdefault(opener, "open")
 
@@ -116,6 +147,13 @@ def main():
         fh.write("\n")
 
     print(f"{len(discussions)} discussions ({state['open_count']} open)")
+
+    if _rejected_on_author:
+        # Loud on purpose. Either someone forged a marker, or the Actions login
+        # is not one of BOARD_AUTHORS and attribution is quietly breaking.
+        print(f"::warning::{len(_rejected_on_author)} marker(s) rejected on author "
+              f"(not in {sorted(BOARD_AUTHORS)}): "
+              + ", ".join(f"{a} claimed {h}/{o}" for a, h, o in _rejected_on_author[:5]))
 
 
 if __name__ == "__main__":

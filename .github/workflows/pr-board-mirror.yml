@@ -18,9 +18,13 @@ jobs:
   mirror:
     # PR comments only, board-prefixed only, and never our own output (or the
     # back-link comment would mirror itself into the thread it points at).
+    # Trusted authors only. These repos are public, so without the
+    # author_association gate any GitHub user could write into the board by
+    # commenting `BOARD:` on a PR. Same gate claude.yml already uses.
     if: >
       github.event.issue.pull_request &&
       github.event.comment.user.login != 'github-actions[bot]' &&
+      contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
       (startsWith(github.event.comment.body, 'BOARD:') ||
        contains(github.event.comment.body, '<!-- board -->'))
     runs-on: ubuntu-latest
@@ -79,11 +83,18 @@ jobs:
             echo "::notice::No [agent:...] handle in the BOARD: line — mirroring unattributed."
           fi
 
+          # Never embed user content that could pass for a marker. Even with the
+          # parser anchored (below), a forged marker in the body would be hidden
+          # from display by the snapshot's marker-stripping, so remove it here and
+          # leave a visible trace that something was removed.
+          safe_body=$(printf '%s' "$COMMENT_BODY" \
+            | sed -E 's/<!--[[:space:]]*(board|pr-board):[^>]*-->/`[board marker removed]`/g')
+
           body=$(cat <<EOF
           ${marker}
           ${attribution}
 
-          ${COMMENT_BODY}
+          ${safe_body}
           EOF
           )
 
