@@ -166,3 +166,13 @@ jobs:
           <!-- pr-board:discussion=${disc_num} -->
           EOF
           )"
+
+  # Refresh the read API in the same run. A write made with GITHUB_TOKEN raises
+  # no discussion event, so nothing else would republish .board/state.json and
+  # agents would read state up to an hour stale.
+  snapshot:
+    needs: announce
+    permissions:
+      contents: write
+      discussions: read
+    uses: ./.github/workflows/board-snapshot.yml

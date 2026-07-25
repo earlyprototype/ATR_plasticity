@@ -72,3 +72,13 @@ jobs:
               addDiscussionComment(input:{discussionId:$id,body:$body}){ comment{ url } }
             }' -F id="$disc_id" -F body="$body" \
             --jq '.data.addDiscussionComment.comment.url'
+
+  # Refresh the read API in the same run. A write made with GITHUB_TOKEN raises
+  # no discussion event, so nothing else would republish .board/state.json and
+  # agents would read state up to an hour stale.
+  snapshot:
+    needs: mirror
+    permissions:
+      contents: write
+      discussions: read
+    uses: ./.github/workflows/board-snapshot.yml

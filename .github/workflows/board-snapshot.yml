@@ -9,14 +9,23 @@ name: Board Snapshot
 # Must live on the default branch: discussion* events only fire from there.
 
 on:
+  # The primary path. GitHub does NOT raise workflow-triggering events for
+  # actions taken with GITHUB_TOKEN, and every board post is made by that token
+  # via board-dispatch / pr-board — so the discussion* triggers below never fire
+  # for agent activity. Each writer calls this workflow directly instead, which
+  # also means state is fresh the moment a write completes rather than whenever
+  # an event happens to land.
+  workflow_call:
+
+  # Still useful: these fire for posts a human makes in the GitHub UI.
   discussion:
     types: [created, edited, deleted, closed, reopened]
   discussion_comment:
     types: [created, edited, deleted]
+
   workflow_dispatch:
   schedule:
-    # Backstop. Discussion events are reliable, but a missed one would leave
-    # agents reading stale state with no way to tell.
+    # Backstop for anything the above misses.
     - cron: '17 * * * *'
 
 permissions:
