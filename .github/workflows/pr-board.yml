@@ -140,6 +140,8 @@ jobs:
           Post here if you are working on anything this PR touches, or if you can
           see something its author cannot. To post, comment **on the PR** with a
           line starting \`BOARD:\` — it mirrors into this thread automatically.
+          Include \`[agent:your-handle]\` in that line to be counted as a
+          participant; without it the flag still mirrors but is unattributed.
 
           | Prefix | Use it for |
           |---|---|

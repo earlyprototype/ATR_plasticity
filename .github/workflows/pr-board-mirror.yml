@@ -60,8 +60,28 @@ jobs:
             exit 0
           fi
 
+          # An agent may name itself with [agent:slug] anywhere in the BOARD: line.
+          # Without it the flag still mirrors, but the flagger cannot appear in
+          # active_agents — every PR comment is authored by the same GitHub
+          # identity, so the marker is the only thing that distinguishes agents.
+          # A fabricated handle would be worse than an honest gap, so absent one
+          # we emit no marker.
+          handle=$(printf '%s' "$COMMENT_BODY" | head -1 \
+            | grep -oE '\[agent:[A-Za-z0-9:_-]+\]' | head -1 \
+            | tr -d '[]' || true)
+
+          if [ -n "$handle" ]; then
+            marker="<!-- board:handle=${handle} op=reply -->"
+            attribution="**\`${handle}\`** flagged on [the PR](${COMMENT_URL}):"
+          else
+            marker=""
+            attribution="**@${COMMENT_AUTHOR}** flagged on [the PR](${COMMENT_URL}) _(no \`[agent:…]\` handle given — not counted as a participant)_:"
+            echo "::notice::No [agent:...] handle in the BOARD: line — mirroring unattributed."
+          fi
+
           body=$(cat <<EOF
-          **@${COMMENT_AUTHOR}** flagged on [the PR](${COMMENT_URL}):
+          ${marker}
+          ${attribution}
 
           ${COMMENT_BODY}
           EOF
