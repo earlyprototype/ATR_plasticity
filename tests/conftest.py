@@ -36,6 +36,10 @@ import torch
 # The site README nominates as the first target: MLP down-projection, mid-stack
 # (layer 6 of 12).
 SITE = "transformer.h.6.mlp.c_proj"
+# The same matrix, as TransformerLens names it. Both spellings address
+# W_out of block 6's MLP; only the module tree around it differs.
+TL_SITE = "blocks.6.mlp"
+TL_LAYER = 6
 
 N_LAYER = 12
 D_MODEL = 768
@@ -123,6 +127,36 @@ def hf_conv1d():
     except ImportError as exc:
         _unavailable(f"transformers.pytorch_utils is not importable: {exc}")
     return Conv1D
+
+
+@pytest.fixture(scope="session")
+def tl_gpt2():
+    """
+    GPT-2 small as a TransformerLens `HookedTransformer` -- the object the ATR
+    engine actually runs on, and therefore the one the plasticity layer has to
+    attach to for any experiment to happen.
+
+    Same weights as the `gpt2` fixture, a different module tree: the MLP output
+    matrix is a bare `nn.Parameter` called `W_out` on `blocks.{L}.mlp`, with no
+    enclosing module carrying a 2-D `.weight`.
+    """
+    try:
+        from transformer_lens import HookedTransformer
+    except ImportError as exc:
+        _unavailable(f"transformer_lens is not importable: {exc}")
+    try:
+        model = HookedTransformer.from_pretrained("gpt2", device="cpu")
+    except (OSError, ImportError) as exc:
+        _unavailable(f"GPT-2 small not loadable for TransformerLens: {exc}")
+    model.eval()
+    model.requires_grad_(False)
+    return model
+
+
+@pytest.fixture(scope="session")
+def tl_site() -> str:
+    """The TransformerLens spelling of the default target."""
+    return TL_SITE
 
 
 @pytest.fixture(scope="session")

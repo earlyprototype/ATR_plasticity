@@ -100,25 +100,26 @@ destroys it.**
 - **eta ladder:** 0 (C0), then 1e-6, 3e-6, 1e-5, 3e-5, 1e-4. Half-orders.
 - **Horizon:** 200 iterations per eta. The cycle is locked in from ~250 and stable to
   1000, so 200 is ample to see it break or hold.
-- **Cadence:** see the trap below.
+- **Cadence: `k=1`. Apply every iteration. Do not sweep it.**
 - **Log per iteration:** cos at **lag 1 and lag 2**, L2(A,B), p(top1) and entropy in
   both phases, and `delta_norm` / `delta_frac` / `clipped` / `nonfinite`.
 
-### The cadence trap — the reason this needs saying out loud
+### Why cadence is fixed at 1
 
-F9 was hidden for months because every snapshot schedule sampled even iterations, and
-an even-only schedule samples a period-2 orbit at one phase.
+There is a real aliasing trap here — the same one that hid F9 for months, one level
+up. Applying the update every `k=2` iterations on a period-2 cycle drives every update
+from phase A's activations and never phase B's: not plasticity on the cycle, but
+plasticity on half of it, biased along whatever direction separates the phases.
 
-**The same trap now exists one level up, in the plasticity schedule.** Applying the
-weight update every `k=2` iterations on a period-2 cycle means every update is driven
-by phase A's activations and never phase B's. That is not "plasticity on the cycle";
-it is plasticity on half of it, and it would bias the weight change along whatever
-direction distinguishes the phases.
+The answer is not to reason carefully about which `k` is safe. It is to not create the
+problem: **`k=1` cannot alias against anything**, and it is also the tightest coupling
+of the two loops, which is the regime this experiment is about. Cadence is a free
+parameter with a real biological reading (the ratio of fast to slow dynamics) and it
+deserves a sweep — but not here, and not before a single-cadence result exists to
+compare a sweep against.
 
-**Use odd cadence (k=1, or k=3).** If k=2 is run at all, run it as a deliberate
-contrast — "updating in phase" versus "updating across phases" is itself a real
-question, and F10 says the A↔B flip is a rank-1 self-negating mode, so the two
-cadences may pull in opposite directions.
+If cadence is ever swept, `k=2` on a period-2 cycle is the one value that must be read
+as a phase-locked special case rather than a point on a curve.
 
 ## 4. Outcomes, and what each would mean
 
