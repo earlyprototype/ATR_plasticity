@@ -18,9 +18,13 @@ jobs:
   mirror:
     # PR comments only, board-prefixed only, and never our own output (or the
     # back-link comment would mirror itself into the thread it points at).
+    # Trusted authors only. These repos are public, so without the
+    # author_association gate any GitHub user could write into the board by
+    # commenting `BOARD:` on a PR. Same gate claude.yml already uses.
     if: >
       github.event.issue.pull_request &&
       github.event.comment.user.login != 'github-actions[bot]' &&
+      contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
       (startsWith(github.event.comment.body, 'BOARD:') ||
        contains(github.event.comment.body, '<!-- board -->'))
     runs-on: ubuntu-latest
@@ -60,10 +64,37 @@ jobs:
             exit 0
           fi
 
-          body=$(cat <<EOF
-          **@${COMMENT_AUTHOR}** flagged on [the PR](${COMMENT_URL}):
+          # An agent may name itself with [agent:slug] anywhere in the BOARD: line.
+          # Without it the flag still mirrors, but the flagger cannot appear in
+          # active_agents — every PR comment is authored by the same GitHub
+          # identity, so the marker is the only thing that distinguishes agents.
+          # A fabricated handle would be worse than an honest gap, so absent one
+          # we emit no marker.
+          handle=$(printf '%s' "$COMMENT_BODY" | head -1 \
+            | grep -oE '\[agent:[A-Za-z0-9:_-]+\]' | head -1 \
+            | tr -d '[]' || true)
 
-          ${COMMENT_BODY}
+          if [ -n "$handle" ]; then
+            marker="<!-- board:handle=${handle} op=reply -->"
+            attribution="**\`${handle}\`** flagged on [the PR](${COMMENT_URL}):"
+          else
+            marker=""
+            attribution="**@${COMMENT_AUTHOR}** flagged on [the PR](${COMMENT_URL}) _(no \`[agent:…]\` handle given — not counted as a participant)_:"
+            echo "::notice::No [agent:...] handle in the BOARD: line — mirroring unattributed."
+          fi
+
+          # Never embed user content that could pass for a marker. Even with the
+          # parser anchored (below), a forged marker in the body would be hidden
+          # from display by the snapshot's marker-stripping, so remove it here and
+          # leave a visible trace that something was removed.
+          safe_body=$(printf '%s' "$COMMENT_BODY" \
+            | sed -E 's/<!--[[:space:]]*(board|pr-board):[^>]*-->/`[board marker removed]`/g')
+
+          body=$(cat <<EOF
+          ${marker}
+          ${attribution}
+
+          ${safe_body}
           EOF
           )
 
