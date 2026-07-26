@@ -187,10 +187,27 @@ def test_initial_state_from_prompt_reproduces_the_saved_initial_norm(tl_gpt2, di
     Provenance check on the whole read path: same tokenisation (BOS prepended,
     10 positions), same read hook, same dtype as the run that produced the file.
     If this drifts, resumed runs and fresh runs are no longer comparable.
+
+    Approximate, not exact, and the reason matters. The checkpoint was written
+    on the author's machine; this recomputes it on whatever hardware is running
+    the suite. A float32 forward pass does not reproduce bit-for-bit across BLAS
+    implementations -- observed 1468.48828125 on a CI runner against
+    1468.4886474609375 in the file, a relative difference of 2.5e-07. Asserting
+    equality there tests the runner's floating-point behaviour, not this repo's.
+
+    The tolerance is still tight enough to catch what this test is for: a
+    different tokenisation, a wrong read hook point or a dtype change would move
+    the norm by orders of magnitude more than 1e-06.
+
+    Consequence for EXP-001, worth stating because it is easy to get wrong when
+    resuming: use the `initial_norm` STORED IN THE FILE as the rescale target,
+    not a recomputed one. `load_state` does. Recomputing would silently put a
+    resumed run on a slightly different energy shell than the run that produced
+    the checkpoint.
     """
     state = initial_state(tl_gpt2, divine_state.prompt, layer_end=LAYER_END)
     assert tuple(state.tensor.shape) == DIVINE_SHAPE
-    assert state.initial_norm == divine_state.initial_norm
+    assert state.initial_norm == pytest.approx(divine_state.initial_norm, rel=1e-6)
 
 
 # --------------------------------------------------------------------------
