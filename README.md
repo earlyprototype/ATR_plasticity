@@ -3,10 +3,16 @@
 *What happens to a model's attractor landscape when the weights are allowed to
 change under the loop?*
 
-> **Status: scaffold. Nothing here has been executed against real weights.**
-> There is now a test suite (`pytest`, no download required) covering the
-> learning rules and the controls against a toy network. It found three defects,
-> all since fixed and each now held by a test that fails if it returns:
+> **Status: scaffold, now exercised against real GPT-2 small — but not yet
+> against the ATR loop.** `pytest` runs 91 tests on real weights. What has *not*
+> happened is a single iteration of the actual experiment: the plasticity layer
+> does not yet attach to the parent project's model at all, because that runs
+> TransformerLens and this was written against HuggingFace naming. See
+> [EXP_001_SPEC.md](EXP_001_SPEC.md), which specifies the bridge and the first
+> experiment to run over it.
+>
+> The suite found three defects, all since fixed and each now held by a test that
+> fails if it returns:
 >
 > 1. `transposed=True` never transposed — `_hook`'s branch was a bare `pass`, so
 >    non-square `nn.Linear` raised in `apply()` and square `nn.Linear` silently
@@ -170,45 +176,49 @@ other order** — which is the strongest reason to keep both repos in view at on
 
 ## Running the test suite
 
-The controls above are the gate on *results*. The test suite below is the gate on
-the code that runs them — it does not need a real model, a download, or a GPU.
+The controls above are the gate on *results*. The test suite is the gate on the
+code that runs them. **Every test runs against real GPT-2 small.**
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest
+.venv/bin/pytest                 # 91 tests, ~15s; downloads gpt2 (~500MB) once
 ```
 
 A Claude Code session does this for you: `.claude/hooks/session-start.sh` builds
 the venv on session start and exits early once it is there.
 
-The default run drives a toy network in `tests/conftest.py` whose module tree
-mirrors the parts of GPT-2 the plasticity layer reaches for — Conv1D weights of
-shape `(n_in, n_out)`, dotted paths like `transformer.h.1.mlp.c_proj`. That is
-what keeps it offline and fast enough to run on every push, and small enough that
-the learning rules can be checked against a closed form.
+There is no toy model and no fast/slow split. There was a toy, and it was removed
+on purpose: its `Conv1D` was **our own reimplementation**, so any way in which it
+diverged from HuggingFace's would have passed every test in the suite. A stand-in
+that can quietly disagree with the thing it stands in for is not a test of the
+thing. Two assertions that had passed against the toy turned out to be false on
+real weights — see the Hebb/Oja note below.
 
-### The GPT-2 small suite
+What the suite checks: that `transformer.h.6.mlp.c_proj` really is a `Conv1D` of
+shape `(3072, 768)` in the `(n_in, n_out)` convention the rules assume; that the
+learning rules match a closed form reconstructed from real activations; that C0
+holds bit-exactly on 124M real parameters and *fails* when handed a hook that
+perturbs; that `revert()` restores a real matrix bit-exactly; and that the C2
+norm-match holds at real activation scale.
 
-A toy alone is not enough, and the reason is specific: the toy's `Conv1D` is
-**our own reimplementation**, so any way in which it diverges from HuggingFace's
-would pass every test in the default run. The `slow` suite closes that gap
-against real weights.
+One `nn.Linear` fixture survives, clearly labelled as a code-path fixture rather
+than a model: GPT-2 is Conv1D at all 48 of its candidate sites, so nothing real
+exercises `transposed=True`.
 
-```bash
-.venv/bin/pip install -r requirements.txt     # transformers, for the real model
-.venv/bin/pytest -m slow                      # downloads gpt2 (~500MB) once
-```
+CI runs the whole suite on every push, with the checkpoint cached. It sets
+`ATR_REQUIRE_MODEL=1`, which turns "GPT-2 unavailable" from a skip into a
+failure — without it a runner missing the model skips all 91 tests and exits 0,
+and a check that cannot fail is worse than no check.
 
-It checks what the toy cannot: that the real `transformer.h.6.mlp.c_proj` is a
-`Conv1D` of shape `(3072, 768)` in the `(n_in, n_out)` convention the rules
-assume, that our toy `Conv1D` reproduces HuggingFace's forward exactly, that C0
-holds bit-exactly on 124M real parameters, that `revert()` restores a real matrix
-bit-exactly, and that the C2 norm-match holds at real activation scale — which is
-where the old Hebb-vs-Oja bias was largest.
-
-CI runs the fast suite on every push and the GPT-2 suite on manual dispatch only.
+**Hebb and Oja invert between the toy and the real model.** At the real weight
+scale `‖W‖_F = 164.9`, the Oja decay term `W<y yᵀ>` *dominates* the Hebb term
+`<x yᵀ>` — mean update norms 34,685 against 331, a factor of ~100 — where on the
+toy the two were within a percent. "Hebb diverges, Oja does not" is a claim about
+growth across a run, not about which update is larger at any step. An eta
+calibrated from a Hebb trace is orders of magnitude wrong for Oja at the same
+site.
 
 **One observation worth recording.** C0 on real GPT-2 has been seen to fail
 intermittently on CPU, twice, at deviations of 8.6e-05 and 6.3e-05 — and could
@@ -230,11 +240,11 @@ against real weights, and it is still the first thing to run.
 ```
 plasticity.py   OjaPlasticity: hooks, Oja/Hebb/random rules, delta tracking, revert
 controls.py     C0-C3, each taking your atr_step as an argument
-tests/          pytest suite: toy-model fixtures, rule correctness, control gates
-                test_gpt2_small.py is the `slow` layer, run against real weights
+tests/          pytest suite, all of it against real GPT-2 small
+EXP_001_SPEC.md the proposed first experiment, and the bridge it needs first
 DESIGN.md       measurement plan, failure modes, what would falsify what
 requirements.txt        torch, transformers -- the experiment
-requirements-dev.txt    pytest -- the suite
+requirements-dev.txt    pytest and transformers -- the suite
 pyproject.toml          pytest configuration
 ```
 

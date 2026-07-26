@@ -2,5 +2,9 @@
 torch>=2.0
 transformers>=4.30
 numpy
+# The parent ATR engine runs on a TransformerLens HookedTransformer, and the
+# plasticity layer attaches to that same object -- so this is a runtime
+# dependency of the experiment, not just of the tests.
+transformer-lens>=1.14
 # optional, for figures
 matplotlib

@@ -12,11 +12,8 @@ testpaths = ["tests"]
 # rather than the one that accidentally worked.
 pythonpath = ["."]
 
-# -m "not slow" is the default so a bare `pytest` never reaches the network.
-# A -m on the command line replaces it: `pytest -m slow` runs the excluded set,
-# `pytest -m ""` runs everything.
-addopts = "-q --strict-markers --strict-config -m 'not slow'"
-
-markers = [
-  "slow: needs a real HuggingFace model download; excluded from the default run",
-]
+# No marker selection. There is no fast/slow split any more: every test runs
+# against real GPT-2 small, so a bare `pytest` is the whole suite. --strict-markers
+# and --strict-config keep a typo'd marker or config key an error rather than a
+# silently skipped test.
+addopts = "-q --strict-markers --strict-config"

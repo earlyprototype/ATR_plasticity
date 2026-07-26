@@ -22,6 +22,19 @@ Do not port the ATR loop into this repo. Import it, or copy the tested engine
 verbatim. The whole point of this scaffold is that the plasticity layer is the
 only new, untested thing.
 
+Two model backends are supported, addressed by two spellings of the same site:
+
+    HuggingFace   OjaPlasticity(model, "transformer.h.6.mlp.c_proj")
+    TransformerLens
+                  OjaPlasticity(model, "blocks.6.mlp")
+
+The parent ATR project runs TransformerLens, where the MLP down-projection is a
+bare `nn.Parameter` named `W_out` on `blocks.{L}.mlp` -- there is no module with
+a 2-D `.weight`, and no module whose forward maps x -> y for that matrix alone.
+The learning rules are unchanged by this; only three things differ (where the
+live weight lives, how to write it, how to capture x and y) and they are behind
+`_SiteAdapter` below. See "Site adapters".
+
 STATUS: written but never executed against real weights. The eta=0 identity
 check (see README, Control C0) is the first thing you should run, and it must
 pass bit-exactly before any result here means anything.
@@ -70,6 +83,205 @@ def _oja_decay(w: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 # --------------------------------------------------------------------------
+# Site adapters
+# --------------------------------------------------------------------------
+# A "site" is one weight matrix plus the pre- and post-synaptic activity that
+# flows through it. Everything else in this module -- the rules, the delta, the
+# ceiling, revert, report -- is written against those three facts and nothing
+# else. An adapter supplies exactly them:
+#
+#   .weight        the live 2-D tensor (read)
+#   .write(w)      overwrite it in place
+#   .install(sink) start feeding sink(x, y) on every forward; return a handle
+#   .remove(h)     undo exactly that, and nothing else
+#
+# Two backends:
+#
+#   _WeightModuleSite       a dotted path to an nn.Module with a 2-D .weight,
+#                           whose forward maps x -> y. HuggingFace GPT-2's
+#                           Conv1D, and nn.Linear via transposed=True. This is
+#                           the original behaviour, unchanged.
+#   _TransformerLensMLPSite "blocks.{L}.mlp", meaning that MLP's W_out. The
+#                           matrix is a bare Parameter and no single module's
+#                           forward is the matmul, so x and y are read from the
+#                           two TransformerLens hook points that bracket it.
+#
+# Adding a third backend means writing four methods, not touching a rule.
+
+
+def _resolve_path(model: nn.Module, path: str):
+    """Resolve a dotted path, indexing ModuleLists on numeric components."""
+    obj = model
+    for part in path.split("."):
+        obj = obj[int(part)] if part.isdigit() else getattr(obj, part)
+    return obj
+
+
+def _is_hooked_transformer(model: nn.Module) -> bool:
+    """
+    Duck-typed, so importing this module never requires transformer_lens.
+
+    `hook_dict` (name -> HookPoint) is what makes a model a TransformerLens
+    `HookedRootModule`; `blocks` is what makes it a `HookedTransformer`.
+    """
+    return (
+        hasattr(model, "hook_dict")
+        and hasattr(model, "add_hook")
+        and hasattr(model, "blocks")
+    )
+
+
+class _WeightModuleSite:
+    """Site = an nn.Module with a 2-D `.weight` whose forward maps x -> y."""
+
+    backend = "module"
+
+    def __init__(self, model: nn.Module, site: str):
+        self.module = _resolve_path(model, site)
+        w = getattr(self.module, "weight", None)
+        if not torch.is_tensor(w) or w.dim() != 2:
+            raise TypeError(f"{site} has no 2-D .weight; not a supported target")
+
+    @property
+    def weight(self) -> torch.Tensor:
+        return self.module.weight
+
+    def write(self, w: torch.Tensor) -> None:
+        with torch.no_grad():
+            self.module.weight.copy_(w)
+
+    def install(self, sink):
+        # The sink IS a torch forward hook here, registered directly. Not
+        # wrapped: `tests/test_controls.py` injects its C0 defect by
+        # subclassing OjaPlasticity and overriding `_hook`, and that override
+        # only bites if the method torch calls is the one the subclass
+        # replaced. See the note on the sink shape in `install()` below.
+        return self.module.register_forward_hook(sink)
+
+    @staticmethod
+    def remove(handle) -> None:
+        handle.remove()
+
+
+class _TransformerLensMLPSite:
+    """
+    Site = `blocks.{L}.mlp` on a `HookedTransformer`, meaning that MLP's W_out.
+
+    W_out is a bare `nn.Parameter` of shape (d_mlp, d_model) -- already the
+    (n_in, n_out) convention the rules are written in, same as Conv1D -- so no
+    transpose is involved anywhere on this path.
+
+    x and y come from the two hook points that bracket the matmul:
+
+        x  blocks.{L}.mlp.hook_post   (d_mlp)   post-activation, input to W_out
+        y  blocks.{L}.hook_mlp_out    (d_model) MLP output, x @ W_out + b_out
+
+    hook_post fires first and its tensor is held until hook_mlp_out fires, at
+    which point the pair is handed to the sink. If a forward ever reached
+    hook_mlp_out without hook_post -- it cannot, in a single-threaded pass --
+    the pair is dropped rather than mismatched.
+
+    HOOK HYGIENE. These are plain `torch` forward hooks on the HookPoint
+    modules, registered with `register_forward_hook` and removed by their own
+    handles. Deliberately NOT `model.add_hook`, whose only documented teardown
+    is `model.reset_hooks()`: that clears every hook on the model, including the
+    injection hook the caller's ATR engine reinstalls every iteration. This
+    layer must be removable without touching anything it did not install, and
+    symmetrically it stays out of TransformerLens's own `fwd_hooks` bookkeeping,
+    so the engine's `reset_hooks()` does not silently detach the instrument
+    mid-run either. `remove()` here is exactly the inverse of `install()`.
+    """
+
+    backend = "transformer_lens"
+
+    def __init__(self, model: nn.Module, site: str):
+        layer = self._parse(site)
+        try:
+            self.module = model.blocks[layer].mlp
+        except (IndexError, AttributeError) as exc:
+            raise TypeError(f"{site} does not name an MLP on this model: {exc}") from exc
+
+        w = getattr(self.module, "W_out", None)
+        if not torch.is_tensor(w) or w.dim() != 2:
+            raise TypeError(f"{site} has no 2-D W_out; not a supported target")
+
+        hooks = getattr(model, "hook_dict", {})
+        self._x_point = hooks.get(f"blocks.{layer}.mlp.hook_post")
+        self._y_point = hooks.get(f"blocks.{layer}.hook_mlp_out")
+        if self._x_point is None or self._y_point is None:
+            raise TypeError(
+                f"{site}: model lacks blocks.{layer}.mlp.hook_post / "
+                f"blocks.{layer}.hook_mlp_out, so pre- and post-synaptic "
+                "activity cannot be observed"
+            )
+        self._pending = None
+
+    @staticmethod
+    def _parse(site: str) -> int:
+        """
+        Canonical spelling is `blocks.{L}.mlp`; `blocks.{L}.mlp.W_out` is
+        accepted as an alias because it is the spelling someone reading the
+        module tree reaches for first, and rejecting it costs a debugging hour
+        for no benefit.
+        """
+        parts = site.split(".")
+        if parts and parts[-1] == "W_out":
+            parts = parts[:-1]
+        if len(parts) == 3 and parts[0] == "blocks" and parts[1].isdigit() \
+                and parts[2] == "mlp":
+            return int(parts[1])
+        raise TypeError(
+            f"{site!r} is not a supported TransformerLens site. Spell it "
+            "'blocks.{L}.mlp' -- the site names the MLP module and means its "
+            "W_out. Attention sites are not offered: TransformerLens stores "
+            "W_Q/W_K/W_V/W_O per head, 3-D, and the rules here are 2-D."
+        )
+
+    @property
+    def weight(self) -> torch.Tensor:
+        return self.module.W_out
+
+    def write(self, w: torch.Tensor) -> None:
+        with torch.no_grad():
+            self.module.W_out.copy_(w)
+
+    def install(self, sink):
+        self._pending = None
+
+        def _on_x(_module, _inputs, output):
+            if torch.is_tensor(output):
+                self._pending = output
+
+        def _on_y(_module, _inputs, output):
+            x, self._pending = self._pending, None
+            if torch.is_tensor(x) and torch.is_tensor(output):
+                # Called in the torch forward-hook shape, (module, inputs,
+                # output), even though no single module computed this matmul.
+                # That is deliberate: it keeps ONE capture entry point across
+                # both backends, so a subclass overriding `_hook` -- which is
+                # how the C0 fail-direction test injects its defect -- bites
+                # here too rather than silently doing nothing.
+                sink(self.module, (x,), output)
+
+        return (
+            self._x_point.register_forward_hook(_on_x),
+            self._y_point.register_forward_hook(_on_y),
+        )
+
+    def remove(self, handles) -> None:
+        for h in handles:
+            h.remove()
+        self._pending = None
+
+
+def _make_site(model: nn.Module, site: str):
+    """Pick the adapter from the model, not from the site string."""
+    if _is_hooked_transformer(model):
+        return _TransformerLensMLPSite(model, site)
+    return _WeightModuleSite(model, site)
+
+
+# --------------------------------------------------------------------------
 # Main class
 # --------------------------------------------------------------------------
 
@@ -82,8 +294,12 @@ class OjaPlasticity:
     model : nn.Module
         The transformer. Left otherwise untouched.
     site : str
-        Dotted path to the target module, e.g. "transformer.h.6.mlp.c_proj".
-        Must be a module with a 2-D `.weight`.
+        The target weight matrix, spelled for the model's backend:
+          HuggingFace     "transformer.h.6.mlp.c_proj" -- a dotted path to a
+                          module with a 2-D `.weight`.
+          TransformerLens "blocks.6.mlp" -- names the MLP module and means its
+                          `W_out`. `candidate_sites(model)` lists the options
+                          in the right spelling for whichever model you pass.
     eta : float
         Learning rate. Start absurdly small (1e-6) and work up. There is no
         gradient here and no optimiser to save you.
@@ -101,7 +317,8 @@ class OjaPlasticity:
         silently destroying the model. Held to float32 precision rather than
         exactly -- expect overshoot of order 1e-8 relative on a large matrix.
     transposed : bool
-        Set True for nn.Linear (weight is (n_out, n_in)). False for Conv1D.
+        Set True for nn.Linear (weight is (n_out, n_in)). False for Conv1D and
+        for TransformerLens W_out, both of which are already (n_in, n_out).
     device / dtype
         Inferred from the target weight.
     """
@@ -130,12 +347,17 @@ class OjaPlasticity:
         self.max_delta_frac = float(max_delta_frac)
         self.transposed = bool(transposed)
 
-        self.module = self._resolve(model, site)
-        if not hasattr(self.module, "weight") or self.module.weight.dim() != 2:
-            raise TypeError(f"{site} has no 2-D .weight; not a supported target")
+        # The adapter is the only thing that knows which backend this is; it
+        # raises TypeError here if the site is not a 2-D matrix with observable
+        # pre- and post-synaptic activity.
+        self._site = _make_site(model, site)
+        self.backend = self._site.backend
+        # The enclosing module of the target matrix: the Conv1D/Linear itself on
+        # the HuggingFace path, the MLP on the TransformerLens one.
+        self.module = self._site.module
 
         # Frozen reference copy. Everything is measured against this.
-        self.W0 = self.module.weight.detach().clone()
+        self.W0 = self._site.weight.detach().clone()
         # float64 throughout for the norms: a float32 Frobenius norm of a
         # 3072x768 matrix carries ~3e-4 relative error from summation alone,
         # and delta_frac -- the number every run logs -- is a ratio of two of
@@ -165,23 +387,24 @@ class OjaPlasticity:
 
     @staticmethod
     def _resolve(model: nn.Module, path: str) -> nn.Module:
-        obj = model
-        for part in path.split("."):
-            if part.isdigit():
-                obj = obj[int(part)]
-            else:
-                obj = getattr(obj, part)
-        return obj
+        return _resolve_path(model, path)
 
     def install(self) -> "OjaPlasticity":
         if self._handle is not None:
             return self
-        self._handle = self.module.register_forward_hook(self._hook)
+        # `_hook` keeps torch's forward-hook signature on BOTH backends, even
+        # though the TransformerLens one has no single module behind the
+        # matmul. One capture entry point, one name to override: the C0
+        # fail-direction test subclasses this class and replaces `_hook` to
+        # prove the gate can fail, and a second name would quietly break that.
+        self._handle = self._site.install(self._hook)
         return self
 
     def remove(self) -> None:
         if self._handle is not None:
-            self._handle.remove()
+            # Removes precisely what install() added -- see the hook-hygiene
+            # note on _TransformerLensMLPSite. Never a model-wide reset.
+            self._site.remove(self._handle)
             self._handle = None
 
     def __enter__(self) -> "OjaPlasticity":
@@ -302,16 +525,17 @@ class OjaPlasticity:
         return self.report()
 
     def _write_weight(self) -> None:
-        with torch.no_grad():
-            self.module.weight.copy_(self.W0 + self.delta)
+        # Through the adapter, not `self.module.weight`: on TransformerLens the
+        # target is a bare Parameter named W_out and there is no `.weight` to
+        # copy into. Every write to the live matrix goes through here.
+        self._site.write(self.W0 + self.delta)
 
     def revert(self) -> None:
         """Restore the original weight exactly and zero the accumulated delta."""
         self.delta = torch.zeros_like(self.W0)
         self._acc = None
         self._n_batches = 0
-        with torch.no_grad():
-            self.module.weight.copy_(self.W0)
+        self._site.write(self.W0)
 
     # --------------------------------------------------------------- report
 
@@ -342,11 +566,13 @@ class OjaPlasticity:
 # Convenience: enumerate plausible target sites in a GPT-2-like model
 # --------------------------------------------------------------------------
 
-def candidate_sites(model: nn.Module, prefix: str = "transformer.h") -> list[str]:
+def candidate_sites(model: nn.Module, prefix: Optional[str] = None) -> list[str]:
     """
-    List 2-D weight matrices that make sensible plasticity targets.
+    List the plasticity targets this model offers, spelled for its backend.
 
-    Preferred first targets, in order:
+    On a HuggingFace GPT-2, sites are dotted paths to modules with a 2-D
+    `.weight`, and `prefix` filters them (default `transformer.h`). Preferred
+    first targets, in order:
       1. `mlp.c_proj`  -- pre and post activity both cleanly defined, and the
          MLP down-projection is the least entangled place to perturb.
       2. `attn.c_proj` -- the OV output circuit.
@@ -354,10 +580,27 @@ def candidate_sites(model: nn.Module, prefix: str = "transformer.h") -> list[str
          cleanly interpretable.
     Avoid `attn.c_attn` initially: it packs Q, K and V into one matrix, so a
     Hebbian update there is three different experiments at once.
+
+    On a TransformerLens `HookedTransformer` -- the model the ATR engine
+    actually runs -- the only offered sites are `blocks.{L}.mlp`, meaning that
+    MLP's `W_out`. That is deliberately narrower than the HuggingFace list:
+    `W_in` has no post-synaptic activity that is cleanly the output of a single
+    matmul (the nonlinearity sits in between), and the attention matrices are
+    stored per-head and 3-D, which the 2-D rules here cannot address at all.
+    Returning a site this module cannot actually attach to would be worse than
+    returning fewer.
     """
+    if _is_hooked_transformer(model):
+        sites = []
+        for layer, block in enumerate(model.blocks):
+            w = getattr(getattr(block, "mlp", None), "W_out", None)
+            if torch.is_tensor(w) and w.dim() == 2:
+                sites.append(f"blocks.{layer}.mlp")
+        return sites
+
     out = []
     for name, mod in model.named_modules():
-        if not name.startswith(prefix):
+        if not name.startswith(prefix if prefix is not None else "transformer.h"):
             continue
         w = getattr(mod, "weight", None)
         if torch.is_tensor(w) and w.dim() == 2:

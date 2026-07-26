@@ -1,2 +1,13 @@
-# Test-time only. Runtime deps (torch, transformers) stay in requirements.txt.
+# Test-time dependencies.
+#
+# transformers is here, not only in requirements.txt, because every test now
+# runs against real GPT-2 small -- there is no toy model any more. A runner that
+# installs pytest alone gets a suite that skips itself and exits 0.
+#
+# transformer-lens because the parent ATR project runs its loop on a
+# HookedTransformer, so that is the model the plasticity layer has to attach to
+# for any experiment to happen. Testing only the HuggingFace spelling would
+# leave the gap this repo exists to cross untested.
 pytest>=7.0
+transformers>=4.30
+transformer-lens>=1.14
