@@ -141,10 +141,19 @@ dead.
 2. **C1** revert — the cycle must return to `cos(A, f(f(A))) = 1.000000` after
    `revert()`, from the same saved state.
 3. **C2** norm-matched random direction at whatever eta first moves the cycle. **This
-   is the one that decides whether the branch is interesting.** Note the known
-   subtlety: the norm match is per-update, and accumulated Oja steps are correlated
-   where random ones are a walk, so cumulative drift diverges with iteration count —
-   compare at matched *cumulative* `delta_frac`, not just matched eta.
+   is the one that decides whether the branch is interesting.** Two known subtleties,
+   both of which have to be handled or C2's verdict is not worth much:
+
+   - The norm match is per-update, and accumulated Oja steps are correlated where
+     random ones are a walk, so cumulative drift diverges with iteration count
+     (ratio ~1/√2 after two applies, measured). Compare at matched *cumulative*
+     `delta_frac`, not just at matched eta.
+   - **`c2_random_direction` never plumbs `seed` through** — both arms construct
+     `OjaPlasticity` without it, so the random arm always draws with `seed=0`. As
+     it stands C2 is a single random sample, not a distribution. For a binary
+     outcome like "did the cycle break", one draw is not enough: run the random arm
+     over several seeds and report how many broke it. `OjaPlasticity` already takes
+     the parameter; the control just does not expose it. Fix before running C2.
 4. **The fixed-point control:** the same eta on `state_prolet.pt`. If plasticity
    breaks the cycle *and* destroys the fixed point, the result is "perturbing weights
    changes things". If the cycle breaks while the fixed point holds, the result is

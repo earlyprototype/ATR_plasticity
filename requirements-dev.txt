@@ -1,2 +1,7 @@
-# Test-time only. Runtime deps (torch, transformers) stay in requirements.txt.
+# Test-time dependencies.
+#
+# transformers is here, not only in requirements.txt, because every test now
+# runs against real GPT-2 small -- there is no toy model any more. A runner that
+# installs pytest alone gets a suite that skips itself and exits 0.
 pytest>=7.0
+transformers>=4.30

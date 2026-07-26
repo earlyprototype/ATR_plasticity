@@ -2,9 +2,13 @@ name: Tests
 
 # The pytest suite. Unrelated to the four board workflows in this directory.
 #
-# CPU-only torch from the pytorch wheel index — the CI runner has no GPU and the
-# CUDA wheels are ~2GB. The default pytest run excludes the `slow` marker, so
-# nothing here downloads a HuggingFace model.
+# One job, because there is no fast/slow split any more: the toy model is gone
+# and every test runs against real GPT-2 small. That means the checkpoint is a
+# hard dependency of the suite rather than an optional extra, so it is cached
+# here and the run is told to fail if it is missing.
+#
+# CPU-only torch from the pytorch wheel index — the runner has no GPU and the
+# CUDA wheels are ~2GB.
 
 on:
   push:
@@ -15,11 +19,13 @@ jobs:
   tests:
     name: tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A cold checkpoint download behind a stalled network would otherwise sit on
+    # the 6-hour default.
+    timeout-minutes: 30
 
     steps:
-      # No credentials in .git/config: neither job pushes anything, and both
-      # run pip installs, so there is no reason to leave a token behind them.
+      # No credentials in .git/config: this job pushes nothing and runs pip
+      # installs, so there is no reason to leave a token behind it.
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -29,39 +35,6 @@ jobs:
           python-version: '3.11'
           cache: pip
           cache-dependency-path: requirements-dev.txt
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements-dev.txt
-
-      - name: Run tests
-        run: pytest
-
-  # The GPT-2 small suite. Manual only: it installs transformers and pulls a
-  # ~500MB checkpoint, which is not worth doing on every push. Run it before
-  # trusting a change to the hook or the write-back path, since that is where
-  # the toy model and the real Conv1D could disagree.
-  slow:
-    name: tests (gpt2-small)
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    # A cold HF cache behind a stalled network would otherwise sit on the
-    # 6-hour default.
-    timeout-minutes: 30
-
-    steps:
-      # No credentials in .git/config: neither job pushes anything, and both
-      # run pip installs, so there is no reason to leave a token behind them.
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: pip
 
       - name: Cache the HuggingFace checkpoint
         uses: actions/cache@v4
@@ -73,7 +46,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements-dev.txt -r requirements.txt
+          pip install -r requirements-dev.txt
 
-      - name: Run the slow tests
-        run: pytest -m slow
+      # ATR_REQUIRE_MODEL turns "GPT-2 unavailable" from a skip into a failure.
+      # Without it, a runner missing transformers or the checkpoint skips the
+      # whole suite and still exits 0 — measured at 84 of 91 tests skipped, job
+      # green. A check that cannot fail is worse than no check.
+      - name: Run tests
+        env:
+          ATR_REQUIRE_MODEL: '1'
+        run: pytest
