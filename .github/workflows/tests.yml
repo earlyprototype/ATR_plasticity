@@ -30,6 +30,17 @@ jobs:
         with:
           persist-credentials: false
 
+      # The parent ATR project, for the bridge's acceptance test: iterating our
+      # per-step engine must reproduce atr_engine.run_atr_loop bit-exactly.
+      # Without this checkout that test skips, and the single guarantee that
+      # atr_bridge.py is an extraction rather than a second ATR implementation
+      # would hold only on the author's machine. Measured: 4 skipped, job green.
+      - uses: actions/checkout@v4
+        with:
+          repository: earlyprototype/lucier-gpt2-activ-tensor-reson-experiments
+          path: .parent-atr
+          persist-credentials: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -48,11 +59,15 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements-dev.txt
 
-      # ATR_REQUIRE_MODEL turns "GPT-2 unavailable" from a skip into a failure.
-      # Without it, a runner missing transformers or the checkpoint skips the
-      # whole suite and still exits 0 — measured at 84 of 91 tests skipped, job
-      # green. A check that cannot fail is worse than no check.
+      # Both REQUIRE flags turn "the thing under test is unavailable" from a
+      # skip into a failure. Without ATR_REQUIRE_MODEL, a runner missing
+      # transformers or the checkpoint skips the whole suite and still exits 0
+      # — measured at 84 of 91 skipped, job green. Without ATR_REQUIRE_PARENT,
+      # the bit-exactness acceptance test skips the same way. A check that
+      # cannot fail is worse than no check.
       - name: Run tests
         env:
           ATR_REQUIRE_MODEL: '1'
+          ATR_REQUIRE_PARENT: '1'
+          ATR_PARENT_PATH: ${{ github.workspace }}/.parent-atr
         run: pytest
