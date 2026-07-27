@@ -531,10 +531,26 @@ class OjaPlasticity:
         self._site.write(self.W0 + self.delta)
 
     def revert(self) -> None:
-        """Restore the original weight exactly and zero the accumulated delta."""
+        """
+        Restore the original weight exactly and reset to a clean slate.
+
+        The diagnostics reset too, and they have to: `report()` is the
+        per-iteration log schema, and an instance reused across a revert would
+        otherwise report `clipped: true` for a run that never clipped, or a
+        `nonfinite` flag raised by a previous eta. `n_applied` counts applies
+        since the last reset, matching every other field in `report()`, which
+        is measured against the current run rather than the object's lifetime.
+
+        The controls dodge this by constructing a fresh instance per arm. A
+        caller logging one instance across a sweep does not.
+        """
         self.delta = torch.zeros_like(self.W0)
         self._acc = None
         self._n_batches = 0
+        self.n_applied = 0
+        self.clipped = False
+        self.nonfinite = False
+        self._last_update_norm = 0.0
         self._site.write(self.W0)
 
     # --------------------------------------------------------------- report
