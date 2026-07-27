@@ -286,13 +286,18 @@ def test_c2_random_direction_contract(gpt2, r0, atr_step, site):
     orders apart the "norm-matched" premise is broken and any difference in the
     final states is a magnitude effect wearing a direction costume.
     """
-    out = c2_random_direction(gpt2, r0, atr_step, site, eta=1e-6, n_iter=3)
+    out = c2_random_direction(gpt2, r0, atr_step, site, eta=1e-6, n_iter=3, seeds=(0, 1))
 
     assert set(out) == {
         "control",
+        "seeds",
         "cos_oja_vs_random_final",
+        "cos_per_seed",
+        "cos_min",
+        "cos_max",
         "delta_frac_oja",
         "delta_frac_random",
+        "delta_frac_random_per_seed",
         "note",
     }
     assert out["control"] == "C2_random_direction"
@@ -311,6 +316,56 @@ def test_c2_random_direction_contract(gpt2, r0, atr_step, site):
     assert isinstance(cos, float)
     assert math.isfinite(cos)
     assert -1.0 - 1e-5 <= cos <= 1.0 + 1e-5
+
+
+def test_c2_random_arm_actually_varies_with_the_seed(gpt2, r0, atr_step, site):
+    """
+    THE POINT OF THE SEEDS ARGUMENT. Before it existed, both arms were
+    constructed without a seed, so the random arm always drew the same matrix:
+    C2 was a single sample dressed as a control, and "the direction matters"
+    could not be told apart from "that one direction happened to differ".
+
+    Failure means the seeds are not reaching the random draw and every entry in
+    cos_per_seed is the same number -- a distribution with no spread, which is
+    exactly the failure this argument was added to remove.
+    """
+    seeds = (0, 1, 2)
+    out = c2_random_direction(gpt2, r0, atr_step, site, eta=1e-4, n_iter=2, seeds=seeds)
+
+    assert out["seeds"] == list(seeds)
+    assert len(out["cos_per_seed"]) == len(seeds)
+    assert len(out["delta_frac_random_per_seed"]) == len(seeds)
+
+    # Distinct draws: no two seeds may give the same trajectory.
+    assert len(set(out["cos_per_seed"])) == len(seeds), out["cos_per_seed"]
+
+    # The reported headline is the mean of the per-seed values, and the min/max
+    # bracket them -- so a reader who quotes only the headline is quoting
+    # something the spread can contradict, and can see that it can.
+    assert out["cos_oja_vs_random_final"] == pytest.approx(
+        sum(out["cos_per_seed"]) / len(seeds)
+    )
+    assert out["cos_min"] == min(out["cos_per_seed"])
+    assert out["cos_max"] == max(out["cos_per_seed"])
+    assert out["cos_min"] <= out["cos_oja_vs_random_final"] <= out["cos_max"]
+
+
+def test_c2_is_reproducible_for_the_same_seeds(gpt2, r0, atr_step, site):
+    """
+    Failure means C2's verdict moves between runs of the same configuration,
+    so a rerun cannot confirm or refute the previous one.
+    """
+    kw = dict(eta=1e-4, n_iter=2, seeds=(0, 1))
+    first = c2_random_direction(gpt2, r0, atr_step, site, **kw)
+    second = c2_random_direction(gpt2, r0, atr_step, site, **kw)
+    assert first["cos_per_seed"] == second["cos_per_seed"]
+    assert first["delta_frac_random_per_seed"] == second["delta_frac_random_per_seed"]
+
+
+def test_c2_rejects_an_empty_seed_list(gpt2, r0, atr_step, site):
+    """Failure means C2 can be run with no random arm at all and still return."""
+    with pytest.raises(ValueError, match="at least one seed"):
+        c2_random_direction(gpt2, r0, atr_step, site, eta=1e-6, n_iter=2, seeds=())
 
 
 def test_c2_cumulative_delta_frac_of_the_two_arms_is_not_norm_matched(
