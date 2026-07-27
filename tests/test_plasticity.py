@@ -675,6 +675,68 @@ class TestCeiling:
 
 class TestRevert:
 
+    def test_revert_clears_the_diagnostics_not_just_the_weights(
+        self, gpt2, site, r0, atr_step
+    ):
+        """
+        report() is the per-iteration log schema DESIGN.md specifies. If revert()
+        restores the weights but leaves `clipped` set, an instance reused across
+        a sweep reports a run as clipped that never clipped, and `n_applied`
+        keeps counting across resets -- so the log says the ceiling bound at an
+        eta where it did not, which is exactly the diagnostic an operator uses
+        to decide whether a landscape change is real or an artefact of clipping.
+
+        The controls dodge this by building a fresh instance per arm. A caller
+        logging one instance does not, and the docs never told them to.
+        """
+        p = OjaPlasticity(gpt2, site=site, eta=1e3, mode="oja", max_delta_frac=1e-4)
+        try:
+            with p:
+                drive(gpt2, r0, atr_step, n=2)
+                dirty = p.apply()
+
+            # Precondition: this run really did trip the flags being tested.
+            assert dirty["clipped"] is True
+            assert dirty["n_applied"] == 1
+            assert dirty["delta_norm"] > 0.0
+            assert dirty["last_update_norm"] > 0.0
+        finally:
+            p.revert()
+
+        clean = p.report()
+        assert clean["clipped"] is False
+        assert clean["nonfinite"] is False
+        assert clean["n_applied"] == 0
+        assert clean["delta_norm"] == 0.0
+        assert clean["delta_frac"] == 0.0
+        assert clean["last_update_norm"] == 0.0
+
+    def test_a_reused_instance_reports_the_current_run_not_the_previous_one(
+        self, gpt2, site, r0, atr_step
+    ):
+        """
+        The same object, a clipping run then a safe one. Failure means the
+        second run inherits the first's verdict -- the concrete way the stale
+        diagnostics mislead, since a sweep down an eta ladder reusing one
+        instance would report every eta as clipped once the largest one was.
+        """
+        p = OjaPlasticity(gpt2, site=site, eta=1e3, mode="oja", max_delta_frac=1e-4)
+        try:
+            with p:
+                drive(gpt2, r0, atr_step, n=2)
+                assert p.apply()["clipped"] is True
+            p.revert()
+
+            p.eta = 1e-9                      # far below the ceiling
+            with p:
+                drive(gpt2, r0, atr_step, n=2)
+                second = p.apply()
+
+            assert second["clipped"] is False, "verdict inherited from the previous run"
+            assert second["n_applied"] == 1, "n_applied counted across the reset"
+        finally:
+            p.revert()
+
     def test_revert_restores_bit_exactly(self, gpt2, site, r0, atr_step):
         """
         Control C1, on a 3072x768 matrix that took real compute to produce.

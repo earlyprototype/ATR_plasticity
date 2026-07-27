@@ -15,7 +15,7 @@ here reimplements the loop.
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 import torch
 
@@ -118,6 +118,7 @@ def c2_random_direction(
     site: str,
     eta: float,
     n_iter: int = 200,
+    seeds: Sequence[int] = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
 ) -> dict:
     """
     C2 -- is the update DIRECTION doing the work, or just its magnitude?
@@ -128,31 +129,66 @@ def c2_random_direction(
     much changes things", which is not a finding about Hebbian learning.
 
     This is the control that decides whether the branch is interesting.
+
+    THE RANDOM ARM IS RUN ONCE PER SEED, and that is the point of the `seeds`
+    argument. A single random matrix is one sample from the space of directions
+    of that magnitude; a verdict read off one draw cannot distinguish "the
+    direction matters" from "that particular direction happened to differ".
+    The spread across seeds is the measurement, so `cos_*` is reported as a
+    distribution and `cos_oja_vs_random_final` is its MEAN -- read
+    `cos_per_seed` before concluding anything from it.
+
+    Pass a single seed only when you want a cheap smoke test, and say so in
+    whatever you write up.
     """
-    out = {}
-    for mode in ("oja", "random"):
-        with OjaPlasticity(model, site=site, eta=eta, mode=mode) as plast:
+    seeds = tuple(seeds)
+    if not seeds:
+        raise ValueError("c2_random_direction needs at least one seed")
+
+    with OjaPlasticity(model, site=site, eta=eta, mode="oja") as plast:
+        try:
+            oja_states = _trajectory(model, r0, atr_step, n_iter, plast=plast)
+            oja_final = oja_states[-1]
+            oja_frac = plast.report()["delta_frac"]
+        finally:
+            # Every later arm must start from the original weights, not from
+            # wherever this one left them.
+            plast.revert()
+
+    cos_per_seed: list[float] = []
+    frac_per_seed: list[float] = []
+    for seed in seeds:
+        with OjaPlasticity(
+            model, site=site, eta=eta, mode="random", seed=seed
+        ) as plast:
             try:
                 states = _trajectory(model, r0, atr_step, n_iter, plast=plast)
-                out[mode] = {
-                    "delta_frac": plast.report()["delta_frac"],
-                    "final_state": states[-1],
-                }
+                frac_per_seed.append(plast.report()["delta_frac"])
+                cos_per_seed.append(
+                    torch.nn.functional.cosine_similarity(
+                        oja_final.flatten().unsqueeze(0),
+                        states[-1].flatten().unsqueeze(0),
+                    ).item()
+                )
             finally:
-                # The second arm must start from the original weights, not from
-                # wherever the first one left them.
                 plast.revert()
 
-    a, b = out["oja"]["final_state"], out["random"]["final_state"]
-    cos = torch.nn.functional.cosine_similarity(
-        a.flatten().unsqueeze(0), b.flatten().unsqueeze(0)
-    ).item()
+    n = len(cos_per_seed)
+    mean_cos = sum(cos_per_seed) / n
     return {
         "control": "C2_random_direction",
-        "cos_oja_vs_random_final": cos,
-        "delta_frac_oja": out["oja"]["delta_frac"],
-        "delta_frac_random": out["random"]["delta_frac"],
-        "note": "cos near 1.0 means the direction is NOT doing the work",
+        "seeds": list(seeds),
+        "cos_oja_vs_random_final": mean_cos,
+        "cos_per_seed": cos_per_seed,
+        "cos_min": min(cos_per_seed),
+        "cos_max": max(cos_per_seed),
+        "delta_frac_oja": oja_frac,
+        "delta_frac_random": sum(frac_per_seed) / n,
+        "delta_frac_random_per_seed": frac_per_seed,
+        "note": (
+            "cos near 1.0 means the direction is NOT doing the work. "
+            "Read cos_per_seed, not just the mean: one draw is not a control."
+        ),
     }
 
 
