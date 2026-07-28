@@ -1,0 +1,30 @@
+{
+  "state": "/workspace/lucier-gpt2-activ-tensor-reson-experiments/experiments/gpt2_small/output_divine_motion/state_divine.pt",
+  "state_iteration": 1000,
+  "initial_norm": 1468.4886474609375,
+  "n_continued": 24,
+  "lag_scan_mean_vec": {
+    "1": 0.6849116683006287,
+    "2": 1.0,
+    "3": 0.6849116683006287,
+    "4": 1.0,
+    "5": 0.6849116683006287,
+    "6": 1.0,
+    "7": 0.6849116683006287,
+    "8": 1.0
+  },
+  "lag_scan_last_vec": {
+    "1": 0.6849115490913391,
+    "2": 1.0,
+    "3": 0.6849116683006287,
+    "4": 1.0,
+    "5": 0.6849116683006287,
+    "6": 1.0,
+    "7": 0.6849116683006287,
+    "8": 1.0
+  },
+  "published_lag1": 0.684912,
+  "published_lag2": 1.0,
+  "classified_period2": true,
+  "pass": true
+}

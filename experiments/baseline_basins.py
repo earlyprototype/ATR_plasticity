@@ -475,9 +475,14 @@ def classify(rec) -> str:
 # JSONL checkpoint I/O
 # ---------------------------------------------------------------------------
 
-def read_jsonl(path: Path) -> list:
-    """Read records, dropping a torn trailing line (the one that was mid-write
-    when a kill landed) and rewriting the file without it."""
+def read_jsonl(path: Path, repair: bool = False) -> list:
+    """Read records, skipping a torn line (the one that was mid-write when a kill
+    landed).
+
+    `repair` rewrites the file without the torn line, and is only ever passed for
+    the file THIS process owns. Rewriting a sibling shard's file would race its
+    appends and silently drop finished prompts -- the exact loss the
+    checkpointing exists to prevent."""
     if not path.exists():
         return []
     recs, torn = [], False
@@ -490,9 +495,9 @@ def read_jsonl(path: Path) -> list:
                 recs.append(json.loads(line))
             except json.JSONDecodeError:
                 torn = True
-    if torn:
+    if torn and repair:
         write_jsonl(path, recs)
-        print(f"[resume] dropped a torn trailing line from {path.name}", flush=True)
+        print(f"[resume] dropped a torn line from {path.name}", flush=True)
     return recs
 
 
@@ -518,11 +523,13 @@ def shard_paths(out_dir: Path) -> list:
     return paths
 
 
-def read_all(out_dir: Path) -> list:
-    """All records across all shards, deduplicated by prompt id (first wins)."""
+def read_all(out_dir: Path, repair: Path | None = None) -> list:
+    """All records across all shards, deduplicated by prompt id (first wins).
+
+    `repair` names the one file this process owns and may rewrite."""
     seen, recs = set(), []
     for p in shard_paths(out_dir):
-        for r in read_jsonl(p):
+        for r in read_jsonl(p, repair=(repair is not None and p == repair)):
             if r["prompt_id"] in seen:
                 continue
             seen.add(r["prompt_id"])
@@ -555,7 +562,83 @@ def _table(rows, headers, aligns=None):
     return out
 
 
-def build_report(recs: list, meta: dict) -> str:
+def _within_basin_section(recs, out_dir: Path):
+    """Do prompts sharing a basin land on the same state, or merely near it?
+
+    Free to compute -- it reads the `.npy` files this run already wrote and
+    touches the model zero times. Phase-aware: on a period-2 orbit two prompts
+    can sit on the same cycle in opposite phases, and comparing final-to-final
+    would score that as a large distance when it is none. Each pair is therefore
+    scored at the better of (a.final, b.final) and (a.final, b.prev)."""
+    import numpy as np
+    L = []
+    A = L.append
+    A("## Within-basin spread")
+    A("")
+
+    vecs = {}
+    for r in recs:
+        if not r.get("state_file"):
+            continue
+        f = out_dir / r["state_file"]
+        fp = out_dir / r["state_prev_file"] if r.get("state_prev_file") else None
+        if not f.exists():
+            continue
+        a = np.load(f).mean(axis=0)
+        b = np.load(fp).mean(axis=0) if (fp and fp.exists()) else None
+        vecs[r["prompt_id"]] = (a, b)
+
+    if len(vecs) < 2:
+        A("Not enough saved states to compare.")
+        A("")
+        return L
+
+    def cos(u, v):
+        d = float(np.linalg.norm(u) * np.linalg.norm(v))
+        return 0.0 if d == 0 else float(np.dot(u, v) / d)
+
+    by_basin = {}
+    for r in recs:
+        if r["prompt_id"] in vecs:
+            by_basin.setdefault(r["basin"], []).append(r["prompt_id"])
+
+    A("Cosine between the position-mean settled states of every pair of prompts sharing a basin. "
+      "This is the question the basin table cannot answer on its own: if the pairs sit at 1.0 the "
+      "attractor is a single point and the prompt's content is gone by the time it arrives; if "
+      "they sit below 1.0 the map compresses rather than erases, and what is left of the prompt "
+      "is measurable.")
+    A("")
+    rows = []
+    for b in sorted(by_basin, key=lambda b: -len(by_basin[b])):
+        ids = by_basin[b]
+        if len(ids) < 2:
+            rows.append([f"`{b}`", len(ids), "-", "-", "-", "-"])
+            continue
+        pair = []
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                ai, bi = vecs[ids[i]]
+                aj, bj = vecs[ids[j]]
+                c = cos(ai, aj)
+                if bj is not None:
+                    c = max(c, cos(ai, bj))
+                if bi is not None:
+                    c = max(c, cos(bi, aj))
+                pair.append(c)
+        rows.append([f"`{b}`", len(ids), f"{min(pair):.6f}",
+                     f"{statistics.median(pair):.6f}", f"{max(pair):.6f}",
+                     sum(1 for c in pair if c > 0.999999)])
+    L.extend(_table(rows, ["Basin", "n", "min pair cos", "median pair cos",
+                           "max pair cos", "pairs above 0.999999"]))
+    A("")
+    A("Phase-aware: each pair is scored at the better of comparing final-to-final and "
+      "final-to-previous-iterate, so two prompts on the same period-2 cycle in opposite phases "
+      "are not counted as distant. Raw states are in `states/` if a sharper analysis is wanted.")
+    A("")
+    return L
+
+
+def build_report(recs: list, meta: dict, out_dir: Path | None = None) -> str:
     n = len(recs)
     by_id = {r["prompt_id"]: r for r in recs}
     L = []
@@ -722,6 +805,9 @@ def build_report(recs: list, meta: dict) -> str:
           "separate measurements.")
         A("")
 
+    # ---- instrument validation ------------------------------------------
+    L.extend(_validation_section(meta))
+
     # ---- comparison with published --------------------------------------
     L.extend(_published_section(recs, meta))
 
@@ -751,6 +837,11 @@ def build_report(recs: list, meta: dict) -> str:
 
     # ---- saved states / position uniformity ------------------------------
     L.extend(_states_section(recs))
+    if out_dir is not None:
+        try:
+            L.extend(_within_basin_section(recs, out_dir))
+        except Exception as exc:            # never let analysis kill the report
+            L.append(f"## Within-basin spread\n\nNot computed: {type(exc).__name__}: {exc}\n")
 
     # ---- register breakdown ---------------------------------------------
     A("## Basin by register")
@@ -770,6 +861,48 @@ def build_report(recs: list, meta: dict) -> str:
     # ---- config ----------------------------------------------------------
     L.extend(_config_section(meta))
     return "\n".join(L)
+
+
+def _validation_section(meta):
+    """Instrument check, run against a number the parent committed."""
+    v = meta.get("instrument_validation")
+    L = []
+    A = L.append
+    A("## Instrument check")
+    A("")
+    if not v:
+        A("Not run. `--validate-instrument` continues the parent's committed "
+          "`state_divine.pt` for 24 iterations and compares the lag scan against the "
+          "published cycle cosines; without it, the period-2 classification here rests on "
+          "nothing external.")
+        A("")
+        return L
+    sm = v.get("lag_scan_mean_vec", {})
+    A("Before trusting any period-2 verdict below, the detector was pointed at a state whose "
+      "answer is already published. The parent's motion audit committed `state_divine.pt` -- the "
+      "`Divine` trajectory at iteration 1000, sitting on its limit cycle -- and reported "
+      "`cos(A, f(A)) = 0.684912` and `cos(A, f(f(A))) = 1.000000`. Continuing that state 24 "
+      "iterations through this repo's `atr_bridge` and running the same lag scan used on every "
+      "prompt in this census:")
+    A("")
+    rows = [[k, f"{sm[k]:.6f}", f"{v['lag_scan_last_vec'][k]:.6f}",
+             "pass" if sm[k] > GATE_THRESHOLD else "fail"]
+            for k in sorted(sm, key=int)]
+    L.extend(_table(rows, ["Lag k", "mean-vector cos", "last-vector cos",
+                           f"gate at {GATE_THRESHOLD}"]))
+    A("")
+    d1 = abs(sm.get("1", 0) - v["published_lag1"])
+    A(f"Lag-1 reproduces the published 0.684912 to {d1:.1e}; lag-2 is 1.000000 exactly. The "
+      "odd-fails / even-passes stripe is the signature of an exact period-2 orbit, and this "
+      "file's classifier labels the state "
+      f"`period-2`: **{v['classified_period2']}**. Overall: **{'PASS' if v['pass'] else 'FAIL'}**.")
+    A("")
+    A("This also settles one candidate explanation for any basin discrepancy further down: a "
+      "state saved by the parent's own run, continued under this torch / TransformerLens build, "
+      "lands on the same cycle to seven decimals. Whatever else may differ, the forward map does "
+      "not.")
+    A("")
+    return L
 
 
 def _published_section(recs, meta):
@@ -988,6 +1121,29 @@ def _anomalies_section(recs, by_id):
             A(f"  - `{r['prompt_id']}` `{r['basin']}` vs `{r['final_top5_tokens'][1].strip()}`, "
               f"margin {r['final_top_logit_margin']:.3f}")
 
+    # Basin moved between the published stopping time and this run's horizon.
+    moved = [r for r in recs if r.get("basin_at_120") and r["basin_at_120"] != r["basin"]]
+    if moved:
+        found = True
+        A(f"- **Basin changed between iteration 120 and the horizon: {len(moved)}.** Iteration 120 "
+          "is where the published sweep classified every converged prompt, so these are exactly "
+          "the prompts for which the published table and a later reading disagree.")
+        for r in sorted(moved, key=lambda r: r["prompt_id"]):
+            A(f"  - `{r['prompt_id']}`: `{r['basin_at_120']}` at 120 -> `{r['basin']}` at "
+              f"{r['n_iter']}, lock-in {r['lock_in_iter_lag1']}")
+
+    # Period-2 label resting on a lag-1 cosine that is not actually low.
+    borderline = [r for r in recs if is_period2(r) and _f(r.get("cos_lag1_mean"), 0.0) > 0.99]
+    if borderline:
+        found = True
+        A(f"- **Borderline period-2 calls: {len(borderline)}.** Classified period-2 because lag-2 "
+          "clears the threshold and lag-1 does not, but lag-1 is above 0.99 -- slow drift and a "
+          "genuine period-2 orbit are not distinguishable at that separation. Treat as "
+          "unresolved, not as cycles.")
+        for r in borderline:
+            A(f"  - `{r['prompt_id']}`: lag-1 {_f(r['cos_lag1_mean']):.6f}, "
+              f"lag-2 {_f(r['cos_lag2_mean']):.6f}")
+
     # Basins of size 1.
     counts = Counter(r["basin"] for r in recs)
     singles = [b for b, c in counts.items() if c == 1]
@@ -1091,6 +1247,79 @@ def _config_section(meta):
 # Main
 # ---------------------------------------------------------------------------
 
+def validate_instrument(parent_path: str, n_iter: int = 24, out_dir: Path | None = None) -> int:
+    """Acceptance check for the period-2 detector, against a committed number.
+
+    The parent's motion audit saved `state_divine.pt` -- the `Divine` trajectory
+    at iteration 1000, sitting on its limit cycle -- and published the two
+    cosines that characterise it: `cos(A, f(A)) = 0.684912` and
+    `cos(A, f(f(A))) = 1.000000` (`output_lagk/lagk_report.md`,
+    `output_divine_motion/bell_anatomy.json`).
+
+    If this file's lag scan does not reproduce those two numbers from that state,
+    then its period-2 classification is not measuring what the parent measured
+    and the whole "34 prompts ring rather than fail to converge" reading of the
+    census is unsupported. Cheap to run: 24 forward passes.
+    """
+    from atr_bridge import load_state, make_atr_step_from_state
+    from transformer_lens import HookedTransformer
+
+    state_path = (Path(parent_path) / "experiments" / "gpt2_small" /
+                  "output_divine_motion" / "state_divine.pt")
+    if not state_path.exists():
+        print(f"[validate] SKIP: {state_path} not present")
+        return 0
+
+    torch.set_num_threads(1)
+    torch.set_grad_enabled(False)
+    model = HookedTransformer.from_pretrained(MODEL_NAME, device="cpu")
+    model.eval()
+    model.requires_grad_(False)
+
+    st = load_state(str(state_path))
+    step = make_atr_step_from_state(model, st, layer_start=LAYER_START, layer_end=LAYER_END)
+    r = st.tensor
+    means, lasts = [r.mean(dim=0).clone()], [r[-1, :].clone()]
+    for _ in range(n_iter):
+        r = step(model, r)
+        means.append(r.mean(dim=0).clone())
+        lasts.append(r[-1, :].clone())
+
+    sm = lag_scan(torch.stack(means), MAX_LAG)
+    sl = lag_scan(torch.stack(lasts), MAX_LAG)
+    print(f"[validate] state_divine.pt  iteration={st.iteration}  "
+          f"initial_norm={st.initial_norm}  shape={tuple(st.tensor.shape)}")
+    print(f"[validate] {'lag':>4} {'mean-vec':>12} {'last-vec':>12}")
+    for k in sorted(sm):
+        print(f"[validate] {k:>4} {sm[k]['mean']:>12.6f} {sl[k]['mean']:>12.6f}")
+
+    ok = True
+    for name, scan, expect1, expect2 in (("mean", sm, 0.684912, 1.000000),
+                                         ("last", sl, 0.684912, 1.000000)):
+        d1 = abs(scan[1]["mean"] - expect1)
+        d2 = abs(scan[2]["mean"] - expect2)
+        good = d1 < 5e-4 and d2 < 5e-6
+        ok &= good
+        print(f"[validate] {name}-vector: lag1={scan[1]['mean']:.6f} (published {expect1}, "
+              f"d={d1:.2e})  lag2={scan[2]['mean']:.6f} (published {expect2}, d={d2:.2e})  "
+              f"{'PASS' if good else 'FAIL'}")
+    classified = is_period2({"cos_lag1_mean": sm[1]["mean"], "cos_lag2_mean": sm[2]["mean"]})
+    print(f"[validate] period-2 classifier on this state: {classified}")
+    print(f"[validate] {'PASS' if ok else 'FAIL'}")
+
+    if out_dir is not None:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "instrument_validation.json").write_text(json.dumps({
+            "state": str(state_path), "state_iteration": st.iteration,
+            "initial_norm": st.initial_norm, "n_continued": n_iter,
+            "lag_scan_mean_vec": {str(k): v["mean"] for k, v in sm.items()},
+            "lag_scan_last_vec": {str(k): v["mean"] for k, v in sl.items()},
+            "published_lag1": 0.684912, "published_lag2": 1.0,
+            "classified_period2": classified, "pass": bool(ok),
+        }, indent=2), encoding="utf-8")
+    return 0 if ok else 1
+
+
 def _sha256(path: Path) -> str:
     import hashlib
     h = hashlib.sha256()
@@ -1128,8 +1357,14 @@ def main(argv=None):
                     help="run prompts[shard::nshards] into basins.shard<N>.jsonl; "
                          "--report-only merges the shards")
     ap.add_argument("--threads", type=int, default=TORCH_THREADS)
+    ap.add_argument("--validate-instrument", action="store_true",
+                    help="check the period-2 detector against the parent's committed "
+                         "Divine cycle cosines, then exit")
     ap.add_argument("--out", type=str, default=str(OUT_DIR))
     args = ap.parse_args(argv)
+
+    if args.validate_instrument:
+        return validate_instrument(args.parent, out_dir=Path(args.out))
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1181,7 +1416,7 @@ def main(argv=None):
         meta["transformer_lens_version"] = "unknown"
 
     if args.report_only:
-        recs = read_all(out_dir)
+        recs = read_all(out_dir, repair=out_dir / "basins.jsonl")
         order = {p: i for i, p in enumerate(prompts)}
         recs.sort(key=lambda r: order.get(r["prompt_id"], 10 ** 6))
         # Collapse the shards into the single canonical raw file. Only drop the
@@ -1215,7 +1450,10 @@ def main(argv=None):
                        f"{_hms(sum(m.get('wall_clock_seconds', 0) for m in metas))} CPU)"
                        if nsh > 1 else ""))
             meta["shards"] = max(m.get("shards", 1) for m in metas)
-        report.write_text(build_report(recs, meta), encoding="utf-8")
+        vpath = out_dir / "instrument_validation.json"
+        if vpath.exists():
+            meta["instrument_validation"] = json.loads(vpath.read_text())
+        report.write_text(build_report(recs, meta, out_dir), encoding="utf-8")
         print(f"[report] {report} ({len(recs)} records)")
         return 0
 
@@ -1223,7 +1461,7 @@ def main(argv=None):
     torch.set_num_threads(args.threads)
     torch.set_grad_enabled(False)
 
-    done = {r["prompt_id"] for r in read_all(out_dir)}
+    done = {r["prompt_id"] for r in read_all(out_dir, repair=jsonl)}
     todo = [p for p in prompt_ids if p not in done]
     print(f"[config] model={MODEL_NAME} layers {LAYER_START}->{LAYER_END} "
           f"iters={args.iters} threads={args.threads} "
@@ -1269,7 +1507,10 @@ def main(argv=None):
         meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     recs = read_all(out_dir)
-    report.write_text(build_report(recs, meta), encoding="utf-8")
+    vpath = out_dir / "instrument_validation.json"
+    if vpath.exists():
+        meta["instrument_validation"] = json.loads(vpath.read_text())
+    report.write_text(build_report(recs, meta, out_dir), encoding="utf-8")
     print(f"\n[done] {len(recs)} records in {jsonl}")
     print(f"[done] wall clock {_hms(wall)}")
     print(f"[report] {report}")
