@@ -729,17 +729,34 @@ def test_compare_weights_is_computed_in_float64():
     """The headline ratio is two Frobenius norms; float32 leaves ~3e-4 in it.
 
     Same argument `plasticity.py` makes for `delta_frac`, and it bites harder
-    here because the quantity being measured is a difference of two nearly
-    equal matrices.
+    here because the quantity being measured is a difference of two nearly equal
+    matrices.
+
+    The perturbation has to survive being added, which is the trap this test
+    fell into once: `w0 + d` with `w0` at order 1 and `d` at 1e-7 is evaluated
+    in float32, where most of `d` is lost to rounding, so `(w0 + d) - w0` is not
+    `d` and the test measures the addition rather than the function. The fix is
+    to compare against the difference that is actually representable -- computed
+    in float64 from the same float32 tensors the function is handed -- and keep
+    the tolerance tight, because the point is that `compare_weights` does not
+    silently do the arithmetic in float32.
     """
     g = torch.Generator().manual_seed(3)
     w0 = torch.randn(64, 32, generator=g)
-    d = torch.randn(64, 32, generator=g) * 1e-7
-    out = compare_weights(w0 + d, w0, w0)
-    expected = d.double().norm().item() / w0.double().norm().item()
+    perturbed = w0 + torch.randn(64, 32, generator=g) * 1e-7
+
+    out = compare_weights(perturbed, w0, w0)
+    representable = (perturbed.double() - w0.double()).norm().item()
+    expected = representable / w0.double().norm().item()
+
     assert out["rel_fro_diff"] == pytest.approx(expected, rel=1e-12)
     assert out["bit_identical"] is False
     assert out["cos_delta"] != out["cos_delta"]  # NaN: the second delta is zero
+
+    # A float32 pass would leave ~1e-4 relative error on a norm this size; the
+    # assertion above is four orders tighter than that, so it can tell them
+    # apart rather than merely agreeing with both.
+    assert 0.0 < expected < 1e-6
 
 
 def test_compare_weights_reports_identity_exactly():
