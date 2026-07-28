@@ -56,7 +56,19 @@ Replaying the *recorded* y (`y_source="recorded"`, the default, and what
 from the recorded x and the offline arm's own drifting weight
 (`y_source="recomputed"`) freezes only the state feedback and leaves the rule's
 own recursion intact in both arms. `run_matched_arms` measures both, because
-which one you mean changes what the difference is evidence for.
+which one you mean changes what the difference is evidence for. On GPT-2 small
+at eta=1e-5 the two answers differ by two orders of magnitude, so it is not a
+distinction that can be waved away.
+
+THE DETECTION LIMIT. Sever the feedback path entirely -- run the loop reading
+out below the site -- and the `recomputed` arms come out **bit-identical**, so
+there is no measurable noise floor under this comparison. That is a property
+worth defending rather than a happy accident: it only holds because
+`_recompute_y` reproduces the site's fused addmm bit for bit instead of merely
+mathematically. Doing the obvious `x @ W + b` instead put a floor of roughly
+5e-09 relative Frobenius under everything -- hardware-dependent (2.9e-09 and
+4.8e-09 measured on two machines), harmless at any usable eta, and entirely
+self-inflicted. `test_a_site_the_loop_does_not_route_through` holds the line.
 """
 
 from __future__ import annotations
@@ -223,6 +235,37 @@ def _site_bias(adapter) -> Optional[torch.Tensor]:
     return None
 
 
+def _recompute_y(x: torch.Tensor, w: torch.Tensor, bias: Optional[torch.Tensor]) -> torch.Tensor:
+    """
+    `y` from `x` and the current weight, matching the site's own arithmetic bit
+    for bit -- which is not the same thing as matching it mathematically.
+
+    `torch.addmm(b, x, W)`, not `x @ W + b`. The two agree to float32 rounding
+    and differ in the last bits, because the fused kernel accumulates the bias
+    inside the reduction and the unfused pair does not. Measured on GPT-2's
+    blocks.6.mlp: max |diff| 1.9e-06 on y, which propagates into the offline
+    arm's updates and compounds -- it put a ~5e-09 relative-Frobenius floor
+    under the whole comparison until this was fixed, which was within an order
+    of magnitude of nothing and about eight orders below the eta=1e-5 signal,
+    but it was a floor that did not need to exist.
+
+    Both backends this module can attach to are addmm underneath, which is why
+    matching it works rather than merely helping: TransformerLens's
+    `batch_addmm` flattens to 2-D and calls `torch.addmm`, and it is written
+    that way precisely to match HuggingFace's `Conv1D`, which does the same.
+    `nn.Linear`'s `F.linear` is addmm against the transposed weight, which is
+    what `_effective_W()` hands over on the `transposed=True` path.
+
+    If a future site is not addmm-shaped, this is the function to change, and
+    `test_a_site_the_loop_does_not_route_through` is what will tell you: it
+    asserts bit-identity with the feedback path severed, and that assertion is
+    only reachable while this matches.
+    """
+    if bias is None:
+        return x @ w
+    return torch.addmm(bias, x, w)
+
+
 @contextmanager
 def installed_weight(model, site: str, w: torch.Tensor):
     """
@@ -379,8 +422,13 @@ def record_frozen_activations(
             if keep_states:
                 states.append(r.detach().clone())
             for x, y in pending:
-                xs_i = x.to(store_dtype).cpu()
-                ys_i = y.to(store_dtype).cpu()
+                # `.clone()` because `.to()` and `.cpu()` are both no-ops when
+                # the dtype and device already match, and would hand back a
+                # view of the forward pass's own buffer. Nothing mutates those
+                # today; a recording that silently aliased live activations
+                # would be a bad thing to find out about later.
+                xs_i = x.to(store_dtype).cpu().clone()
+                ys_i = y.to(store_dtype).cpu().clone()
                 if store_dtype != weight_dtype:
                     worst_rel = max(
                         worst_rel,
@@ -668,9 +716,12 @@ def replay_offline(
                    state feedback and Oja's own y = xW recursion. This is what
                    PRIOR_ART.md specifies literally.
       "recomputed" recompute y from the recorded x and this arm's current
-                   weight. Freezes the state feedback only, leaving the rule's
-                   internal recursion live in both arms, which is the stricter
-                   isolation of the feedback path.
+                   weight, via `_recompute_y`, which matches the site's fused
+                   addmm bit for bit rather than merely mathematically. Freezes
+                   the state feedback only, leaving the rule's internal
+                   recursion live in both arms, which is the stricter isolation
+                   of the feedback path -- and the one under which a loop that
+                   does not route through the site gives bit-identical arms.
     """
     if y_source not in VALID_Y_SOURCES:
         raise ValueError(f"y_source must be one of {VALID_Y_SOURCES}, got {y_source!r}")
@@ -703,9 +754,7 @@ def replay_offline(
                 if y_source == "recorded":
                     y = record.y[j].to(plast.W0.dtype)
                 else:
-                    y = x @ plast._effective_W()
-                    if bias is not None:
-                        y = y + bias
+                    y = _recompute_y(x, plast._effective_W(), bias)
                 plast._hook(plast.module, (x,), y)
                 sample_order.append(i)
             if (i + 1) % apply_every == 0:

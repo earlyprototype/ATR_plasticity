@@ -524,29 +524,61 @@ def test_eta_zero_holds_for_the_recomputed_y_arm_too(tl_gpt2, tl_loop):
     assert torch.equal(res.closed.weight, res.offline_recomputed_y.weight)
 
 
+def test_recompute_y_reproduces_the_sites_own_forward_bit_exactly(tl_gpt2, frozen_record):
+    """`torch.addmm(b, x, W)`, not `x @ W + b`. They are not the same tensor.
+
+    This is the root cause of what used to be this harness's noise floor. The
+    two forms agree to float32 rounding and differ in the last bits, because the
+    fused kernel accumulates the bias inside the reduction. On GPT-2's
+    blocks.6.mlp the gap on y is max|diff| 1.9e-06 -- which then propagates into
+    every offline update and compounds, and put ~5e-09 relative Frobenius under
+    the whole arms comparison until it was matched.
+
+    Both backends are addmm underneath (TransformerLens's `batch_addmm`
+    flattens to 2-D and calls `torch.addmm`, written that way to match
+    HuggingFace's `Conv1D`), so matching it is exact rather than merely closer.
+    """
+    mlp = tl_gpt2.blocks[6].mlp
+    for x, y in zip(frozen_record.x, frozen_record.y):
+        assert torch.equal(offline_control._recompute_y(x, mlp.W_out, mlp.b_out), y)
+        # ...and the mathematically-equivalent form is not the same tensor.
+        assert not torch.equal(x @ mlp.W_out + mlp.b_out, y)
+
+
 def test_a_site_the_loop_does_not_route_through(tl_gpt2, shallow_loop):
-    """With the state-feedback path severed, the arms must not diverge through it.
+    """With the state-feedback path severed, the arms must not diverge at all.
 
-    The loop reads at `blocks.3.hook_resid_post`, so nothing `blocks.6.mlp`
-    computes can reach the next iterate. The x the rule sees is therefore
-    bit-identical in both arms at every step, and the only route left from a
-    weight change back into an update is Oja's own `y = x W` recursion -- which
-    is internal to the rule and present in ordinary offline Oja on a fixed
-    dataset.
+    THIS TEST IS THE HARNESS'S DETECTION LIMIT. The loop reads at
+    `blocks.3.hook_resid_post`, so nothing `blocks.6.mlp` computes can reach the
+    next iterate -- the x the rule sees is bit-identical in both arms at every
+    step. Whatever the arms still differ by here is the floor, and no claim
+    about feedback can be made underneath it.
 
-    That distinction is exactly what the two `y_source` modes separate, and it
-    is why this test asserts different things about them:
+    The only route left from a weight change back into an update is Oja's own
+    `y = x W` recursion, which is internal to the rule and present in ordinary
+    offline Oja on a fixed dataset. The two `y_source` modes separate exactly
+    that, which is why this asserts different things about them:
 
       recomputed  y is rebuilt from the recorded x and the arm's own drifting
-                  weight, so the rule's recursion is live in both arms and
-                  nothing is left to differ by. Bit-identical, and this is the
-                  real no-feedback control.
+                  weight, so the recursion is live in both arms and nothing is
+                  left to differ by. **Bit-identical.** This is the real
+                  no-feedback control and the floor is zero.
       recorded    y is replayed frozen, so the offline arm's rule cannot see its
-                  own weight move. The arms differ by that alone -- with no
-                  feedback anywhere in the system. Measured below, and small.
+                  own weight move. The arms differ by that alone, with no
+                  feedback anywhere in the system, and by a lot -- 6.8% of the
+                  drift at eta=1e-5 over 6 steps, measured. That is the floor
+                  for the default mode, and it is not small.
 
-    Reporting a `recorded`-mode divergence at a routed site without knowing this
-    number would be attributing the rule's own recursion to feedback.
+    The bit-identity is a defended property, not luck: it holds only because
+    `_recompute_y` matches the site's fused addmm. The obvious `x @ W + b` left
+    ~5e-09 relative Frobenius here instead -- hardware-dependent (2.9e-09 on a
+    laptop, 4.8e-09 on a GitHub runner), harmless at any usable eta, and
+    self-inflicted. The bound is asserted as well as the identity, so that if a
+    future torch ever breaks the identity the failure message still says whether
+    the detection limit survived.
+
+    Reporting a `recorded`-mode divergence at a routed site without this number
+    in hand would be attributing the rule's own recursion to feedback.
     """
     r0, step = shallow_loop
     res = run_matched_arms(tl_gpt2, r0, step, SITE, N_STEPS, eta=ETA,
@@ -554,22 +586,35 @@ def test_a_site_the_loop_does_not_route_through(tl_gpt2, shallow_loop):
     assert res.verification["ok"] is True
 
     recomputed = res.comparison["weight_recomputed_y"]
+    print(
+        f"\n[detection limit] site={SITE} read_at=blocks.3 eta={ETA} "
+        f"n_steps={N_STEPS}"
+        f"\n  y_source=recomputed rel_fro_diff={recomputed['rel_fro_diff']:.3e} "
+        f"bit_identical={recomputed['bit_identical']}"
+        f"\n  y_source=recorded   rel_fro_diff={res.comparison['weight']['rel_fro_diff']:.6e} "
+        f"diff_over_drift={res.comparison['weight']['diff_over_drift']:.6e}"
+    )
+    # The contract: a bound, never a value. This quantity is float
+    # accumulation order and its magnitude is hardware-dependent, which is the
+    # same trap that bit `initial_norm` (1468.48828125 on CI against
+    # 1468.4886474609375 locally). Assert what the experiment needs to be true.
+    assert recomputed["rel_fro_diff"] < 1e-8, (
+        "the detection limit has regressed: no state feedback exists here, so "
+        f"anything above float noise is a defect. rel_fro_diff="
+        f"{recomputed['rel_fro_diff']:.3e}"
+    )
+    # ...and the stronger property, which currently holds by construction.
     assert recomputed["bit_identical"] is True, (
         "no state feedback and no frozen y, yet the arms differ: "
-        f"rel_fro_diff={recomputed['rel_fro_diff']:.3e}"
+        f"rel_fro_diff={recomputed['rel_fro_diff']:.3e}. Below the 1e-8 bound "
+        "above, so the detection limit is intact, but _recompute_y has stopped "
+        "matching the site's fused addmm exactly -- see "
+        "test_recompute_y_reproduces_the_sites_own_forward_bit_exactly."
     )
 
-    # The `recorded` arm is the floor this harness can resolve at this eta:
-    # whatever a routed site reports has to beat it to be about feedback.
+    # The default mode's floor, which is a real quantity and not noise.
     recorded = res.comparison["weight"]
-    print(
-        f"\n[no-route floor] site={SITE} read_at=blocks.3 eta={ETA} "
-        f"n_steps={N_STEPS} y_source=recorded "
-        f"cos_delta={recorded['cos_delta']:.9f} "
-        f"rel_fro_diff={recorded['rel_fro_diff']:.6e} "
-        f"diff_over_drift={recorded['diff_over_drift']:.6e}"
-    )
-    assert recorded["rel_fro_diff"] >= 0.0
+    assert recorded["rel_fro_diff"] > recomputed["rel_fro_diff"]
     assert recorded["cos_delta"] == pytest.approx(1.0, abs=1e-3)
 
 

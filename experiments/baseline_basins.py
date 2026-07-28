@@ -116,7 +116,16 @@ MAX_LAG = 8
 BASE_SCHEDULE = (0, 1, 2, 3, 5, 10, 20, 50, 100, 110, 120, 150, 200, 250)
 
 SEED = 0
-TORCH_THREADS = 4
+
+# ONE torch thread, deliberately. Measured on this 4-vCPU box, GPT-2 small at
+# seq_len 10: 1 thread 287 ms/iter, 2 threads 350, 3 threads 1105, 4 threads
+# 2137 -- a 7x penalty for using every core, the classic OpenMP spin-wait
+# collapse when the thread count meets the core count and anything else is
+# running. Single-threaded is also the reproducible choice: float32 reduction
+# order stops depending on how work happened to be split. Two single-threaded
+# shards run at 296 ms/iter each (no measurable interference), which is where
+# the parallelism comes from instead.
+TORCH_THREADS = 1
 
 OUT_DIR = REPO_ROOT / "experiments" / "output_baseline"
 JSONL_PATH = OUT_DIR / "basins.jsonl"
@@ -493,6 +502,32 @@ def write_jsonl(path: Path, recs: list) -> None:
         for r in recs:
             fh.write(json.dumps(r) + "\n")
     tmp.replace(path)
+
+
+def shard_paths(out_dir: Path) -> list:
+    """Every JSONL in the output directory: the merged one plus any shard files.
+
+    The sweep is run as N single-threaded processes (see TORCH_THREADS), each
+    appending to its own file, because two processes appending to one file is a
+    torn-line generator. `--report-only` merges them back into `basins.jsonl` in
+    library order."""
+    paths = []
+    if (out_dir / "basins.jsonl").exists():
+        paths.append(out_dir / "basins.jsonl")
+    paths.extend(sorted(out_dir.glob("basins.shard*.jsonl")))
+    return paths
+
+
+def read_all(out_dir: Path) -> list:
+    """All records across all shards, deduplicated by prompt id (first wins)."""
+    seen, recs = set(), []
+    for p in shard_paths(out_dir):
+        for r in read_jsonl(p):
+            if r["prompt_id"] in seen:
+                continue
+            seen.add(r["prompt_id"])
+            recs.append(r)
+    return recs
 
 
 def append_jsonl(path: Path, rec: dict) -> None:
@@ -1016,7 +1051,11 @@ def _config_section(meta):
         ["Plasticity", "**none** -- no hooks, no weight updates, model frozen and in eval mode"],
         ["Seeds", f"`torch.manual_seed({SEED})`; the loop itself is deterministic and "
                   "draws no random numbers"],
-        ["Torch threads", str(meta.get("torch_threads"))],
+        ["Torch threads", f"{meta.get('torch_threads')} per process "
+                          f"({meta.get('shards', 1)} process(es) in parallel). "
+                          "Measured: 1 thread 287 ms/iter, 4 threads 2137 ms/iter on this "
+                          "4-vCPU box -- OpenMP spin-wait collapse, so the sweep is "
+                          "single-threaded and parallelised across processes instead."],
         ["Prompt library", f"parent `prompt_library.py`, {meta.get('n_expected')} prompts, "
                            f"provenance `{meta.get('library_provenance')}`"],
         ["Parent repo revision", f"`{meta.get('parent_rev')}`"],
@@ -1083,12 +1122,18 @@ def main(argv=None):
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--no-states", action="store_true",
                     help="skip writing the settled-state .npy files")
+    ap.add_argument("--shard", type=int, default=0)
+    ap.add_argument("--nshards", type=int, default=1,
+                    help="run prompts[shard::nshards] into basins.shard<N>.jsonl; "
+                         "--report-only merges the shards")
+    ap.add_argument("--threads", type=int, default=TORCH_THREADS)
     ap.add_argument("--out", type=str, default=str(OUT_DIR))
     args = ap.parse_args(argv)
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    jsonl = out_dir / "basins.jsonl"
+    jsonl = out_dir / ("basins.jsonl" if args.nshards == 1
+                       else f"basins.shard{args.shard}.jsonl")
     report = out_dir / "BASELINE.md"
     meta_path = out_dir / "run_meta.json"
     states_dir = out_dir / "states"
@@ -1105,6 +1150,11 @@ def main(argv=None):
         prompt_ids = [p for p in prompt_ids if p in want]
     if args.limit:
         prompt_ids = prompt_ids[:args.limit]
+    if args.nshards > 1:
+        # Interleaved, not blocked: registers are contiguous in the library, so a
+        # blocked split would give one shard all the Wild prompts and make a
+        # partial result unrepresentative.
+        prompt_ids = prompt_ids[args.shard::args.nshards]
 
     meta = {
         "n_iter": args.iters,
@@ -1114,7 +1164,8 @@ def main(argv=None):
         "numpy_version": __import__("numpy").__version__,
         "python_version": platform.python_version(),
         "platform": f"{platform.system()} {platform.release()} {platform.machine()}",
-        "torch_threads": TORCH_THREADS,
+        "torch_threads": args.threads,
+        "shards": args.nshards,
         "device": "cpu",
         "dtype": "float32",
         "parent_rev": _git_rev(Path(args.parent)),
@@ -1129,23 +1180,48 @@ def main(argv=None):
         meta["transformer_lens_version"] = "unknown"
 
     if args.report_only:
-        recs = read_jsonl(jsonl)
-        if meta_path.exists():
-            meta.update(json.loads(meta_path.read_text()))
+        recs = read_all(out_dir)
+        order = {p: i for i, p in enumerate(prompts)}
+        recs.sort(key=lambda r: order.get(r["prompt_id"], 10 ** 6))
+        # Collapse the shards into the single canonical raw file, then drop them.
+        write_jsonl(out_dir / "basins.jsonl", recs)
+        for p in sorted(out_dir.glob("basins.shard*.jsonl")):
+            p.unlink()
+        metas = [json.loads(p.read_text()) for p in
+                 sorted(out_dir.glob("run_meta*.json")) if p.stat().st_size]
+        if metas:
+            meta.update(metas[0])
+            # Wall clock across shards is the span from the first start to the
+            # last finish, not the sum: the shards ran concurrently.
+            starts = [m["started"] for m in metas if m.get("started")]
+            ends = [m["finished"] for m in metas if m.get("finished")]
+            if starts and ends:
+                t_a = time.mktime(time.strptime(min(starts), "%Y-%m-%dT%H:%M:%SZ"))
+                t_b = time.mktime(time.strptime(max(ends), "%Y-%m-%dT%H:%M:%SZ"))
+                meta["started"], meta["finished"] = min(starts), max(ends)
+                meta["wall_clock_seconds"] = round(t_b - t_a, 1)
+                nsh = max(m.get("shards", 1) for m in metas)
+                meta["wall_clock_str"] = (
+                    f"{_hms(t_b - t_a)} wall"
+                    + (f" ({nsh} shards in parallel, "
+                       f"{_hms(sum(m.get('wall_clock_seconds', 0) for m in metas))} CPU)"
+                       if nsh > 1 else ""))
+            meta["shards"] = max(m.get("shards", 1) for m in metas)
         report.write_text(build_report(recs, meta), encoding="utf-8")
         print(f"[report] {report} ({len(recs)} records)")
         return 0
 
     torch.manual_seed(SEED)
-    torch.set_num_threads(TORCH_THREADS)
+    torch.set_num_threads(args.threads)
     torch.set_grad_enabled(False)
 
-    done = {r["prompt_id"] for r in read_jsonl(jsonl)}
+    done = {r["prompt_id"] for r in read_all(out_dir)}
     todo = [p for p in prompt_ids if p not in done]
     print(f"[config] model={MODEL_NAME} layers {LAYER_START}->{LAYER_END} "
-          f"iters={args.iters} threads={TORCH_THREADS}", flush=True)
-    print(f"[plan] {len(prompt_ids)} prompts requested, {len(done)} already in "
-          f"{jsonl.name}, {len(todo)} to run", flush=True)
+          f"iters={args.iters} threads={args.threads} "
+          f"shard={args.shard}/{args.nshards}", flush=True)
+    print(f"[plan] {len(prompt_ids)} prompts in this shard, {len(done)} already "
+          f"recorded, {len(todo)} to run -> {jsonl.name}", flush=True)
 
     if todo:
         from transformer_lens import HookedTransformer
@@ -1175,10 +1251,16 @@ def main(argv=None):
     meta["started"] = started
     meta["finished"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     meta["wall_clock_seconds"] = round(wall, 1)
-    meta["wall_clock_str"] = _hms(wall) + (f" for {len(todo)} prompts" if len(todo) != len(prompt_ids) else "")
-    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    meta["wall_clock_str"] = (f"{_hms(wall)} ({args.nshards} shards in parallel, "
+                              f"{len(todo)} prompts this shard)" if args.nshards > 1
+                              else _hms(wall))
+    # Each shard writes its own meta; the merge step reads whichever is newest.
+    (out_dir / (f"run_meta.shard{args.shard}.json" if args.nshards > 1
+                else "run_meta.json")).write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    if args.nshards > 1:
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
-    recs = read_jsonl(jsonl)
+    recs = read_all(out_dir)
     report.write_text(build_report(recs, meta), encoding="utf-8")
     print(f"\n[done] {len(recs)} records in {jsonl}")
     print(f"[done] wall clock {_hms(wall)}")
