@@ -1247,6 +1247,58 @@ def _config_section(meta):
 # Main
 # ---------------------------------------------------------------------------
 
+def cycle_exactness(model, state, n_probe: int = 10) -> dict:
+    """Is the period-2 orbit bit-identical, or merely tight?
+
+    A cosine that PRINTS as 1.000000 establishes six decimals of display
+    precision and nothing else. It is equally consistent with `f(f(A))` being
+    bit-for-bit `A` -- a genuine fixed point of the squared map -- and with an
+    orbit still contracting below the sixth decimal, which is not a fixed point
+    at all but an asymptote. The two are different objects, so the printed
+    cosine is replaced here with: `torch.equal`, max absolute and max relative
+    elementwise deviation, and the cosine recomputed in float64 at full
+    precision. The lag-1 pair is measured the same way to give the scale of a
+    comparison that is genuinely not identity.
+    """
+    from atr_bridge import make_atr_step_from_state
+    step = make_atr_step_from_state(model, state, layer_start=LAYER_START, layer_end=LAYER_END)
+
+    iters = [state.tensor.clone()]
+    for _ in range(n_probe):
+        iters.append(step(model, iters[-1]))
+
+    def compare(a: torch.Tensor, b: torch.Tensor) -> dict:
+        a64, b64 = a.double(), b.double()
+        diff = (a64 - b64).abs()
+        denom = a64.abs().clamp_min(torch.finfo(torch.float64).tiny)
+        cos64 = float((a64.reshape(-1) @ b64.reshape(-1)) /
+                      (a64.norm() * b64.norm()))
+        return {
+            "bit_identical": bool(torch.equal(a, b)),
+            "max_abs_diff": float(diff.max()),
+            "max_rel_diff": float((diff / denom).max()),
+            "l2_diff": float((a64 - b64).norm()),
+            "l2_a": float(a64.norm()),
+            "cos_float64": cos64,
+            "one_minus_cos": float(1.0 - cos64),
+            "n_elements_differing": int((a != b).sum()),
+            "n_elements": int(a.numel()),
+        }
+
+    lag2 = [compare(iters[k], iters[k + 2]) for k in range(len(iters) - 2)]
+    lag1 = [compare(iters[k], iters[k + 1]) for k in range(len(iters) - 1)]
+    first_exact = next((k for k, c in enumerate(lag2) if c["bit_identical"]), None)
+    return {
+        "n_probe": n_probe,
+        "lag2": lag2,
+        "lag1": lag1,
+        "all_lag2_bit_identical": all(c["bit_identical"] for c in lag2),
+        "any_lag2_bit_identical": any(c["bit_identical"] for c in lag2),
+        "first_bit_identical_k": first_exact,
+        "any_lag1_bit_identical": any(c["bit_identical"] for c in lag1),
+    }
+
+
 def validate_instrument(parent_path: str, n_iter: int = 24, out_dir: Path | None = None) -> int:
     """Acceptance check for the period-2 detector, against a committed number.
 
@@ -1305,6 +1357,25 @@ def validate_instrument(parent_path: str, n_iter: int = 24, out_dir: Path | None
               f"{'PASS' if good else 'FAIL'}")
     classified = is_period2({"cos_lag1_mean": sm[1]["mean"], "cos_lag2_mean": sm[2]["mean"]})
     print(f"[validate] period-2 classifier on this state: {classified}")
+
+    # --- is the cycle bit-identical, or only tight? ------------------------
+    ex = cycle_exactness(model, st)
+    print("[exact] lag-2 pairs A_k vs A_k+2:")
+    print(f"[exact] {'k':>3} {'bit-identical':>14} {'max|d|':>12} {'max rel d':>12} "
+          f"{'||d||2':>12} {'1-cos(f64)':>14} {'n elems differ':>15}")
+    for k, c in enumerate(ex["lag2"]):
+        print(f"[exact] {k:>3} {str(c['bit_identical']):>14} {c['max_abs_diff']:>12.3e} "
+              f"{c['max_rel_diff']:>12.3e} {c['l2_diff']:>12.3e} "
+              f"{c['one_minus_cos']:>14.6e} {c['n_elements_differing']:>7}/{c['n_elements']}")
+    c1 = ex["lag1"][0]
+    print(f"[exact] lag-1 reference (A vs f(A)): bit_identical={c1['bit_identical']} "
+          f"max|d|={c1['max_abs_diff']:.4e} max rel d={c1['max_rel_diff']:.4e} "
+          f"||d||2={c1['l2_diff']:.4e} (||A||={c1['l2_a']:.4e}) "
+          f"cos64={c1['cos_float64']:.15f}")
+    print(f"[exact] lag-2 cos in float64, full precision: "
+          f"{ex['lag2'][0]['cos_float64']:.17f}")
+    print(f"[exact] all lag-2 pairs bit-identical: {ex['all_lag2_bit_identical']}; "
+          f"first bit-identical k: {ex['first_bit_identical_k']}")
     print(f"[validate] {'PASS' if ok else 'FAIL'}")
 
     if out_dir is not None:
@@ -1316,6 +1387,7 @@ def validate_instrument(parent_path: str, n_iter: int = 24, out_dir: Path | None
             "lag_scan_last_vec": {str(k): v["mean"] for k, v in sl.items()},
             "published_lag1": 0.684912, "published_lag2": 1.0,
             "classified_period2": classified, "pass": bool(ok),
+            "exactness": ex,
         }, indent=2), encoding="utf-8")
     return 0 if ok else 1
 
