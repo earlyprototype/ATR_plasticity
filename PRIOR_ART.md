@@ -44,9 +44,10 @@ than it was.
 - **Gong, Chen & Ching — verified** with quotes from the abstract.
 - **Hopfield/Feinstein/Palmer 1983, Schlag et al. 2021, Irie et al. 2022, Shumailov et
   al. 2024, Lazar/Pipa/Triesch 2009 — verified**, identifiers and substance confirmed.
-- **Zenke, Gerstner & Ganguli 2017 — partly verified.** The paper and its argument are
-  confirmed; the specific "10-20 seconds" number may belong to the companion paper. See
-  the note in the stabilisers section.
+- **Zenke, Gerstner & Ganguli 2017 — verified, including the "10-20 seconds" figure.**
+  An earlier revision of this file marked the number unsourced and guessed it belonged to
+  a companion paper. That guess was wrong: the sentence is in this paper. Quoted in the
+  stabilisers section.
 
 ---
 
@@ -236,21 +237,38 @@ Stating the null this way is useful because it is the thing our experiment is ac
 built to reject.
 
 **What would test it.** The offline control specified later in this file, run as a
-two-arm comparison with a noise floor:
+**paired, pre-specified comparison**. An earlier revision of this file said "reject H₀ if
+the between-arm difference exceeds the within-arm seed spread". That is a heuristic, not a
+test — it pools the arms independently, has no stated uncertainty, and has no rule for
+what counts as *no* effect. Replaced with:
 
-1. Run both arms matched on every axis except feedback (see the table below).
-2. Repeat each arm across seeds. The seed-to-seed spread **within** an arm is the noise
-   floor.
-3. Measure the **between-arm** difference on the same quantities — distance between the
-   final weight matrices, and the change in the loop's attractor structure (which fixed
-   points the loop reaches, and the size of their basins).
-4. **Reject H₀ only if the between-arm difference exceeds the within-arm seed spread.**
-   If it does not, the honest report is "no detectable effect of coupling at this eta and
-   this number of steps" — which is a result, not a failure.
+1. **Run the arms matched and paired.** For each seed s, run both arms from the same
+   initial weight and the same seed, matched on every axis except feedback (see the table
+   below). This gives one **paired difference** per seed, d(s) = closed-loop(s) −
+   offline(s). Paired per-run differences, not two independent pools — the seeds are a
+   blocking factor, and pooling throws that away.
+2. **Pre-specify one primary metric** before looking at any result, and say so in writing.
+   Everything else is secondary and reported as exploratory. The natural primary is the
+   relative Frobenius distance between the two arms' final weight matrices; whatever is
+   chosen, it is chosen first.
+3. **Report an uncertainty interval on the mean paired difference**, from a permutation
+   test over seeds (randomly flip the sign of each d(s); the null distribution is the
+   distribution of the mean under exchangeability) or a bootstrap over seeds. Report the
+   interval, not just a point estimate, and not just a p-value.
+4. **Check it against the harness noise floor first.** This harness's floor for
+   arm-to-arm agreement is **below 1e-8 relative Frobenius** — measured at **2.898e-09**
+   on this box and **4.757e-09** on the CI runner. A difference smaller than that bound is
+   numerical noise and **is not evidence of anything**, no matter what a significance test
+   says about it. The noise floor gates the test; it does not compete with it.
+5. **To claim the arms are the same, state an equivalence margin.** Pick a margin δ that
+   would be too small to matter scientifically, decided in advance, and show the
+   uncertainty interval on the paired difference lies entirely inside ±δ. Without that,
+   the only honest phrasing for a null result is **"no detectable effect at this sample
+   size"**. Never "the null was accepted", never "the arms are identical".
 
 This also fixes the direction of inference. The reservoir work does not tell us what we
-will find; it tells us we need enough seeds to distinguish "nothing happened" from "we
-could not tell".
+will find; it tells us to design for the possibility that the answer is small, and to be
+able to tell "nothing happened" apart from "we could not tell".
 
 **Forward citations checked.** One citing paper, on free-energy-principle / neural
 manifold theory (arXiv:2605.04200). Nothing near us.
@@ -349,72 +367,122 @@ both arms of the experiment, and the difference between the two arms is exactly 
 preconditions break. Getting this right sharpens the case for the offline control rather
 than weakening anything.
 
+### Lead with the property we actually rely on
+
+Before any theory, here is the distinction the whole experiment rests on, and it needs no
+theorem at all:
+
+> **In the offline arm the input sequence is unaffected by the weight update. In the
+> closed loop it is not.**
+
+That is a structural fact about the two arms, it is true by how they are built, and it is
+the only property the comparison requires. Everything below is about what we may and may
+not additionally claim on top of it. **Neither arm gets a convergence guarantee.**
+
 ### What the theorem actually requires
 
-Oja's convergence result is a stochastic-approximation result. It needs:
+Oja's convergence result is a stochastic-approximation result. It needs at least:
 
-1. **A stationary input sequence.** The activations x must be drawn from a fixed
-   distribution that does not change as the weights change.
+1. **A stationary stochastic input process** with a well-defined second-moment matrix —
+   samples drawn from a fixed distribution that does not change as the weights change.
 2. **A decaying step size** satisfying the usual Robbins–Monro conditions: the step sizes
    must sum to infinity (so the process can travel any distance) while their squares sum
    to something finite (so the noise averages away). A constant eta fails the second.
+3. **A simple dominant eigenvalue** — the largest eigenvalue of the second-moment matrix
+   must be non-degenerate. If the top two eigenvalues are equal or near-equal, the
+   "dominant eigenvector" is not unique and the rule has no single direction to converge
+   to. **Nobody has checked this for our second-moment matrix.** Record it as an
+   unverified assumption; it is cheap to measure and belongs in the first run.
 
 Under those conditions the weight vector converges to the dominant eigenvector of
 E[x xᵀ]. That is *ordinary PCA* only when the activations are zero-mean; on non-centred
 inputs the mean itself contributes and the result is biased relative to covariance PCA.
-At the current default site x is post-GELU activation, which is **not** zero-mean, so
-even where the theorem applies the honest statement is "Oja finds the dominant direction
-of the **second-moment** matrix", not "Oja does PCA".
 
-### The offline arm: the theorem applies
+### The offline arm: a fixed-input replay baseline, not a converging one
 
-The offline arm replays a **fixed recording**. The input sequence is frozen before the
-rule ever touches it, so it is stationary by construction. Modulo the fixed step size —
-which is a real caveat, not a fatal one, since constant-eta Oja is well studied and
-converges to a bounded neighbourhood of the eigenvector rather than to a point —
-"converges to the dominant eigenvector of the second-moment matrix of the recorded
-activations" is the right description of this arm.
+The offline arm replays a **fixed, finite, deterministic recording**. An earlier revision
+of this file called that "stationary by construction" and concluded the theorem applies.
+**That was wrong.** A fixed recording is reproducible, but it is not a stationary
+stochastic process with a well-defined covariance — it is one finite sample path. Combined
+with a constant eta and finitely many updates, the offline arm does **not** earn the
+convergence result either.
 
-**This is the baseline, and this is why it exists.** It is the arm where we know what the
-rule is supposed to do.
+What the offline arm is, precisely, is an **empirical fixed-input replay baseline**: the
+arm in which the activation sequence driving the update does not respond to the update.
+That is a much weaker claim than convergence, and it is the only claim the comparison
+needs.
 
-### The closed-loop arm: the theorem does not apply
+**To earn any convergence language for this arm we would have to add assumptions and
+measure them**: treat the recording as a sample from some notional stationary source,
+check that the empirical second-moment matrix has a simple dominant eigenvalue with a
+usable spectral gap, and then *show* the weight vector settling — its direction stabilising
+across replay passes, to a tolerance, reproducibly across seeds. Until that is done, say
+"fixed-input replay", not "converges to the dominant eigenvector".
 
-The closed loop violates both preconditions, and violates the first one *by
-construction*:
+### The closed-loop arm: further still from any theorem
+
+The closed loop breaks the same preconditions, and breaks the first one *by construction*:
 
 - **The activations are non-stationary on purpose.** They change *because* the weights
-  change. That is not a nuisance in our setup, it is the entire object of study. The
-  input distribution at step t depends on the weights at step t, which depend on the
-  activations at step t−1. There is no fixed E[x xᵀ] for the rule to find.
-- **Fixed step size, finite number of updates.** No decaying schedule, so no
-  Robbins–Monro guarantee.
+  change. That is not a nuisance in our setup, it is the entire object of study. The input
+  distribution at step t depends on the weights at step t, which depend on the activations
+  at step t−1. There is no fixed E[x xᵀ] for the rule to find, not even a notional one.
+- **Fixed step size, finite number of updates.** No decaying schedule, so no Robbins–Monro
+  guarantee.
 - **A norm ceiling that clips.** Once clipping is active the update is no longer Oja's
   rule; it is Oja's rule composed with a projection. Convergence results for the
   unprojected rule say nothing about it.
 
 So for the closed-loop arm, **convergence is not guaranteed and must not be assumed.**
-The correct description until we show otherwise is **coupling-induced drift**: the
-weights move, the activations move because the weights moved, and where that lands is an
-empirical question. It could converge, cycle, wander, or saturate. We do not get to
-assert any of those from theory.
+The correct description until we show otherwise is **coupling-induced drift**: the weights
+move, the activations move because the weights moved, and where that lands is an empirical
+question. It could converge, settle onto a periodic orbit, wander, or saturate. We do not
+get to assert any of those from theory.
 
 **If we want to claim the closed-loop arm converged, we have to demonstrate it
-empirically** — show the weight matrix settling, show the loop's fixed points stabilising
-across steps, and show it holding across seeds. A single run that stops changing is not a
-demonstration of convergence.
+empirically** — and the demonstration has to allow for periodic orbits, not just fixed
+points (see below). A single run that stops changing is not a demonstration of
+convergence.
 
 ### Why this makes the offline control essential rather than optional
 
 The point that survives unchanged is this: **the weight matrix will move and the
 attractors will shift with no feedback whatsoever.** That is simply what the rule does to
-any activation stream, and in the offline arm we can say precisely what it is doing and
-why. So a closed-loop result proves nothing on its own -- our claim is about the
-*coupling*, weights changing while the thing they are changing feeds back into them.
+any activation stream. So a closed-loop result proves nothing on its own -- our claim is
+about the *coupling*, weights changing while the thing they are changing feeds back into
+them.
 
-The two arms are now cleanly separated in what we can say about them: the offline arm has
-a theory that predicts its endpoint, and the closed-loop arm does not. **The difference
-between the two arms is the only place our claim can live.**
+The two arms are cleanly separated by one property and one only: whether the input
+sequence responds to the update. Neither arm comes with a predicted endpoint. **The
+difference between the two arms is the only place our claim can live**, and it has to be
+established by measurement rather than inherited from theory.
+
+### Convergence checks must allow for periodic orbits
+
+This repo's own headline finding is a **period-2 limit cycle** — the parent project's
+`Divine` basin, measured as near period-2 recurrence on the committed `state_divine.pt`.
+So "did it converge?" cannot be answered by testing whether successive states are equal.
+
+**A convergence check that only looks for fixed points will score a stable period-2 orbit
+as non-convergence.** That is the exact error to avoid, and it has already bitten this
+project once in the form of an even-only snapshot schedule that aliased a period-2 orbit
+into a fixed point.
+
+Every convergence and settling check in both arms must therefore be a **lag scan, not a
+lag-1 equality test**:
+
+- Test recurrence at lag k for k = 1 … K, with a small bound (K = 8 is ample; K ≥ 2 is
+  mandatory), against a stated tolerance rather than exact equality.
+- Report the **smallest** k that meets tolerance as the detected period. k = 1 is a fixed
+  point; k = 2 is the `Divine` case; no k meeting tolerance within K is "no periodic
+  attractor detected at period ≤ K", which is *not* the same as divergence.
+- Report the residual at the detected period alongside k. A period found at loose
+  tolerance and one found at tight tolerance are different results.
+- Sample at a stride coprime with the periods being tested, or at every step. An even-only
+  schedule cannot see period 2.
+
+The same applies to the weight matrix itself: it may settle onto a cycle rather than a
+point, and the check for that is the same lag scan.
 
 ### The offline control, specified
 
@@ -518,15 +586,26 @@ Nobody in the surveyed work got away with a single mechanism.
   and synaptic normalisation -- to keep the dynamics "in a healthy regime suitable for
   learning". Remove any one and the healthy regime degrades.
 - **Zenke, Gerstner & Ganguli**, *The temporal paradox of Hebbian learning and homeostatic
-  plasticity*, Current Opinion in Neurobiology 43:166-176 (2017). **Partly verified.**
-  The paper and its central argument are confirmed: Hebbian plasticity alone is unstable
-  and runs away, it acts on seconds to minutes, most measured homeostatic plasticity acts
-  over hours or days, and the gap means fast compensating mechanisms are mathematically
-  necessary rather than optional. The specific **"10-20 seconds"** figure quoted here
-  could not be pinned to this paper — it appears to come from the companion paper Zenke &
-  Gerstner, *Hebbian plasticity requires compensatory processes on multiple timescales*,
-  Phil. Trans. R. Soc. B 372:20160259 (2017). Neither full text could be opened through
-  the proxy. Attribute it to the pair, or check it before quoting the number.
+  plasticity*, Current Opinion in Neurobiology 43:166-176 (2017). **Verified from the
+  published text**, including the number this file previously could not source. Verbatim:
+
+  > "Because of these slow stabilization dynamics, the fast interplay between Hebbian
+  > plasticity and recurrent network dynamics leads to rapid population firing rate
+  > destabilization within 10–20 s for both learning rules."
+
+  And the separation that creates the paradox, also verbatim: "forms of Hebbian plasticity
+  can be induced on the timescale of seconds to minutes, whilst most forms of homeostatic
+  synaptic plasticity operate over hours or days." Modelling studies that tried to
+  stabilise Hebbian learning with homeostasis "were typically required to speed up
+  homeostatic plasticity to timescales that are orders of magnitude faster than those
+  observed in experiments". The conclusion is that compensatory mechanisms "must act on
+  similar or even faster timescales than Hebbian plasticity itself" — necessary, not
+  optional.
+
+  **Correction to the previous revision of this file:** the "10-20 seconds" figure was
+  marked unsourced and speculatively attributed to the companion paper (Zenke & Gerstner,
+  Phil. Trans. R. Soc. B 372:20160259). That was wrong. The sentence is in the Current
+  Opinion paper, and it is safe to quote with that attribution.
 
 **Where we stand:** the activation rescaling in the ATR loop is already a fast homeostat,
 but it acts on activations, not weights. Oja's decay term is a weight-side one. Whether

@@ -428,6 +428,7 @@ def record_frozen_activations(
     states: list[torch.Tensor] = []
     n_bytes = 0
     worst_rel = 0.0
+    checked_budget = False
 
     handle = adapter.install(sink)
     try:
@@ -456,13 +457,21 @@ def record_frozen_activations(
                 idx.append(i)
                 n_bytes += xs_i.numel() * xs_i.element_size()
                 n_bytes += ys_i.numel() * ys_i.element_size()
-            if i == 0 and n_bytes:
-                projected = n_bytes * n_steps
+            # Gated on the first step that actually produced samples, NOT on
+            # step 0. A site that does not fire on the first iteration -- one
+            # that starts firing from step 1, or a loop whose first iteration
+            # short-circuits -- would otherwise skip the wall entirely, which
+            # is exactly the case the wall exists for. The projection is over
+            # the steps still to come, not all of them, because `n_bytes`
+            # already counts what is held.
+            if n_bytes and not checked_budget:
+                checked_budget = True
+                projected = n_bytes * (n_steps - i)
                 if projected > memory_budget_bytes:
                     raise MemoryError(
                         f"recording {n_steps} steps at {site} in {store_dtype} would "
                         f"hold ~{projected / 1024 ** 3:.2f} GiB "
-                        f"({n_bytes / 1024 ** 2:.2f} MiB/step), over the "
+                        f"({n_bytes / 1024 ** 2:.2f} MiB/step from step {i}), over the "
                         f"{memory_budget_bytes / 1024 ** 3:.2f} GiB budget. Lower "
                         "n_steps (the only way out that keeps the arms matched), "
                         "or raise memory_budget_bytes deliberately. "
@@ -479,9 +488,15 @@ def record_frozen_activations(
         # hook must survive this.
         adapter.remove(handle)
 
-    assert torch.equal(adapter.weight, w_before), (
-        "the recording run modified the target weight; it must be frozen"
-    )
+    # RuntimeError, not `assert`: `python -O` strips asserts, and this is the
+    # invariant the entire offline arm rests on. A check whose failure would
+    # invalidate every number downstream must not be optional at runtime.
+    if not torch.equal(adapter.weight, w_before):
+        raise RuntimeError(
+            f"the recording run modified {site}; it must be frozen. The "
+            "recording is of a loop the closed-loop arm never ran, so the two "
+            "arms would differ by the instrument as well as by feedback."
+        )
 
     precision: dict = {}
     if store_dtype != weight_dtype:

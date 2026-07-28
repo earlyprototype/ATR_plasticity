@@ -295,7 +295,7 @@ def test_recording_does_not_perturb_the_frozen_trajectory(tl_gpt2, tl_loop):
 
     rec = record_frozen_activations(tl_gpt2, r0, step, SITE, N_STEPS)
     assert len(rec.states) == N_STEPS
-    for i, (a, b) in enumerate(zip(baseline, rec.states)):
+    for i, (a, b) in enumerate(zip(baseline, rec.states, strict=True)):
         assert torch.equal(a, b), f"recording perturbed the trajectory at step {i}"
 
 
@@ -327,7 +327,7 @@ def test_recorder_captures_the_two_tensors_the_rule_consumes(tl_gpt2, frozen_rec
     rec = frozen_record
     mlp = tl_gpt2.blocks[6].mlp
     d_mlp, d_model = mlp.W_out.shape
-    for x, y in zip(rec.x, rec.y):
+    for x, y in zip(rec.x, rec.y, strict=True):
         assert x.shape[1] == d_mlp and y.shape[1] == d_model
         assert x.shape[0] == y.shape[0]
         assert x.device.type == "cpu" and y.device.type == "cpu"
@@ -355,6 +355,11 @@ def test_memory_budget_refuses_rather_than_subsampling(tl_gpt2, tl_loop):
             tl_gpt2, r0, step, SITE, 1000, memory_budget_bytes=1024,
         )
     assert "subsample" in str(exc.value)
+    # The wall fires on the first step that actually produced samples, and says
+    # which one that was. Gating on `i == 0` instead would skip the check
+    # entirely for a site that starts firing later -- which is the case the
+    # wall exists for.
+    assert "from step 0" in str(exc.value)
 
 
 def test_float16_storage_records_the_precision_it_lost(tl_gpt2, tl_loop):
@@ -559,7 +564,7 @@ def test_recompute_y_reproduces_the_sites_own_forward_bit_exactly(tl_gpt2, froze
     HuggingFace's `Conv1D`), so matching it is exact rather than merely closer.
     """
     mlp = tl_gpt2.blocks[6].mlp
-    for x, y in zip(frozen_record.x, frozen_record.y):
+    for x, y in zip(frozen_record.x, frozen_record.y, strict=True):
         assert torch.equal(offline_control._recompute_y(x, mlp.W_out, mlp.b_out), y)
         # ...and the mathematically-equivalent form is not the same tensor.
         assert not torch.equal(x @ mlp.W_out + mlp.b_out, y)

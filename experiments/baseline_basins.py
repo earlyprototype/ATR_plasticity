@@ -147,8 +147,13 @@ PUBLISHED_LOCKIN_ITER = 120
 # ---------------------------------------------------------------------------
 
 def load_prompt_library(parent_path: str):
-    """Import the parent's `prompt_library` by path. Read-only, never executed
-    beyond module import; the parent clone is not modified."""
+    """Import the parent's `prompt_library` by path.
+
+    This is an import, so module-level code in that file runs in this process --
+    the same trust assumption as any `import`. The path comes from `--parent` or
+    `$ATR_PARENT_PATH` and must therefore be trusted. What this function does
+    *not* do: write anything to the parent clone, or call any other parent code.
+    The only thing taken from it is the prompt data."""
     p = Path(parent_path) / "prompt_library.py"
     if not p.exists():
         raise SystemExit(
@@ -1196,7 +1201,7 @@ def _published_section(recs, meta):
                      f"{mine - pc:+d}",
                      f"{pub100.get(b, (0, 0.0))[0]} ({pub100.get(b, (0, 0.0))[1]:.1f}%)",
                      f"{m100} ({_pct(m100, n100):.1f}%)"])
-    L.extend(_table(rows, ["Basin", "Published @lock-in", f"This run @120",
+    L.extend(_table(rows, ["Basin", "Published @lock-in", "This run @120",
                            f"This run @{meta.get('n_iter')}", "delta vs published",
                            "Published @100", "This run @100"]))
     A("")
@@ -1560,15 +1565,30 @@ def cycle_exactness(model, state, n_probe: int = 10) -> dict:
     rel = [c["l2_rel"] for c in lag2]
     third = max(1, len(rel) // 3)
     head, tail = rel[:third], rel[-third:]
+    SHRINK_RATIO_THRESHOLD = 0.5     # pre-registered: see note below
+    ratio = (statistics.mean(tail) / statistics.mean(head)
+             if statistics.mean(head) else float("nan"))
     trend = {
         "l2_rel_first_third_mean": statistics.mean(head),
         "l2_rel_last_third_mean": statistics.mean(tail),
         "l2_rel_min": min(rel), "l2_rel_max": max(rel),
-        "ratio_last_over_first": (statistics.mean(tail) / statistics.mean(head)
-                                  if statistics.mean(head) else float("nan")),
+        "l2_rel_per_probe_spread": [min(rel), max(rel)],
+        "ratio_last_over_first": ratio,
         "float32_eps": float(torch.finfo(torch.float32).eps),
+        # The flag is a criterion, not a measurement, so the criterion travels
+        # with it: without the threshold in the artifact a reader cannot tell
+        # "no trend detected" from "a trend that failed a strict cutoff".
+        "shrink_ratio_threshold": SHRINK_RATIO_THRESHOLD,
+        "shrink_criterion": f"ratio_last_over_first < {SHRINK_RATIO_THRESHOLD}",
+        "verdict": ("shrinking" if ratio < SHRINK_RATIO_THRESHOLD else "no trend detected"),
+        "verdict_note": (
+            "The per-probe residual itself ranges "
+            f"{min(rel):.3e} to {max(rel):.3e}, a factor of {max(rel) / min(rel):.2f}, so a "
+            f"first-third/last-third ratio of {ratio:.3f} sits well inside the sample's own "
+            "scatter. The correct reading is NO TREND DETECTED over this window -- not a "
+            "demonstration that the residual is constant."),
     }
-    trend["shrinking"] = trend["ratio_last_over_first"] < 0.5
+    trend["shrinking"] = ratio < SHRINK_RATIO_THRESHOLD
     return {
         "n_probe": n_probe,
         "lag2": lag2,
@@ -1578,6 +1598,140 @@ def cycle_exactness(model, state, n_probe: int = 10) -> dict:
         "first_bit_identical_k": first_exact,
         "any_lag1_bit_identical": any(c["bit_identical"] for c in lag1),
         "trend": trend,
+    }
+
+
+PERTURB_MAGNITUDES = (1e-7, 1e-5, 1e-3, 1e-1, 1.0)
+PERTURB_SEED = 20260728
+# Deep enough that a slow return is distinguishable from no return: the first
+# pass at 200 saw recovery times of 2, 10 and 146 iterations for the three
+# smallest magnitudes, so a horizon of 200 could not have told "returning
+# slowly" from "not returning" for the largest. Each magnitude stops early once
+# it has been back at the floor for PERTURB_SETTLE iterations, so the small ones
+# stay cheap.
+PERTURB_MAX_ITER = 1000
+PERTURB_SETTLE = 20
+# "Returned to the floor" is defined as the lag-2 relative L2 residual falling
+# to within RETURN_FACTOR of the unperturbed floor, and staying there for
+# RETURN_PATIENCE consecutive iterations. Both are fixed here, before the test
+# is run, so the recovery iteration counts are not a threshold chosen to suit
+# the answer.
+RETURN_FACTOR = 2.0
+RETURN_PATIENCE = 4
+
+
+def perturbation_test(model, state, floor: float, ref_a, ref_b,
+                      magnitudes=PERTURB_MAGNITUDES, max_iter=PERTURB_MAX_ITER) -> dict:
+    """Does a state knocked off the cycle come back to it?
+
+    This is the measurement that licenses the word "attracting", and it is NOT
+    what the exactness probe measured. That probe watched one orbit's own
+    residual stay flat, which is a statement about a single trajectory;
+    attraction is a statement about a NEIGHBOURHOOD -- whether states near the
+    cycle are drawn onto it. A cycle can perfectly well recur without attracting
+    anything (a centre, in the linear picture), and nothing measured so far
+    distinguishes that from an attractor.
+
+    So: perturb the settled state by Gaussian noise at relative L2 magnitudes
+    spanning well below to well above the round-off floor, iterate, and record
+    which of three things happens.
+
+      returns to the same orbit   -> attracting, and the word is earned
+      settles on a different orbit -> a basin boundary is nearby
+      neither                      -> not attracting
+
+    `floor`, `ref_a`, `ref_b` come from the unperturbed run: the residual floor
+    and the two phases of the original cycle, so "same orbit" is a measurement
+    against the actual original and not against a re-derived one.
+    """
+    from atr_bridge import make_atr_step_from_state
+    step = make_atr_step_from_state(model, state, layer_start=LAYER_START, layer_end=LAYER_END)
+
+    def rel_l2(a, b):
+        a64, b64 = a.double(), b.double()
+        return float((a64 - b64).norm() / a64.norm())
+
+    def cos64(a, b):
+        a64, b64 = a.double().reshape(-1), b.double().reshape(-1)
+        return float((a64 @ b64) / (a64.norm() * b64.norm()))
+
+    def orbit_cos(x):
+        """Phase-aware similarity to the ORIGINAL cycle."""
+        return max(cos64(x, ref_a), cos64(x, ref_b))
+
+    base_label = readout_detail(model, ref_a[-1, :], k=1)["top_token_strings"][0].strip()
+    target = floor * RETURN_FACTOR
+    g = torch.Generator().manual_seed(PERTURB_SEED)
+    results = []
+
+    for m in magnitudes:
+        noise = torch.randn(state.tensor.shape, generator=g, dtype=state.tensor.dtype)
+        noise = noise * (m * float(ref_a.norm()) / float(noise.norm()))
+        x = ref_a + noise
+        applied = rel_l2(ref_a, x)
+
+        hist = [x.clone()]
+        residuals, streak, return_iter = [], 0, None
+        n_run = 0
+        for i in range(1, max_iter + 1):
+            x = step(model, x)
+            n_run = i
+            hist.append(x.clone())
+            if len(hist) > 3:
+                hist.pop(0)
+            if i >= 2:
+                r = rel_l2(hist[-3], hist[-1])
+                residuals.append(r)
+                streak = streak + 1 if r <= target else 0
+                if return_iter is None and streak >= RETURN_PATIENCE:
+                    return_iter = i - RETURN_PATIENCE + 1
+            if return_iter is not None and i >= return_iter + PERTURB_SETTLE:
+                break
+
+        final_res = statistics.median(residuals[-10:]) if residuals else float("nan")
+        oc = orbit_cos(x)
+        label = readout_detail(model, x[-1, :], k=1)["top_token_strings"][0].strip()
+        results.append({
+            "magnitude_requested": m,
+            "magnitude_applied": applied,
+            "returned_to_floor": return_iter is not None,
+            "return_iteration": return_iter,
+            "final_residual": final_res,
+            "final_residual_over_floor": final_res / floor if floor else float("nan"),
+            "residual_at_iter2": residuals[0] if residuals else None,
+            "cos_to_original_orbit": oc,
+            "one_minus_cos_to_original_orbit": 1.0 - oc,
+            "same_orbit": bool(1.0 - oc < 1e-9),
+            "basin_label": label,
+            "basin_label_survived": label == base_label,
+            "iterations_run": n_run,
+            "residual_trace_every_25": residuals[::25],
+        })
+        print(f"[perturb] m={m:.0e} applied={applied:.3e} "
+              f"return={'iter ' + str(return_iter) if return_iter else 'NO(' + str(n_run) + ')'} "
+              f"final_res={final_res:.3e} ({final_res / floor:.2f}x floor) "
+              f"1-cos_to_orig={1 - oc:.3e} label={label!r} "
+              f"{'SAME orbit' if 1 - oc < 1e-9 else 'DIFFERENT orbit'}", flush=True)
+
+    n_ret = sum(1 for r in results if r["returned_to_floor"])
+    n_same = sum(1 for r in results if r["same_orbit"])
+    if n_ret == len(results) and n_same == len(results):
+        verdict = "attracting"
+    elif n_ret == len(results):
+        verdict = "returns to a cycle, but not always the same one"
+    elif n_ret == 0:
+        verdict = "not attracting over the tested window"
+    else:
+        verdict = "mixed: attracting for small perturbations only"
+    return {
+        "floor": floor, "return_target": target,
+        "return_factor": RETURN_FACTOR, "return_patience": RETURN_PATIENCE,
+        "max_iter": max_iter, "seed": PERTURB_SEED,
+        "noise": "Gaussian, scaled to the requested relative L2 of the settled state",
+        "base_label": base_label,
+        "results": results,
+        "n_returned": n_ret, "n_same_orbit": n_same, "n_tested": len(results),
+        "verdict": verdict,
     }
 
 
@@ -1658,6 +1812,21 @@ def validate_instrument(parent_path: str, n_iter: int = 24, out_dir: Path | None
           f"{'SHRINKING (asymptotic)' if tr['shrinking'] else 'STATIONARY (round-off jitter)'}")
     print(f"[exact] float32 eps = {tr['float32_eps']:.3e}; residual is "
           f"{tr['l2_rel_last_third_mean'] / tr['float32_eps']:.2f} x eps")
+    print(f"[exact] verdict: {tr['verdict']} (criterion {tr['shrink_criterion']}); "
+          f"per-probe spread {tr['l2_rel_min']:.3e}..{tr['l2_rel_max']:.3e}")
+
+    # --- does a nearby state come back? (attraction, not just recurrence) ---
+    from atr_bridge import make_atr_step_from_state
+    _step = make_atr_step_from_state(model, st, layer_start=LAYER_START, layer_end=LAYER_END)
+    settled = st.tensor.clone()
+    for _ in range(8):                      # settle onto the cycle before probing
+        settled = _step(model, settled)
+    phase_b = _step(model, settled)
+    floor = statistics.median([c["l2_rel"] for c in ex["lag2"]])
+    pert = perturbation_test(model, st, floor, settled, phase_b)
+    print(f"[perturb] verdict: {pert['verdict']} "
+          f"({pert['n_returned']}/{pert['n_tested']} returned, "
+          f"{pert['n_same_orbit']}/{pert['n_tested']} to the same orbit)")
     c1 = ex["lag1"][0]
     print(f"[exact] lag-1 reference (A vs f(A)): bit_identical={c1['bit_identical']} "
           f"max|d|={c1['max_abs_diff']:.4e} max rel d={c1['max_rel_diff']:.4e} "
@@ -1672,15 +1841,59 @@ def validate_instrument(parent_path: str, n_iter: int = 24, out_dir: Path | None
     if out_dir is not None:
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / "instrument_validation.json").write_text(json.dumps({
-            "state": str(state_path), "state_iteration": st.iteration,
+            # Provenance: enough to re-run this probe on another machine.
+            "state": _relpath(state_path, Path(parent_path)),
+            "state_absolute_path_on_this_machine": str(state_path),
+            "state_blob_sha256": _sha256(state_path),
+            "state_git_blob": _git_hash_object(state_path, Path(parent_path)),
+            "parent_repo_rev": _git_rev(Path(parent_path)),
+            "this_repo_rev": _git_rev(REPO_ROOT),
+            "model": MODEL_NAME,
+            "layers": [LAYER_START, LAYER_END],
+            "device": "cpu",
+            "dtype": str(st.tensor.dtype),
+            "comparison_dtype": "float64 (states cast up before differencing)",
+            "torch_version": torch.__version__,
+            "transformer_lens_version": _tl_version(),
+            "torch_threads": torch.get_num_threads(),
+            "state_iteration": st.iteration,
             "initial_norm": st.initial_norm, "n_continued": n_iter,
             "lag_scan_mean_vec": {str(k): v["mean"] for k, v in sm.items()},
             "lag_scan_last_vec": {str(k): v["mean"] for k, v in sl.items()},
             "published_lag1": 0.684912, "published_lag2": 1.0,
             "classified_period2": classified, "pass": bool(ok),
             "exactness": ex,
+            "perturbation": pert,
         }, indent=2), encoding="utf-8")
     return 0 if ok else 1
+
+
+def _relpath(path: Path, root: Path) -> str:
+    """Path relative to a repo root, so the artifact means something off this box."""
+    try:
+        return str(path.resolve().relative_to(root.resolve()))
+    except ValueError:
+        return str(path)
+
+
+def _git_hash_object(path: Path, repo: Path) -> str:
+    """`git hash-object` -- the blob id, which is how the parent repo names this
+    file's exact contents in its own history."""
+    import subprocess
+    try:
+        return subprocess.run(["git", "-C", str(repo), "hash-object", str(path)],
+                              capture_output=True, text=True,
+                              timeout=30).stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
+def _tl_version() -> str:
+    try:
+        from importlib.metadata import version as _v
+        return _v("transformer-lens")
+    except Exception:
+        return "unknown"
 
 
 def _sha256(path: Path) -> str:
