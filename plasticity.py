@@ -62,11 +62,23 @@ import torch.nn as nn
 #
 # Raw Hebbian:  dW = <x y^T>                     -- diverges, included to show why
 # Oja subspace: dW = <x y^T> - W <y y^T>         -- intrinsically normalised
+# Anti-Hebbian: dW = -<x y^T> - W <y y^T>        -- erodes, and still braked
 #
 # The Oja decay term is what makes this the right rule here rather than a
 # convenience: Oja's rule is Hebbian learning with normalisation built in, and
 # it performs power iteration on the input correlation structure. ATR is
 # nonlinear power iteration on activations. Same mathematics, one loop up.
+#
+# ANTI-HEBBIAN IS NOT A NEGATIVE ETA, and the difference is the decay term.
+# `eta = -e` scales the whole rule, so it flips BOTH terms: the reinforcement
+# term decorrelates (wanted) and the brake `-W <y y^T>` becomes `+W <y y^T>`
+# (not wanted). `<y y^T>` is positive semi-definite, so `+W <y y^T>` points
+# along W and the weight grows without bound -- the one property Oja exists to
+# provide is exactly the one a sign-flipped eta destroys. The anti-Hebbian mode
+# flips the reinforcement term only and keeps the brake with its stabilising
+# sign, which makes it a linear map with a bounded fixed point at
+# W* = -<x y^T> <y y^T>^-1 rather than a divergence.
+# `tests/test_antihebbian.py` measures both arms on real GPT-2 weights.
 
 
 def _hebb_term(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -303,12 +315,17 @@ class OjaPlasticity:
     eta : float
         Learning rate. Start absurdly small (1e-6) and work up. There is no
         gradient here and no optimiser to save you.
-    mode : {"oja", "hebb", "random", "off"}
-        "oja"    - Oja subspace rule (the real experiment)
-        "hebb"   - raw Hebbian, no decay (will diverge; pedagogical)
-        "random" - random update matched in Frobenius norm to what Oja would
-                   have applied (Control C2: is the *direction* doing work?)
-        "off"    - accumulate statistics, apply nothing (Control C0/C1)
+    mode : {"oja", "hebb", "anti_hebb", "random", "off"}
+        "oja"       - Oja subspace rule (the real experiment)
+        "hebb"      - raw Hebbian, no decay (will diverge; pedagogical)
+        "anti_hebb" - Oja with the reinforcement term negated and the decay
+                      term left alone: dW = -<x y^T> - W <y y^T>. Erodes what
+                      the loop has settled into while staying bounded. NOT the
+                      same as eta < 0, which flips the brake too; see the note
+                      above the learning rules.
+        "random"    - random update matched in Frobenius norm to what Oja would
+                      have applied (Control C2: is the *direction* doing work?)
+        "off"       - accumulate statistics, apply nothing (Control C0/C1)
     cadence : int
         Informational only; you decide when to call apply().
     max_delta_frac : float
@@ -323,7 +340,7 @@ class OjaPlasticity:
         Inferred from the target weight.
     """
 
-    VALID_MODES = ("oja", "hebb", "random", "off")
+    VALID_MODES = ("oja", "hebb", "anti_hebb", "random", "off")
 
     def __init__(
         self,
@@ -434,7 +451,15 @@ class OjaPlasticity:
         # The flip back into the weight's own layout happens in apply(), which
         # is the only place that touches module.weight.
         upd = _hebb_term(x, y)
-        if self.mode in ("oja", "random"):
+        if self.mode == "anti_hebb":
+            # The reinforcement term is negated; the decay term is NOT. Note
+            # this is `-hebb - decay`, not `-(hebb - decay)`: the second is what
+            # a negative eta computes, and it turns the brake into an
+            # accelerator. Everything downstream -- eta, the ceiling, delta,
+            # revert -- is identical to the other modes; only this sign differs.
+            w_eff = self._effective_W()
+            upd = -upd - _oja_decay(w_eff, y)
+        elif self.mode in ("oja", "random"):
             # "random" subtracts the decay too: apply() norm-matches the noise
             # to whatever is accumulated here, and the docstring promises that
             # target is "what Oja would have applied". Matching the raw Hebb
