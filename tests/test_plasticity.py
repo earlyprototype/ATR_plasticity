@@ -26,7 +26,7 @@ import torch
 import torch.nn as nn
 
 from conftest import D_MLP, D_MODEL, N_LAYER, REPORT_TYPES, resolve
-from plasticity import OjaPlasticity, candidate_sites
+from plasticity import OjaPlasticity, candidate_sites, subspace_projector
 
 
 # --------------------------------------------------------------------------
@@ -1302,3 +1302,170 @@ class TestTransposed:
         expected = expected_update(seen)          # (n_in, n_out)
         p.apply()
         assert torch.allclose(p.delta, expected.transpose(0, 1), rtol=1e-5, atol=1e-9)
+
+
+# --------------------------------------------------------------------------
+# 15. Subspace projection
+# --------------------------------------------------------------------------
+# Issue #25's third knob: restrict the drift to a chosen subspace of the output
+# space, so a direction can be picked and everything else left alone. The update
+# is multiplied by an orthogonal projector before the ceiling, which is one line
+# of arithmetic and two ways to be silently wrong -- a matrix that is not a
+# projection, and a "random" control projected after its norm was matched rather
+# than before.
+
+class TestSubspaceProjection:
+
+    ETA = 1e-6
+
+    @staticmethod
+    def directions(gpt2, k=2) -> torch.Tensor:
+        """
+        Real directions in residual-stream space: k unembedding rows.
+
+        Issue #25 names exactly these -- an unembedding row, a mean of
+        embeddings, a J-space basis vector -- so the projector is built from one
+        rather than from a random matrix that would make the test easier and
+        the claim weaker.
+        """
+        return gpt2.lm_head.weight[:k].detach().clone()
+
+    def _delta_in(self, gpt2, site, r0, atr_step, **kwargs):
+        """One accumulate-and-apply cycle; the weight is handed back untouched."""
+        p = OjaPlasticity(gpt2, site=site, eta=self.ETA, **kwargs)
+        try:
+            with p:
+                drive(gpt2, r0, atr_step, n=2)
+            rep = p.apply()
+            return p.delta.clone(), rep
+        finally:
+            p.revert()
+
+    def test_the_projected_update_lies_in_the_subspace(self, gpt2, site, r0, atr_step):
+        """
+        The claim, to numerical tolerance: after projection, the part of the
+        update outside the chosen subspace is gone.
+
+        The unprojected arm is measured alongside because without it the test
+        passes for a projector that is secretly the identity, or for an update
+        that happened to live in the subspace already -- and at 2 directions out
+        of 768 the second is not a possibility anyone should assume away.
+        """
+        basis = self.directions(gpt2, k=2)
+        P = subspace_projector(basis)
+
+        plain, _ = self._delta_in(gpt2, site, r0, atr_step, mode="oja")
+        projected, rep = self._delta_in(gpt2, site, r0, atr_step, mode="oja", project=P)
+
+        def outside(d):
+            return ((d - d @ P).double().norm() / d.double().norm()).item()
+
+        assert projected.norm().item() > 0
+        assert rep["nonfinite"] is False
+        assert outside(projected) < 1e-5, "the update left the subspace"
+        # ...and it was a real restriction: the same rule unprojected is almost
+        # entirely outside it (measured ~1.0 -- two directions out of 768).
+        assert outside(plain) > 0.9
+        assert projected.double().norm().item() < plain.double().norm().item()
+
+    def test_a_one_dimensional_projection_leaves_rank_one_drift(
+        self, gpt2, site, r0, atr_step
+    ):
+        """
+        The strongest form of the claim, available only for k=1: every row of
+        the update must be a multiple of the chosen direction, so the delta is
+        the outer product of its own coefficients with that direction.
+
+        This is what "aimable drift" means concretely -- and it is the check
+        that a projector applied on the wrong side would fail, since `P @ upd`
+        is conformable too at this site if the widths happen to match.
+        """
+        v = self.directions(gpt2, k=1)                      # (1, 768)
+        P = subspace_projector(v)
+        unit = (v / v.norm()).flatten()
+
+        delta, _ = self._delta_in(gpt2, site, r0, atr_step, mode="oja", project=P)
+
+        coeffs = delta @ unit                               # (n_in,)
+        reconstructed = torch.outer(coeffs, unit)
+        assert delta.norm().item() > 0
+        assert torch.allclose(delta, reconstructed, rtol=1e-4, atol=1e-9)
+        assert torch.linalg.matrix_rank(delta.double(), rtol=1e-6).item() == 1
+
+    def test_the_random_control_is_projected_before_it_is_norm_matched(
+        self, gpt2, site, r0, atr_step
+    ):
+        """
+        C2 must stay a comparison of directions *within* the subspace. If the
+        noise were matched to the unprojected update and projected afterwards,
+        the random arm would carry ~sqrt(k/n_out) of the Oja arm's norm -- a
+        factor of 20 at k=2, d_model=768 -- and C2 would be comparing
+        magnitudes again, which is the exact confound it exists to remove
+        (README defect 2, in a new place).
+        """
+        P = subspace_projector(self.directions(gpt2, k=2))
+
+        oja, rep_o = self._delta_in(gpt2, site, r0, atr_step, mode="oja", project=P)
+        rand, rep_r = self._delta_in(gpt2, site, r0, atr_step, mode="random",
+                                     project=P, seed=0)
+
+        assert rep_o["delta_norm"] > 0
+        assert rep_r["delta_norm"] == pytest.approx(rep_o["delta_norm"], rel=1e-5)
+        outside = ((rand - rand @ P).double().norm() / rand.double().norm()).item()
+        assert outside < 1e-5, "the random arm drifted outside the subspace"
+        assert abs(cosine(rand, oja)) < 0.5
+
+    def test_no_projector_is_the_previous_behaviour_exactly(
+        self, gpt2, site, r0, atr_step
+    ):
+        """
+        The default path must be untouched, bit-for-bit. A new optional argument
+        that changes the answer when it is not passed would invalidate every
+        number already recorded in this repo.
+        """
+        a, _ = self._delta_in(gpt2, site, r0, atr_step, mode="oja")
+        b, _ = self._delta_in(gpt2, site, r0, atr_step, mode="oja", project=None)
+        assert torch.equal(a, b)
+
+    @pytest.mark.parametrize(
+        "bad, match",
+        [(torch.eye(D_MODEL) * 2.0, "not idempotent"),      # scaling, not projecting
+         (torch.eye(D_MLP), "project must be"),             # the input axis, not output
+         (torch.ones(D_MODEL, D_MODEL), "not idempotent")],
+    )
+    def test_a_matrix_that_is_not_a_projection_is_refused(self, gpt2, site, bad, match):
+        """
+        `2I` is the dangerous one: it is symmetric, square, correctly shaped,
+        and doubles every update. Nothing downstream would notice -- the run
+        would simply be at twice the eta the log records.
+        """
+        with pytest.raises(ValueError, match=match):
+            OjaPlasticity(gpt2, site=site, project=bad)
+
+    def test_subspace_projector_builds_a_projection(self, gpt2):
+        """
+        The helper is what callers will actually use, so its output has to
+        satisfy the constructor's check by construction rather than by luck.
+        """
+        basis = self.directions(gpt2, k=3)
+        P = subspace_projector(basis)
+
+        assert P.shape == (D_MODEL, D_MODEL)
+        assert P.dtype == basis.dtype
+        assert torch.allclose(P, P.transpose(0, 1), atol=1e-6)      # symmetric
+        assert torch.allclose(P @ P, P, atol=1e-5)                  # idempotent
+        assert torch.linalg.matrix_rank(P.double(), rtol=1e-6).item() == 3
+        # Every basis direction survives projection; the projector spans them.
+        for row in basis:
+            assert torch.allclose(row @ P, row, rtol=1e-4, atol=1e-4)
+
+    def test_subspace_projector_rejects_a_degenerate_basis(self, gpt2):
+        """
+        A dependent basis makes the span smaller than the caller asked for, and
+        the run would confine drift to fewer directions than the log claims.
+        """
+        v = self.directions(gpt2, k=1)
+        with pytest.raises(ValueError, match="linearly dependent"):
+            subspace_projector(torch.cat([v, 2.0 * v], dim=0))
+        with pytest.raises(ValueError, match="basis must be"):
+            subspace_projector(v.flatten())

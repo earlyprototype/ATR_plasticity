@@ -94,6 +94,30 @@ def _oja_decay(w: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return w @ yy
 
 
+def subspace_projector(basis: torch.Tensor) -> torch.Tensor:
+    """
+    Orthogonal projector onto the span of `basis`'s rows, (n, n).
+
+    `basis` is (k, n): k directions in the output space of the target matrix --
+    an unembedding row, a mean of embeddings, a J-space basis vector. The rows
+    need not be orthonormal, but they must be linearly independent; a rank-
+    deficient basis makes the projector ill-defined and is rejected rather than
+    silently reduced.
+
+    Built in float64 and returned in the basis's dtype: P is `Q Q^T` from a QR,
+    and in float32 the residual non-idempotency of that product is of the same
+    order as the tolerance `OjaPlasticity` checks it against.
+    """
+    if basis.dim() != 2 or basis.shape[0] == 0:
+        raise ValueError(f"basis must be (k, n) with k >= 1, got {tuple(basis.shape)}")
+    b = basis.detach().double()
+    if torch.linalg.matrix_rank(b).item() < b.shape[0]:
+        raise ValueError("basis rows are linearly dependent; the span is smaller "
+                         "than the basis and the projector would be ambiguous")
+    q, _ = torch.linalg.qr(b.transpose(0, 1))          # (n, k), orthonormal columns
+    return (q @ q.transpose(0, 1)).to(basis.dtype)
+
+
 # --------------------------------------------------------------------------
 # Site adapters
 # --------------------------------------------------------------------------
@@ -472,6 +496,7 @@ class _TransformerLensHeadSite:
                 "activity cannot be observed"
             )
         self.head = head
+        self.n_heads = w.shape[0]
         self.d_head = w.shape[1]
         self._pending = None
 
@@ -504,9 +529,16 @@ class _TransformerLensHeadSite:
         self._pending = None
         head = self.head
 
+        n_heads = self.n_heads
+
         def _on_x(_module, _inputs, output):
-            if torch.is_tensor(output) and output.dim() >= 2:
-                # (batch, pos, n_heads, d_head) -> this head's (batch, pos, d_head)
+            # The head axis is second-to-last, and is checked rather than
+            # assumed: hook_z is (batch, pos, n_heads, d_head), and indexing the
+            # wrong axis of it stays in range on GPT-2 small -- 7 is a valid
+            # index into 64 as well as into 12 -- so a silent wrong answer is
+            # available here and a loud one is not.
+            if (torch.is_tensor(output) and output.dim() >= 3
+                    and output.shape[-2] == n_heads):
                 self._pending = output[..., head, :]
 
         def _on_y(_module, _inputs, output):
@@ -584,6 +616,14 @@ class OjaPlasticity:
     transposed : bool
         Set True for nn.Linear (weight is (n_out, n_in)). False for Conv1D and
         for TransformerLens W_out, both of which are already (n_in, n_out).
+    project : torch.Tensor, optional
+        An (n_out, n_out) orthogonal projector, in the rules' convention, that
+        the update is multiplied by before the ceiling: `upd = upd @ P`. Drift
+        is then confined to the subspace P projects onto -- a direction in
+        residual-stream space, say -- and every column of the update outside it
+        is exactly zero. `subspace_projector(basis)` builds one from directions.
+        Applied to the "random" arm too, so C2 stays a comparison of directions
+        inside the same subspace rather than of subspaces.
     device / dtype
         Inferred from the target weight.
     """
@@ -600,6 +640,7 @@ class OjaPlasticity:
         max_delta_frac: float = 0.05,
         transposed: bool = False,
         seed: Optional[int] = 0,
+        project: Optional[torch.Tensor] = None,
     ):
         if mode not in self.VALID_MODES:
             raise ValueError(f"mode must be one of {self.VALID_MODES}, got {mode!r}")
@@ -644,6 +685,31 @@ class OjaPlasticity:
         # inspect/revert properties as a low-rank adapter, with less machinery
         # and no rank assumption -- Oja updates are not low-rank.)
         self.delta = torch.zeros_like(self.W0)
+
+        # Checked here rather than trusted: a matrix that is not idempotent is
+        # not a projection, and passing one -- a raw basis, say, instead of
+        # `subspace_projector(basis)` -- would rescale and rotate every update
+        # while every number in report() stayed plausible. Held to float32
+        # precision, the dtype the product is formed in.
+        self.project = None
+        if project is not None:
+            n_out = self.W0.shape[0] if self.transposed else self.W0.shape[1]
+            if project.dim() != 2 or project.shape != (n_out, n_out):
+                raise ValueError(
+                    f"project must be ({n_out}, {n_out}) -- the update's output "
+                    f"axis in the rules' (n_in, n_out) convention -- got "
+                    f"{tuple(project.shape)}"
+                )
+            p = project.detach().to(device=self.W0.device, dtype=self.W0.dtype)
+            residual = (p @ p - p).double().norm().item()
+            if residual > 1e-4 * max(p.double().norm().item(), 1e-12):
+                raise ValueError(
+                    "project is not idempotent to float32 precision "
+                    f"(||PP - P||_F / ||P||_F = "
+                    f"{residual / max(p.double().norm().item(), 1e-12):.2e}), "
+                    "so it is not a projection; build it with subspace_projector()"
+                )
+            self.project = p
 
         self._acc: Optional[torch.Tensor] = None   # pending update, pre-eta
         self._n_batches = 0
@@ -751,6 +817,15 @@ class OjaPlasticity:
         if self.mode == "off":
             return self.report()
 
+        if self.project is not None:
+            # Confine the drift to the chosen subspace. Before the random arm,
+            # not after: norm-matching an unprojected Oja update and then
+            # projecting the noise would leave C2's two arms differing in
+            # magnitude by the fraction of the noise that survives projection
+            # (~sqrt(k/n_out) -- a factor of 28 for a single direction at
+            # d_model=768), which is precisely the confound C2 exists to remove.
+            upd = upd @ self.project
+
         if self.mode == "random":
             # Match in float64. C2's entire verdict rests on these two arms
             # carrying the same magnitude, and a float32 match leaves ~3e-4
@@ -760,6 +835,8 @@ class OjaPlasticity:
             noise = torch.randn(
                 upd.shape, generator=self._rng, device=upd.device, dtype=upd.dtype
             )
+            if self.project is not None:
+                noise = noise @ self.project
             upd = noise * (target_norm / (noise.double().norm().item() + 1e-12))
 
         if self.transposed:

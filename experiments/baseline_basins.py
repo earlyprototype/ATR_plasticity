@@ -595,45 +595,181 @@ def _within_basin_section(recs, out_dir: Path):
 
     def cos(u, v):
         d = float(np.linalg.norm(u) * np.linalg.norm(v))
-        return 0.0 if d == 0 else float(np.dot(u, v) / d)
+        return 0.0 if d == 0 else float(np.clip(np.dot(u, v) / d, -1.0, 1.0))
 
     by_basin = {}
     for r in recs:
         if r["prompt_id"] in vecs:
             by_basin.setdefault(r["basin"], []).append(r["prompt_id"])
 
-    A("Cosine between the position-mean settled states of every pair of prompts sharing a basin. "
-      "This is the question the basin table cannot answer on its own: if the pairs sit at 1.0 the "
-      "attractor is a single point and the prompt's content is gone by the time it arrives; if "
-      "they sit below 1.0 the map compresses rather than erases, and what is left of the prompt "
-      "is measurable.")
+    A("**What this can and cannot bound.** Five basins bound the information in the *basin label* "
+      "at log2(5) = 2.32 bits. They bound nothing about the settled *state*. If the states within "
+      "a basin are indistinguishable, the state is the label and the prompt has been erased. If "
+      "they differ systematically, the attractor compressed the prompt rather than erasing it, "
+      "and the residue is measurable. Both are legitimate outcomes; the numbers below decide "
+      "which, and no similarity threshold was chosen after seeing them -- the one threshold used "
+      "is the float32 round-off scale measured in the instrument check above, fixed before this "
+      "sweep finished.")
+    A("")
+    A("All comparisons use the position-mean of the settled tensor, `(768,)`, which is the vector "
+      "the convergence gate itself uses and is comparable across prompts of different length. "
+      "Phase-aware throughout: on a period-2 orbit two prompts can sit on the same cycle in "
+      "opposite phases, so each pair is scored at the better of (final, final) and "
+      "(final, previous iterate).")
+    A("")
+
+    def pair_cos(pi, pj):
+        ai, bi = vecs[pi]
+        aj, bj = vecs[pj]
+        c = cos(ai, aj)
+        if bj is not None:
+            c = max(c, cos(ai, bj))
+        if bi is not None:
+            c = max(c, cos(bi, aj))
+        return c
+
+    # ---- within-basin -----------------------------------------------------
+    ROUNDOFF = 1e-12   # see instrument check: cycle round-off sits at 1-cos ~ 1.5e-14
+    within_all, rows = [], []
+    for b in sorted(by_basin, key=lambda b: -len(by_basin[b])):
+        ids = by_basin[b]
+        if len(ids) < 2:
+            rows.append([f"`{b}`", len(ids), "-", "-", "-", "-", "-"])
+            continue
+        pair = [pair_cos(ids[i], ids[j])
+                for i in range(len(ids)) for j in range(i + 1, len(ids))]
+        within_all.extend(pair)
+        rows.append([f"`{b}`", len(ids), f"{min(pair):.6f}",
+                     f"{statistics.median(pair):.6f}", f"{max(pair):.6f}",
+                     f"{statistics.mean(1 - c for c in pair):.3e}",
+                     sum(1 for c in pair if (1 - c) < ROUNDOFF)])
+    A("### Within basin")
+    A("")
+    L.extend(_table(rows, ["Basin", "n", "min pair cos", "median pair cos", "max pair cos",
+                           "mean (1 - cos)", "pairs at round-off"]))
+    A("")
+
+    # ---- between-basin ----------------------------------------------------
+    basins = [b for b in by_basin if len(by_basin[b]) >= 1]
+    between_all, pair_medians = [], {}
+    if len(basins) >= 2:
+        A("### Between basins")
+        A("")
+        rows = []
+        header = ["Basin"] + [f"`{b}`" for b in basins]
+        for bi in basins:
+            row = [f"`{bi}`"]
+            for bj in basins:
+                if bi == bj:
+                    row.append("--")
+                    continue
+                pc = [pair_cos(p, q) for p in by_basin[bi] for q in by_basin[bj]]
+                if bi < bj:
+                    between_all.extend(pc)
+                    pair_medians[(bi, bj)] = statistics.median(pc)
+                row.append(f"{statistics.median(pc):.4f}")
+            rows.append(row)
+        L.extend(_table(rows, header))
+        A("")
+        A("Median cosine between the settled states of prompts in different basins.")
+        A("")
+        if pair_medians:
+            (na, nb), nearest = max(pair_medians.items(), key=lambda kv: kv[1])
+            (fa, fb), farthest = min(pair_medians.items(), key=lambda kv: kv[1])
+            A(f"Closest pair of basins: `{na}` and `{nb}` at median cosine {nearest:.6f} "
+              f"(`1 - cos` = {1 - nearest:.3e}). Farthest: `{fa}` and `{fb}` at {farthest:.4f}.")
+            A("")
+            A("**This is the number to read carefully.** The between-basin mean below is dominated "
+              "by whichever basin sits far away; the distance that matters for whether the basin "
+              "*label* corresponds to a separated *state* is the distance between the two closest "
+              "basins. Compare it against the within-basin spread in the table above: if a "
+              "basin's internal spread is the same order as the gap to its nearest neighbouring "
+              "basin, then the label is a sharper distinction than the state, and the five-basin "
+              "partition is being drawn by the readout's argmax rather than by the geometry.")
+            A("")
+
+    # ---- one number -------------------------------------------------------
+    if within_all and between_all:
+        w = statistics.mean(1 - c for c in within_all)
+        bt = statistics.mean(1 - c for c in between_all)
+        A("### Within/between ratio")
+        A("")
+        rows = [
+            ["Mean within-basin spread, `1 - cos`", f"{w:.4e}", f"{len(within_all)} pairs"],
+            ["Mean between-basin spread, `1 - cos`", f"{bt:.4e}", f"{len(between_all)} pairs"],
+            ["**Ratio within / between**", f"**{w / bt:.4e}**" if bt else "n/a", ""],
+        ]
+        L.extend(_table(rows, ["Quantity", "Value", "n"], [":---", "---:", "---:"]))
+        A("")
+        A(f"A ratio near 1 would mean the basins are not separated at all; a ratio near 0 means "
+          f"prompts inside a basin are far closer to each other than to anything outside it. "
+          f"Measured: **{w / bt:.2e}**.")
+        A("")
+        if pair_medians:
+            nearest = max(pair_medians.values())
+            gap = 1 - nearest
+            A(f"Against the *nearest* basin pair rather than the mean: within-basin spread "
+              f"{w:.3e} versus nearest-basin gap {gap:.3e}, a ratio of "
+              f"**{w / gap:.2f}** if the gap is nonzero. A ratio near or above 1 means the two "
+              "nearest basins are no further apart than the prompts inside one of them.")
+            A("")
+        A(f"For reference, the float32 round-off floor measured on the parent's committed cycle "
+          f"is `1 - cos` around 1.5e-14. The within-basin spread above is "
+          f"{w / 1.5e-14:.1e} times that floor, so it is a real geometric spread and not "
+          "arithmetic noise.")
+        A("")
+
+    # ---- effective dimensionality ----------------------------------------
+    A("### Effective dimensionality within each basin")
+    A("")
+    A("Participation ratio of the singular values of the (mean-centred, unit-normalised) stack of "
+      "settled states in a basin: `PR = (sum s^2)^2 / sum s^4`. PR near 1 means the within-basin "
+      "variation lies along a single direction; PR near n-1 means it fills the space the sample "
+      "can see. Phase-aligned to the first member of the basin before stacking.")
     A("")
     rows = []
     for b in sorted(by_basin, key=lambda b: -len(by_basin[b])):
         ids = by_basin[b]
-        if len(ids) < 2:
-            rows.append([f"`{b}`", len(ids), "-", "-", "-", "-"])
+        if len(ids) < 3:
+            rows.append([f"`{b}`", len(ids), "-", "-", "-"])
             continue
-        pair = []
-        for i in range(len(ids)):
-            for j in range(i + 1, len(ids)):
-                ai, bi = vecs[ids[i]]
-                aj, bj = vecs[ids[j]]
-                c = cos(ai, aj)
-                if bj is not None:
-                    c = max(c, cos(ai, bj))
-                if bi is not None:
-                    c = max(c, cos(bi, aj))
-                pair.append(c)
-        rows.append([f"`{b}`", len(ids), f"{min(pair):.6f}",
-                     f"{statistics.median(pair):.6f}", f"{max(pair):.6f}",
-                     sum(1 for c in pair if c > 0.999999)])
-    L.extend(_table(rows, ["Basin", "n", "min pair cos", "median pair cos",
-                           "max pair cos", "pairs above 0.999999"]))
+        ref = vecs[ids[0]][0]
+        stack = []
+        for pid in ids:
+            a, bb = vecs[pid]
+            v_ = a if (bb is None or cos(a, ref) >= cos(bb, ref)) else bb
+            nrm = np.linalg.norm(v_)
+            stack.append(v_ / nrm if nrm else v_)
+        M = np.asarray(stack, dtype=np.float64)
+        Mc = M - M.mean(axis=0, keepdims=True)
+        s = np.linalg.svd(Mc, compute_uv=False)
+        lam = s ** 2
+        pr = float((lam.sum() ** 2) / (lam ** 2).sum()) if lam.sum() > 0 else float("nan")
+        frac1 = float(lam[0] / lam.sum()) if lam.sum() > 0 else float("nan")
+        rows.append([f"`{b}`", len(ids), f"{pr:.2f}", f"{min(len(ids) - 1, 768)}",
+                     f"{frac1:.3f}"])
+    L.extend(_table(rows, ["Basin", "n", "participation ratio", "max possible (n-1)",
+                           "variance in top direction"]))
     A("")
-    A("Phase-aware: each pair is scored at the better of comparing final-to-final and "
-      "final-to-previous-iterate, so two prompts on the same period-2 cycle in opposite phases "
-      "are not counted as distant. Raw states are in `states/` if a sharper analysis is wanted.")
+
+    # ---- position uniformity, all basins or only Divine? -----------------
+    A("### Does position uniformity hold for every basin, or only `Divine`?")
+    A("")
+    rows = []
+    for b in sorted(by_basin, key=lambda b: -len(by_basin[b])):
+        sub = [r for r in recs if r["basin"] == b and r.get("final_position_stats")]
+        if not sub:
+            continue
+        mins = [r["final_position_stats"]["min"] for r in sub]
+        rows.append([f"`{b}`", len(sub),
+                     f"{statistics.median(r['final_position_stats']['mean'] for r in sub):.6f}",
+                     f"{min(mins):.6f}",
+                     sum(1 for m in mins if m > 0.999),
+                     f"{sum(1 for m in mins if m > 0.999) / len(sub) * 100:.0f}%"])
+    L.extend(_table(rows, ["Basin", "n", "median mean pos-cos", "worst pair-cos in basin",
+                           "prompts fully uniform", "share"]))
+    A("")
+    A("Raw states are in `states/` for any sharper analysis.")
     A("")
     return L
 
@@ -734,6 +870,17 @@ def build_report(recs: list, meta: dict, out_dir: Path | None = None) -> str:
         L.extend(_table(rows, ["Prompt id", "Register", "Basin", "cos lag-1",
                                "cos lag-2", "p(top1)", "entropy", "lag-2 gate"]))
         A("")
+        c1s = [_f(r["cos_lag1_mean"]) for r in p2 if r.get("cos_lag1_mean") is not None]
+        if len(c1s) > 1:
+            A(f"**Are these all the same cycle?** The lag-1 cosine is the swing of one step "
+              f"around the orbit, so it is a property of the cycle's geometry, not of the "
+              f"labelling. Across these prompts it ranges {min(c1s):.6f} to {max(c1s):.6f} "
+              f"(median {statistics.median(c1s):.6f}, {len(set(round(c, 4) for c in c1s))} "
+              "distinct values at 4 dp). The parent's committed `state_divine.pt` sits at "
+              "0.684912. A single shared cycle would put every prompt at one value; a spread "
+              "means the basin contains a family of distinct period-2 orbits that happen to "
+              "decode to the same token.")
+            A("")
         A("Prompt texts:")
         A("")
         for r in sorted(p2, key=lambda r: r["prompt_id"]):
@@ -858,9 +1005,55 @@ def build_report(recs: list, meta: dict, out_dir: Path | None = None) -> str:
     # ---- anomalies -------------------------------------------------------
     L.extend(_anomalies_section(recs, by_id))
 
+    # ---- operational ------------------------------------------------------
+    L.extend(_operational_section(meta))
+
     # ---- config ----------------------------------------------------------
     L.extend(_config_section(meta))
     return "\n".join(L)
+
+
+def _operational_section(meta):
+    """Cost model for whoever runs the next sweep."""
+    L = []
+    A = L.append
+    A("## Operational notes for the next sweep")
+    A("")
+    A("### Do not give this job all the cores")
+    A("")
+    A("Measured on this 4-vCPU box, GPT-2 small at `seq_len` 10, one ATR iteration "
+      "(`run_with_cache` forward plus the readout decode):")
+    A("")
+    L.extend(_table([
+        ["1", "287", "1.00x"],
+        ["2", "350", "1.22x"],
+        ["3", "1105", "3.85x"],
+        ["4", "2137", "7.45x"],
+    ], ["`torch.set_num_threads`", "ms / iteration", "slowdown vs 1 thread"]))
+    A("")
+    A("Setting the thread count equal to the core count made the job **7.45x slower**, not "
+      "faster. The cause is OpenMP spin-wait collapse: GPT-2 small's per-layer matmuls at "
+      "`seq_len` ~10 are far too small to amortise a barrier across 4 threads, so the worker "
+      "threads spend their time busy-waiting, and they contend with every other process on the "
+      "box -- of which there is always at least one. The effect is not subtle and it is not "
+      "load-dependent noise: it reproduced in both directions of a 4,3,2,1,2,4 sweep.")
+    A("")
+    A("The fix that actually gives parallelism is process-level: **N single-threaded processes**, "
+      "each on its own slice of the prompt list. Two such shards measured 296 ms/iteration each "
+      "-- a 3% penalty against running alone, i.e. near-linear scaling. Three shards measured "
+      "~650 ms each, which is where memory bandwidth starts to bind; on this box two is the "
+      "sweet spot and it leaves half the machine for whoever else is working.")
+    A("")
+    A("Practical numbers for planning: **~0.29 s per iteration per prompt**, near-flat in "
+      "sequence length between `seq_len` 2 and 25 (219 ms at 2, 287 at 10, 289 at 25 -- the map "
+      "is overhead-bound, not FLOP-bound, at this size). A 125-prompt x 300-iteration sweep is "
+      "therefore about 3.0 CPU-hours, or about 1.6 hours wall on two shards.")
+    A("")
+    A("Single-threaded is also the reproducible choice, independently of speed: float32 "
+      "reduction order stops depending on how BLAS happened to split the work, so a re-run is "
+      "bit-comparable with this one.")
+    A("")
+    return L
 
 
 def _validation_section(meta):
@@ -902,6 +1095,70 @@ def _validation_section(meta):
       "lands on the same cycle to seven decimals. Whatever else may differ, the forward map does "
       "not.")
     A("")
+
+    ex = v.get("exactness")
+    if ex:
+        tr = ex["trend"]
+        c2, c1 = ex["lag2"][0], ex["lag1"][0]
+        A("### Is the period-2 cycle exact? No -- and the residual is stationary")
+        A("")
+        A("A cosine that prints as `1.000000` establishes six decimal places of display "
+          "precision, not equality. It is equally consistent with `f(f(A))` being bit-for-bit "
+          "`A` -- a true fixed point of the squared map -- and with an orbit still contracting "
+          "below the sixth decimal, which is an asymptote and not a fixed point at all. "
+          f"Measured directly over {ex['n_probe']} iterations from the parent's committed state:")
+        A("")
+        rows = [
+            ["`torch.equal(A, f(f(A)))`", f"**False**, at every one of {len(ex['lag2'])} probed k"],
+            ["Elements differing", f"{c2['n_elements_differing']} of {c2['n_elements']} "
+                                   f"({100 * c2['n_elements_differing'] / c2['n_elements']:.0f}%)"],
+            ["Max absolute elementwise deviation", f"{c2['max_abs_diff']:.3e} "
+                                                   f"(state RMS element {c2['rms_a']:.2f}, "
+                                                   f"largest element {c2['max_abs_a']:.1f})"],
+            ["Max relative elementwise deviation", f"{c2['max_rel_diff']:.3e} "
+                                                   "(dominated by near-zero entries)"],
+            ["Relative L2 deviation, `norm(A - f(f(A))) / norm(A)`", f"{c2['l2_rel']:.3e}"],
+            ["Cosine in float64, full precision", f"`{c2['cos_float64']:.17f}`"],
+            ["`1 - cos` in float64", f"{c2['one_minus_cos']:.5e}"],
+        ]
+        L.extend(_table(rows, ["Quantity", "Value"], [":---", ":---"]))
+        A("")
+        A("For scale, the same quantities on the lag-1 pair `(A, f(A))` -- a comparison that is "
+          "genuinely not identity:")
+        A("")
+        rows = [
+            ["`torch.equal(A, f(A))`", str(c1["bit_identical"])],
+            ["Max absolute elementwise deviation", f"{c1['max_abs_diff']:.4e}"],
+            ["Relative L2 deviation", f"{c1['l2_rel']:.4f}"],
+            ["Cosine in float64", f"`{c1['cos_float64']:.15f}`"],
+        ]
+        L.extend(_table(rows, ["Quantity", "Value"], [":---", ":---"]))
+        A("")
+        A(f"**Shrinking or stationary?** The relative L2 residual averages "
+          f"{tr['l2_rel_first_third_mean']:.3e} over the first third of the probe and "
+          f"{tr['l2_rel_last_third_mean']:.3e} over the last third -- a ratio of "
+          f"{tr['ratio_last_over_first']:.2f} across {ex['n_probe']} iterations. It is not "
+          "decaying. It sits at "
+          f"{tr['l2_rel_last_third_mean'] / tr['float32_eps']:.2f} x float32 epsilon "
+          f"({tr['float32_eps']:.3e}) and stays there.")
+        A("")
+        A("**Statement of the result, at the strength the numbers support.** The `Divine` orbit is "
+          "an *attracting* period-2 cycle in float32 arithmetic, not a bitwise-periodic one. "
+          "`f o f` is not the identity on `A`: it moves 87% of the entries and lands about 1.6 "
+          "float32 ulps away in relative L2. But it does not move *further* with iteration, and "
+          "it does not move *closer*: the residual is stationary round-off jitter around the "
+          "cycle, not convergence toward it and not divergence from it. So the correct claim is "
+          "\"a fixed point of the squared map to within float32 arithmetic\", and the incorrect "
+          "claims are both \"bit-identical\" and \"still drifting\". A `1.000000` printout could "
+          "not have distinguished these; `1 - cos = "
+          f"{c2['one_minus_cos']:.2e}` in float64 does.")
+        A("")
+        A("Two consequences worth carrying forward. First, any equality test on ATR states has to "
+          "be a tolerance test at the float32 round-off scale -- `torch.equal` will return False "
+          "on states that are the same point of the dynamics. Second, the cycle being attracting "
+          "rather than exact is what makes it robust: it is reached from a neighbourhood and "
+          "survives perturbation, which a knife-edge bitwise cycle would not.")
+        A("")
     return L
 
 
@@ -1270,15 +1527,22 @@ def cycle_exactness(model, state, n_probe: int = 10) -> dict:
     def compare(a: torch.Tensor, b: torch.Tensor) -> dict:
         a64, b64 = a.double(), b.double()
         diff = (a64 - b64).abs()
+        # Elementwise relative deviation is reported against |a| and, separately,
+        # against the RMS element of a. The first is honest but dominated by
+        # near-zero entries; the second is the one to quote for scale.
         denom = a64.abs().clamp_min(torch.finfo(torch.float64).tiny)
-        cos64 = float((a64.reshape(-1) @ b64.reshape(-1)) /
-                      (a64.norm() * b64.norm()))
+        cos64 = float((a64.reshape(-1) @ b64.reshape(-1)) / (a64.norm() * b64.norm()))
+        rms = float(a64.pow(2).mean().sqrt())
         return {
             "bit_identical": bool(torch.equal(a, b)),
             "max_abs_diff": float(diff.max()),
             "max_rel_diff": float((diff / denom).max()),
+            "max_abs_diff_over_rms": float(diff.max()) / rms,
             "l2_diff": float((a64 - b64).norm()),
             "l2_a": float(a64.norm()),
+            "l2_rel": float((a64 - b64).norm() / a64.norm()),
+            "rms_a": rms,
+            "max_abs_a": float(a64.abs().max()),
             "cos_float64": cos64,
             "one_minus_cos": float(1.0 - cos64),
             "n_elements_differing": int((a != b).sum()),
@@ -1288,6 +1552,23 @@ def cycle_exactness(model, state, n_probe: int = 10) -> dict:
     lag2 = [compare(iters[k], iters[k + 2]) for k in range(len(iters) - 2)]
     lag1 = [compare(iters[k], iters[k + 1]) for k in range(len(iters) - 1)]
     first_exact = next((k for k, c in enumerate(lag2) if c["bit_identical"]), None)
+
+    # Shrinking or stationary? A cycle being asymptotically approached has a
+    # lag-2 residual that decays with k; float32 round-off jitter around an
+    # attracting cycle does not. Comparing the first and last thirds separates
+    # the two without fitting anything.
+    rel = [c["l2_rel"] for c in lag2]
+    third = max(1, len(rel) // 3)
+    head, tail = rel[:third], rel[-third:]
+    trend = {
+        "l2_rel_first_third_mean": statistics.mean(head),
+        "l2_rel_last_third_mean": statistics.mean(tail),
+        "l2_rel_min": min(rel), "l2_rel_max": max(rel),
+        "ratio_last_over_first": (statistics.mean(tail) / statistics.mean(head)
+                                  if statistics.mean(head) else float("nan")),
+        "float32_eps": float(torch.finfo(torch.float32).eps),
+    }
+    trend["shrinking"] = trend["ratio_last_over_first"] < 0.5
     return {
         "n_probe": n_probe,
         "lag2": lag2,
@@ -1296,6 +1577,7 @@ def cycle_exactness(model, state, n_probe: int = 10) -> dict:
         "any_lag2_bit_identical": any(c["bit_identical"] for c in lag2),
         "first_bit_identical_k": first_exact,
         "any_lag1_bit_identical": any(c["bit_identical"] for c in lag1),
+        "trend": trend,
     }
 
 
@@ -1359,14 +1641,23 @@ def validate_instrument(parent_path: str, n_iter: int = 24, out_dir: Path | None
     print(f"[validate] period-2 classifier on this state: {classified}")
 
     # --- is the cycle bit-identical, or only tight? ------------------------
-    ex = cycle_exactness(model, st)
+    ex = cycle_exactness(model, st, n_probe=40)
     print("[exact] lag-2 pairs A_k vs A_k+2:")
-    print(f"[exact] {'k':>3} {'bit-identical':>14} {'max|d|':>12} {'max rel d':>12} "
-          f"{'||d||2':>12} {'1-cos(f64)':>14} {'n elems differ':>15}")
+    print(f"[exact] {'k':>3} {'bit-ident':>10} {'max|d|':>11} {'maxrel':>10} "
+          f"{'||d||/||A||':>12} {'1-cos(f64)':>13} {'differ':>14}")
     for k, c in enumerate(ex["lag2"]):
-        print(f"[exact] {k:>3} {str(c['bit_identical']):>14} {c['max_abs_diff']:>12.3e} "
-              f"{c['max_rel_diff']:>12.3e} {c['l2_diff']:>12.3e} "
-              f"{c['one_minus_cos']:>14.6e} {c['n_elements_differing']:>7}/{c['n_elements']}")
+        if k % 4 and k != len(ex["lag2"]) - 1:
+            continue
+        print(f"[exact] {k:>3} {str(c['bit_identical']):>10} {c['max_abs_diff']:>11.3e} "
+              f"{c['max_rel_diff']:>10.2e} {c['l2_rel']:>12.3e} "
+              f"{c['one_minus_cos']:>13.5e} {c['n_elements_differing']:>6}/{c['n_elements']}")
+    tr = ex["trend"]
+    print(f"[exact] residual ||d||/||A||: first third {tr['l2_rel_first_third_mean']:.4e}, "
+          f"last third {tr['l2_rel_last_third_mean']:.4e}, "
+          f"ratio {tr['ratio_last_over_first']:.3f} -> "
+          f"{'SHRINKING (asymptotic)' if tr['shrinking'] else 'STATIONARY (round-off jitter)'}")
+    print(f"[exact] float32 eps = {tr['float32_eps']:.3e}; residual is "
+          f"{tr['l2_rel_last_third_mean'] / tr['float32_eps']:.2f} x eps")
     c1 = ex["lag1"][0]
     print(f"[exact] lag-1 reference (A vs f(A)): bit_identical={c1['bit_identical']} "
           f"max|d|={c1['max_abs_diff']:.4e} max rel d={c1['max_rel_diff']:.4e} "

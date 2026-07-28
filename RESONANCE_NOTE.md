@@ -28,14 +28,36 @@ and it stops moving. Most prompts settle onto a fixed point. One basin — Divin
 onto a two-step cycle: the state at step *n* matches the state at step *n+2*, with a
 reported cosine of 1.000000.
 
-A caution on that number, because this file should hold itself to the standard it asks of
-everything else: **1.000000 establishes the display precision, not exact equality.** Six
-decimal places of a float32 cosine is consistent with a genuine bit-identical cycle and
-also with a very tight one that is still drifting below the sixth decimal. To call the
-cycle exact we need either the elementwise difference between the two states or a stated
-tolerance, and we currently have neither. Until then the honest phrasing is "period-2 to
-within reported precision". Worth resolving — a truly bit-identical cycle and an
-asymptotically-approached one are different objects.
+That number needed checking, because 1.000000 establishes display precision and not
+equality. It has now been measured, on the parent's own committed `state_divine.pt`, over
+40 iterations, in float64. **The answer is neither of the two options I expected.**
+
+| | A vs f(f(A)) | A vs f(A), for scale |
+|---|---|---|
+| `torch.equal` | False, at every probed step | False |
+| Elements differing | 6727 / 7680 (88%) | — |
+| Relative L2, ‖d‖/‖A‖ | 1.56e-07 | 0.775 |
+| Cosine, float64, full precision | 0.99999999999998512 | 0.684911683824360 |
+| 1 − cos | 1.49e-14 | 0.315 |
+
+So it is not bit-identical: applying the map twice moves 88% of the entries. But it is
+also not an asymptote creeping toward one. The relative residual averages 2.11e-07 over
+the first third of the probe and 1.96e-07 over the last third — a ratio of 0.93 across 40
+iterations. It is not shrinking. It sits at **1.65 times float32 epsilon** and stays
+there.
+
+The correct description is an **attracting period-2 cycle in float32 arithmetic**: a fixed
+point of the squared map to within the precision the arithmetic can represent. The state
+does not return to itself exactly, it returns to itself as closely as float32 permits, and
+it neither tightens nor loosens with further iteration.
+
+Two things follow. First, **the cycle being attracting rather than bitwise-periodic is
+what makes it robust** — a bitwise-exact cycle would be a knife-edge, easily destroyed by
+any perturbation, whereas this one is a genuine dynamical attractor that pulls nearby
+states back. That is the stronger property of the two, and the more interesting one.
+Second, and practically: **any state-equality test in this repo has to be a tolerance test
+at float32 round-off.** `torch.equal` returns False on two states that are the same point
+of the dynamics, so an exact-equality assertion here tests the arithmetic, not the system.
 
 So the honest word is **attractor**, not resonance. The system has a handful of states it
 falls into and stays in: 125 prompts across the parent's library land in 5 basins. That is
