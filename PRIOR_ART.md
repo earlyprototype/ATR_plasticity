@@ -554,10 +554,31 @@ every axis except feedback:
 | Order of the activation samples | Oja is sequential; a reshuffled replay is a different trajectory |
 | Batching of samples per update | Averaging over a different batch changes the update |
 | Initial weight, and RNG seed | Same starting point, same draws |
-| Centring, or the deliberate absence of it | Applied to one arm and not the other, this alone changes the fixed point |
+| Centring, or the deliberate absence of it | Applied to one arm and not the other, this alone changes what the rule targets — and at the `Divine` state, centring leaves a numerically empty matrix (measured above) |
+| Period-detection settings: K, tolerance, sampling stride | A period-2 orbit read with an even-only stride looks like a fixed point. Differing schedules make the arms incomparable |
 
 Record all of these alongside the result. If the two arms differ on any of them, the
 difference between them is not evidence about feedback.
+
+**Basins must be defined over attractors, not over fixed points.** The measurement here is
+"which attractor does this initial state fall into, and how large is its basin" — and an
+attractor may be a fixed point (period 1) or a periodic orbit (period k ≥ 2). Concretely:
+
+- Run the loop from each initial state, then classify the endpoint by the lag scan above:
+  detected period k plus the residual at that period.
+- Two initial states are **in the same basin** if they land on the same orbit — matched as
+  a *set* of states up to cyclic rotation and tolerance, not by comparing single snapshots.
+  Comparing one snapshot to one snapshot will split a single period-2 basin into two
+  phantom basins, or merge two genuinely different ones, depending on the phase each run
+  happened to be sampled at.
+- Basin size is then the fraction of initial states landing on that orbit. Report basin
+  sizes with the period alongside, so a change from "period 2, basin 0.4" to "period 1,
+  basin 0.4" is visible as the qualitative change it is.
+
+This matters concretely for us: the headline comparison is whether the `Divine` period-2
+cycle survives plasticity, damps to a fixed point, lengthens, or breaks up. **All four
+outcomes are indistinguishable to a fixed-point-only basin measurement**, and three of the
+four would be misreported as "did not converge".
 
 ---
 
