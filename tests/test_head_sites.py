@@ -358,10 +358,10 @@ class TestTheUpdateIsTheSameRule:
     ):
         """
         `max_delta_frac` is drift relative to the site's own W0, and for a head
-        site that is ||W_head||_F (~35.6 here), not the matrix's ~123. Read the
-        other way round, a 5% cap would be a 17% cap on the head -- three times
-        the drift the operator asked for, on the one experiment where the point
-        is to perturb a head gently.
+        site that is ||W_head||_F (35.58 here), not the whole matrix's 139.72.
+        Read the other way round, a 5% cap measured against the matrix would be
+        a 20% cap on the head -- four times the drift the operator asked for, on
+        the one experiment where the point is to perturb a head gently.
         """
         p = OjaPlasticity(gpt2, site=HF_SITE, eta=1e3, mode="oja",
                           max_delta_frac=0.05)

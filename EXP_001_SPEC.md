@@ -227,14 +227,22 @@ by reading the rule object after the run, and `verify_arms_matched` checks each 
 | Axis | Field |
 |:---|:---|
 | eta, and the ceiling | `eta`, `max_delta_frac` |
-| Total number of weight updates | `n_updates` |
+| Total number of weight updates | `n_updates`, plus `n_steps` and `apply_every` |
 | Order of the activation samples | `sample_order` — the per-sample iteration index, in consumption order |
 | Batching of samples per update | `samples_per_update` |
 | Initial weight, and RNG seed | `w0_sha256` (byte hash), `seed`, `rng_state_sha256` |
 | Centring, or its deliberate absence | `centring`, read off the rule object rather than asserted |
 
-Plus `site`, `mode`, `transposed` and `dtype`, because a comparison across two different
-matrices, rules, layouts or precisions is not a comparison.
+Plus `site`, `mode`, `transposed`, `dtype` and `store_dtype`, because a comparison across
+two different matrices, rules, layouts or precisions is not a comparison. The only
+`ArmConfig` fields *outside* the table are the three that are supposed to differ — `arm`,
+`feedback`, `y_source` — and a test asserts that, so a field added later without a decision
+about it surfaces as a red test rather than as an unchecked axis.
+
+`store_dtype` being a matched axis has a consequence worth stating: **a float16 recording
+is refused as an offline arm.** Half-precision storage exists and records its own
+round-trip error, but a replay carrying rounding the live arm never saw is not matched. The
+memory escape hatch that keeps the arms matched is fewer steps, not lower precision.
 
 **On a mismatch, `run_matched_arms` raises `ArmsMismatchError` and reports no comparison.**
 That is deliberate. A mismatched number with a caveat attached is how the caveat gets
@@ -280,15 +288,24 @@ floor directly. It reads the loop out at `blocks.3.hook_resid_post`, below the s
 arms at every step. Whatever the arms still differ by there is noise, and no claim about
 feedback can be made underneath it.
 
-| Mode | Floor, feedback severed |
+| Mode | Floor, feedback severed (eta=1e-5, 6 steps, cadence 1) |
 |:---|:---|
 | `y_source="recomputed"` | **Zero — bit-identical.** Asserted as a bound (`rel_fro_diff < 1e-8`) *and* as `torch.equal`. |
-| `y_source="recorded"` | **6.8% of drift** at eta=1e-5 over 6 steps (`rel_fro_diff` 9.3e-4 against drift 1.3e-2). Not noise: it is Oja's own `y = xW` recursion, frozen by the recording. |
+| `y_source="recorded"` | **`diff_over_drift` = 6.77e-02** (`rel_fro_diff` 9.26e-04 against drift 1.37e-02). Not noise: it is Oja's own `y = xW` recursion, frozen by the recording. |
 
-That second row is the one to keep in view. In the default mode, a `diff_over_drift` of a
-few percent at a routed site is **inside the floor** and is not evidence of feedback. Use
-`weight_recomputed_y` for the feedback claim and `weight` for the literal PRIOR_ART
-protocol, and report both.
+**That second row is larger than the routed signal.** On the full 0→11 loop at the same
+eta and step count, `y_source="recorded"` gives `diff_over_drift` = 1.91e-02 — a third of
+the no-feedback floor. So in the default mode the arms' difference is dominated by the
+frozen-`y` artefact and **is not evidence about feedback at this eta.**
+
+One honest caveat on that comparison: the floor is measured on a shallower loop (0→3), so
+its activation statistics and its drift are not identical to the routed loop's. The two
+numbers are the same order and the same sign, which is enough to say the default mode
+cannot resolve feedback here; they are not exact enough to subtract.
+
+**Consequence for EXP-001: make the feedback claim from `weight_recomputed_y`, whose floor
+is exactly zero.** Report `weight` alongside it, because it is the literal PRIOR_ART
+protocol, but report it next to its floor and not on its own.
 
 The zero floor is a defended property, not luck. It holds only because
 `offline_control._recompute_y` reproduces the site's **fused `torch.addmm`** bit for bit
@@ -318,6 +335,33 @@ so it is exact by construction on any hardware — and is asserted with `torch.e
    cosine between the full matrices is ~1 by construction and says nothing),
    `rel_fro_diff = ‖W_closed − W_offline‖_F / ‖W_0‖_F`, and `diff_over_drift`, the same
    difference against the larger of the two arms' own drift.
+
+### First measurement — the harness's own output, not a result
+
+Recorded so the numbers in this section have provenance. Prompt
+`"The cat sat on the mat and then the"`, site `blocks.6.mlp`, layers 0→11, cadence `k=1`,
+`max_delta_frac=0.05`, seed 0, mode `oja`, centring absent, arms verified matched on every
+axis. **This is a harness shakedown at a short horizon, not EXP-001.** EXP-001 runs 200
+iterations from `state_divine.pt`; these are 6 and 20 from a cold prompt.
+
+| eta | steps | drift closed | drift offline | `cos_delta` recorded | `diff_over_drift` recorded | `diff_over_drift` recomputed |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1e-6 | 20 | 7.06e-04 | 7.09e-04 | 0.9999987 | 5.00e-03 | 4.64e-04 |
+| 1e-5 | 6 | 3.38e-03 | 3.44e-03 | 0.9999709 | 1.91e-02 | 2.87e-04 |
+| 1e-5 | 20 | 6.63e-03 | 6.93e-03 | 0.9998848 | 4.59e-02 | 4.41e-03 |
+| 1e-4 | 20 | 4.31e-02 | 5.00e-02 † | 0.9940700 | 1.72e-01 † | 3.08e-02 |
+
+† **`clipped` fired on the offline arm at eta=1e-4/20 steps** — it hit the 5% ceiling while
+the closed arm did not, so that row's arms are no longer matched on effective step size and
+its numbers must not be read as a feedback measurement. This is exactly the §4 "check
+`clipped` before interpreting anything" kill condition, and it says the eta ladder's top
+rung needs either a raised ceiling or a shorter horizon before it is usable.
+
+Reading, stated at the strength the measurement supports: **in `recomputed` mode the
+feedback contribution is small but resolvable** — 2.9e-04 to 4.4e-03 of the arms' own drift
+at eta=1e-5, against a floor of exactly zero — and it grows with both eta and horizon. In
+`recorded` mode nothing is resolvable at all at these settings, because the floor exceeds
+the signal. Nothing here was tuned; the eta ladder is §3's, unchanged.
 
 ### Reading the outcome
 

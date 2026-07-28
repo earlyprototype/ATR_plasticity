@@ -37,7 +37,7 @@ Run with:  ATR_REQUIRE_MODEL=1 .venv/bin/pytest tests/test_offline_control.py -q
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import fields, replace
 
 import pytest
 import torch
@@ -206,6 +206,12 @@ def test_every_matched_axis_is_a_field_on_ArmConfig():
         assert hasattr(cfg, name), name
     assert set(cfg.axis_values()) == {name for name, _ in MATCHED_AXES}
 
+    # And nothing on the config escapes the check by accident. Only the three
+    # fields that distinguish the arms may sit outside the table; a field added
+    # later without a decision about it shows up here rather than in a result.
+    unchecked = {f.name for f in fields(cfg)} - set(cfg.axis_values())
+    assert unchecked == {"arm", "feedback", "y_source"}, sorted(unchecked)
+
 
 def test_verify_passes_on_two_properly_matched_arms():
     v = verify_arms_matched(_closed_cfg(), _offline_cfg())
@@ -225,6 +231,8 @@ _BREAKAGES = {
     "max_delta_frac": 0.10,
     "transposed": True,
     "dtype": "torch.float64",
+    "n_steps": 5,
+    "apply_every": 2,
     "n_updates": 3,
     "n_samples": 3,
     "samples_per_update": (2, 2),
@@ -310,6 +318,11 @@ def test_recorder_captures_the_two_tensors_the_rule_consumes(tl_gpt2, frozen_rec
     Shapes and the relation `y = x W_out + b_out` are checked rather than
     assumed: they are the whole content of the claim that the recording is of
     what the rule would have seen.
+
+    `allclose`, deliberately, and only here: the unfused `x @ W + b` is not the
+    tensor the site computed, it is a different rounding of the same maths.
+    `test_recompute_y_reproduces_the_sites_own_forward_bit_exactly` is the exact
+    version, and it matters there because that arithmetic feeds the replay.
     """
     rec = frozen_record
     mlp = tl_gpt2.blocks[6].mlp
@@ -682,10 +695,15 @@ def test_summary_carries_every_number_a_run_log_needs(matched_run):
     for key in ("site", "mode", "eta", "n_steps", "n_updates", "arms_matched",
                 "cos_weight", "cos_delta", "rel_fro_diff", "diff_over_drift",
                 "drift_closed_rel", "drift_offline_rel",
+                "cos_delta_recomputed_y", "rel_fro_diff_recomputed_y",
+                "diff_over_drift_recomputed_y",
                 "clipped_closed", "clipped_offline"):
         assert key in s, key
     assert s["arms_matched"] is True
     assert s["eta"] == ETA
+    # The pair with the zero floor is carried, not left in the nested dict:
+    # it is the one a feedback claim should be read from.
+    assert s["rel_fro_diff_recomputed_y"] is not None
 
 
 def test_the_frozen_rerun_is_run_under_each_arms_matrix(matched_run):

@@ -56,19 +56,28 @@ Replaying the *recorded* y (`y_source="recorded"`, the default, and what
 from the recorded x and the offline arm's own drifting weight
 (`y_source="recomputed"`) freezes only the state feedback and leaves the rule's
 own recursion intact in both arms. `run_matched_arms` measures both, because
-which one you mean changes what the difference is evidence for. On GPT-2 small
-at eta=1e-5 the two answers differ by two orders of magnitude, so it is not a
-distinction that can be waved away.
+which one you mean changes what the difference is evidence for -- on GPT-2 small
+at eta=1e-5 the two answers differ by two orders of magnitude.
 
-THE DETECTION LIMIT. Sever the feedback path entirely -- run the loop reading
-out below the site -- and the `recomputed` arms come out **bit-identical**, so
-there is no measurable noise floor under this comparison. That is a property
-worth defending rather than a happy accident: it only holds because
-`_recompute_y` reproduces the site's fused addmm bit for bit instead of merely
-mathematically. Doing the obvious `x @ W + b` instead put a floor of roughly
-5e-09 relative Frobenius under everything -- hardware-dependent (2.9e-09 and
-4.8e-09 measured on two machines), harmless at any usable eta, and entirely
-self-inflicted. `test_a_site_the_loop_does_not_route_through` holds the line.
+THE DETECTION LIMIT, and it is not the same for the two modes. Sever the
+feedback path entirely -- run the loop reading out below the site -- and:
+
+  recomputed   the arms come out **bit-identical**. Floor zero. This is where
+               a claim about feedback can live.
+  recorded     the arms still differ by `diff_over_drift` 6.8e-02, with no
+               feedback anywhere in the system, because the recording froze the
+               rule's own recursion. That floor is *larger* than the routed
+               signal at the same eta (1.9e-02). In the default mode, at this
+               eta, the difference between the arms is the frozen y and not
+               the coupling.
+
+The zero floor is defended, not lucky: it holds only because `_recompute_y`
+reproduces the site's fused addmm bit for bit instead of merely mathematically.
+The obvious `x @ W + b` put ~5e-09 relative Frobenius under everything --
+hardware-dependent (2.9e-09 and 4.8e-09 on two machines), harmless at any usable
+eta, and entirely self-inflicted. `test_a_site_the_loop_does_not_route_through`
+holds the line, and asserts a bound as well as the identity, because a
+floating-point floor is a bound and never a value.
 """
 
 from __future__ import annotations
@@ -141,6 +150,8 @@ MATCHED_AXES: tuple[tuple[str, str], ...] = (
     ("transposed", "the layout the rule writes in must be the same in both arms"),
     ("dtype", "a float64 arm and a float32 arm differ by more than feedback"),
     ("store_dtype", "a lossily stored replay carries rounding the live arm does not"),
+    ("n_steps", "the arms must travel the same number of loop iterations"),
+    ("apply_every", "the cadence sets which activations end up in which update"),
     ("n_updates", "the arms must travel the same number of steps"),
     ("n_samples", "the same activations must reach the rule, in the same quantity"),
     ("samples_per_update", "averaging over a different batch changes the update"),
@@ -249,12 +260,17 @@ def _recompute_y(x: torch.Tensor, w: torch.Tensor, bias: Optional[torch.Tensor])
     of magnitude of nothing and about eight orders below the eta=1e-5 signal,
     but it was a floor that did not need to exist.
 
-    Both backends this module can attach to are addmm underneath, which is why
-    matching it works rather than merely helping: TransformerLens's
-    `batch_addmm` flattens to 2-D and calls `torch.addmm`, and it is written
-    that way precisely to match HuggingFace's `Conv1D`, which does the same.
-    `nn.Linear`'s `F.linear` is addmm against the transposed weight, which is
-    what `_effective_W()` hands over on the `transposed=True` path.
+    Both backends this module can attach to a real model are addmm underneath,
+    which is why matching it is exact rather than merely closer:
+    TransformerLens's `batch_addmm` flattens to 2-D and calls `torch.addmm`, and
+    it is written that way precisely to match HuggingFace's `Conv1D`, which does
+    the same. Verified bit-exact against `blocks.6.mlp` on GPT-2 small.
+
+    The `transposed=True` path is `nn.Linear`, whose `F.linear` is also addmm
+    but against a transposed weight -- which is the view `_effective_W()` hands
+    over, so the shapes line up. **Bit-exactness there is untested**, because
+    GPT-2 is Conv1D throughout and this repo has no real-model `nn.Linear` site.
+    Do not assume the zero floor transfers to that path without measuring it.
 
     If a future site is not addmm-shaped, this is the function to change, and
     `test_a_site_the_loop_does_not_route_through` is what will tell you: it
@@ -512,9 +528,11 @@ class ArmConfig:
     """
     Everything the two arms have to agree on, as first-class fields.
 
-    Every name in `MATCHED_AXES` is an attribute here. `arm`, `feedback` and
-    `y_source` are the fields that are *expected* to differ -- they are what
-    distinguishes the arms -- and they are deliberately not in `MATCHED_AXES`.
+    Every name in `MATCHED_AXES` is an attribute here, and `axis_values()`
+    returns exactly that subset. The three fields NOT in `MATCHED_AXES` --
+    `arm`, `feedback` and `y_source` -- are the ones that are *expected* to
+    differ, because they are what distinguishes the arms. Everything else on
+    this class is checked.
     """
 
     arm: str
@@ -707,9 +725,13 @@ def replay_offline(
 
     (`_hook` is private. It is used anyway, because the alternative is a second
     implementation of the accumulation step, and a second implementation is a
-    seventh axis on which the arms could silently differ. The requirement this
-    implies for `plasticity.py` -- a public `observe(x, y)` -- is recorded in
-    `EXP_001_SPEC.md`.)
+    one more axis on which the arms could silently differ, and one the verifier
+    could not see. The requirement this implies for `plasticity.py` -- a public
+    `observe(x, y)` that `_hook` itself calls -- is recorded in
+    `EXP_001_SPEC.md`. Until it exists, a change to `_hook`'s signature breaks
+    the offline arm silently, and
+    `test_a_single_step_replays_to_the_same_update_bit_exactly` is what catches
+    it.)
 
     `y_source`:
       "recorded"   replay y as captured from the frozen loop. Freezes both the
@@ -932,8 +954,17 @@ class MatchedArmsResult:
     record: ActivationRecord
 
     def summary(self) -> dict:
-        """The flat dict worth writing to a log line."""
+        """
+        The flat dict worth writing to a log line.
+
+        The unsuffixed metrics are `y_source`'s -- the literal PRIOR_ART
+        protocol by default. The `_recomputed_y` pair is the one whose floor is
+        zero, and is therefore the pair a claim about feedback should be read
+        from; it is None when `also_recomputed_y` was off. Both are carried
+        because reporting either alone is misleading in a different direction.
+        """
         w = self.comparison["weight"]
+        r = self.comparison.get("weight_recomputed_y")
         return {
             "site": self.closed.config.site,
             "mode": self.closed.config.mode,
@@ -948,6 +979,9 @@ class MatchedArmsResult:
             "diff_over_drift": w["diff_over_drift"],
             "drift_closed_rel": w["drift_closed_rel"],
             "drift_offline_rel": w["drift_offline_rel"],
+            "cos_delta_recomputed_y": r["cos_delta"] if r else None,
+            "rel_fro_diff_recomputed_y": r["rel_fro_diff"] if r else None,
+            "diff_over_drift_recomputed_y": r["diff_over_drift"] if r else None,
             "clipped_closed": self.closed.report["clipped"],
             "clipped_offline": self.offline.report["clipped"],
         }
