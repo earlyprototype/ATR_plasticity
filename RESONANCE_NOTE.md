@@ -25,13 +25,22 @@ That is not quite what we have.
 
 What we actually have, measured: run the residual stream back into the model repeatedly
 and it stops moving. Most prompts settle onto a fixed point. One basin — Divine — settles
-onto an exact two-step cycle: the state at step *n* equals the state at step *n+2*, with
-a cosine of 1.000000. Not approximately. Exactly.
+onto a two-step cycle: the state at step *n* matches the state at step *n+2*, with a
+reported cosine of 1.000000.
 
-So the honest word is **attractor**, not resonance. The system has a small number of
-states it falls into and stays in. That five prompts out of a hundred and twenty-five
-land somewhere and never leave is an attractor result. Calling it resonance imports
-promises about frequency response that we have not measured and probably cannot.
+A caution on that number, because this file should hold itself to the standard it asks of
+everything else: **1.000000 establishes the display precision, not exact equality.** Six
+decimal places of a float32 cosine is consistent with a genuine bit-identical cycle and
+also with a very tight one that is still drifting below the sixth decimal. To call the
+cycle exact we need either the elementwise difference between the two states or a stated
+tolerance, and we currently have neither. Until then the honest phrasing is "period-2 to
+within reported precision". Worth resolving — a truly bit-identical cycle and an
+asymptotically-approached one are different objects.
+
+So the honest word is **attractor**, not resonance. The system has a handful of states it
+falls into and stays in: 125 prompts across the parent's library land in 5 basins. That is
+an attractor result. Calling it resonance imports promises about frequency response that
+we have not measured and probably cannot.
 
 I'd keep the word "resonant" for the intuition and "attractor" for anything written
 down.
@@ -40,25 +49,31 @@ down.
 
 ## The strong claim, which I think is right
 
-**A transformer run normally is a feedforward function. Run in this loop, it is a
-dynamical system. Those are different mathematical objects, and the second one has
-properties the first cannot have.**
+**A transformer is normally executed as a single pass. Applied iteratively to its own
+output, the same weights define a dynamical system — and that system has structure which
+single-pass execution never brings into view.**
 
-A feedforward function has no state. You put a prompt in, you get logits out, nothing
-persists, and the concept of "where does it settle" is not defined — there is nowhere for
-it to settle *to*. Fixed points, basins, limit cycles, periods: none of these are
-properties a feedforward network can have. They are not hidden in there waiting to be
-found. They do not exist until you close the loop.
+I had this stated more strongly and it was wrong, so here is the careful version.
 
-Close the loop and they exist. And critically: **you did not add any weights to make them
-exist.** The basins are a property of the weights GPT-2 already had. They were there the
-whole time, in the sense that they are fully determined by the weights — and they were
-never there, in the sense that nothing about ordinary inference brings them into being.
+The map is always there. GPT-2's weights define a function from a residual-stream state to
+a residual-stream state, and any such function can be composed with itself. Its fixed
+points, cycles and basins are fully determined by the weights and exist as mathematical
+objects whether or not anyone ever iterates it. They are not created by closing the loop.
+
+What closing the loop changes is that those properties become **an actual runtime process,
+and therefore measurable**. Under ordinary inference the map is applied once. Nothing
+settles, because nothing is iterated; "where does it settle" is a question about a process
+that is not being run. Iterate it and the question has an answer you can record.
+
+And critically: **you did not add a single weight to get it.** The basins belong to the
+GPT-2 that already existed. The honest statement is not that we brought them into being —
+it is that nobody had looked, because looking requires running the model in a way nobody
+runs it.
 
 That is the genuinely good idea, and it does not need any grand theory to be interesting.
-It says: *the weights of a trained transformer implicitly specify a dynamical system that
-nobody has ever run, and that system has structure.* Five basins. An exact period-2 cycle.
-An oscillation carried by a single attention head in block 11.
+It says: *the weights of a trained transformer implicitly specify a dynamical system, and
+that system has structure.* Five basins. A period-2 cycle. An oscillation carried by a
+single attention head in block 11.
 
 So ATR is best understood as **a measurement instrument** — it reveals structure in the
 weights that ordinary inference cannot see. That framing survives every criticism I can
@@ -75,22 +90,40 @@ it resonates in, it is a completely different animal — same weights, different
 Here is the problem. **The Divine state is position-uniform.** Every token position holds
 essentially the same vector. And 125 prompts collapse into 5 basins.
 
-Put those together and ask what the settled state actually knows. If a hundred and
-twenty-five different prompts end up in one of five states, then the settled state carries
-at most about two and a bit bits of information about the prompt that produced it. It
-knows *which basin*. It does not appear to know what you said.
+Put those together and ask what the settled state actually knows.
 
-That is what an attractor does — it destroys information. That is the definition. A basin
-is precisely a set of starting points that become indistinguishable.
+Here I have to be careful about what the counting argument does and does not bound. Five
+basins means the **basin label** carries at most log2(5) ≈ 2.32 bits about the prompt. It
+does **not** bound the settled state itself. If prompts inside a basin settle onto
+distinct states, the state can carry a great deal more than its label does.
 
-So "a different animal" needs care. A system in a low-information attractor is a different
-animal in the way that a struck bell is a different animal from a bell: it is doing
-something, it is doing it stably, and what it is doing is nearly independent of how you
-struck it.
+So the correct statement is conditional, and it splits exactly along the measurement in
+the within-basin issue:
 
-The second number in the same direction: the readout invisibility ratio is 0.295. A large
-share of what happens in the residual stream never reaches the logits at all. So even
-where the state does differ, the output may not.
+- If within-basin states are indistinguishable, the settled state *is* the label, and 2.32
+  bits is the whole of it. The attractor has erased the prompt.
+- If within-basin states differ systematically, the attractor has compressed rather than
+  erased, and the bound does not apply to the state at all.
+
+I don't know which, and neither does anyone else yet. I previously wrote that destroying
+information is what an attractor does *by definition*, and that is too strong — basins
+merge trajectories that started in the same basin, which constrains how much can survive
+but does not force it to zero. The amount actually destroyed is an empirical quantity, and
+it is the thing to go and measure.
+
+So "a different animal" needs care. *If* the erasure reading holds, the system is a
+different animal in the way that a struck bell is: it is doing something, doing it stably,
+and what it does is nearly independent of how you struck it. If the compression reading
+holds, that analogy is wrong and the picture is much more interesting.
+
+A second number that points the same way as the cautious reading: the readout invisibility
+ratio is 0.295. A large share of what happens in the residual stream never reaches the
+logits. So even where the state does differ, the output may not.
+
+*(That ratio comes from the parent project and this note does not define it — numerator,
+denominator, and whether it is aggregated over layers or token positions all need pulling
+across before anyone leans on it. Recorded as a number we inherited, not one we have
+checked.)*
 
 **I don't think this kills the idea. I think it tells us exactly what the idea has to
 show to survive.**
@@ -155,12 +188,19 @@ claim is the *difference* between those two runs and nothing else.
 Missing link to what, specifically? I want to separate two versions, because one is
 defensible and one isn't yet.
 
-**Defensible:** it is a missing link between how we describe transformers (feedforward,
-stateless) and the large body of theory about recurrent dynamical systems — attractors,
-basins, limit cycles, bifurcations, stability analysis. That theory is mature and has
-essentially never been pointed at a pretrained language model's weights, because there was
-no dynamical system to point it at. Now there is. That is a real gap and we are standing
-in it.
+**Defensible:** it is a missing link between how we normally describe transformers
+(single-pass, stateless) and the large body of theory about recurrent dynamical systems —
+attractors, basins, limit cycles, bifurcations, stability analysis. That theory is mature,
+and our prior-art search did not find it applied to a pretrained language model's weights
+in this way.
+
+Note the scope of that last sentence, deliberately. **It is a statement about our search,
+not about the literature** — the same standard `PRIOR_ART.md` holds itself to, and it
+applies here too. I originally wrote "essentially never been pointed at", which claims far
+more than we can support, and added a causal explanation for the absence on top of it.
+Neither is earned. The searched-and-not-found version is enough to justify the work and is
+the only version that should reach a write-up. The coverage gaps in `PRIOR_ART.md` — the
+forums in particular — are the reason to keep it hedged.
 
 **Not yet defensible:** that it is a missing link to anything about cognition, or to why
 these models do what they do in normal use. Ordinary inference is one forward pass. Nothing
