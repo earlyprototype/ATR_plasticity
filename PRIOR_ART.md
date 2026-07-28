@@ -588,3 +588,11 @@ than it was.
   sweep immediately before any write-up.
 - **No published step size exists to anchor our eta sweep.** Not a search gap any more —
   a real one. See the section above.
+- **Whether the closed-loop arm converges at all is unknown, and no theory covers it.**
+  Oja's convergence result needs a stationary input and a decaying step size; our loop has
+  neither, plus a clipping norm ceiling. Convergence there has to be demonstrated
+  empirically or not claimed. See "The finding that changes our experiment".
+- **We have not checked whether our norm ceiling and our rescaling interact badly.** The
+  Daydreaming authors hit exactly that failure — a few runaway entries plus global
+  normalisation flattening everything else — and needed a per-entry bound (J_max) to fix
+  it. Whether our matrix does the same thing is unmeasured.
