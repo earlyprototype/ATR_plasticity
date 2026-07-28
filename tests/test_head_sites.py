@@ -184,7 +184,7 @@ class TestHeadSiteNaming:
         "bad_site",
         [f"blocks.{LAYER}.attn.head.12",
          f"blocks.{LAYER}.mlp.head.0",
-         f"blocks.99.attn.head.0",
+         "blocks.99.attn.head.0",
          f"{HF_MATRIX}.head.{HEAD}"],     # HuggingFace spelling on a TL model
     )
     def test_unattachable_head_sites_fail_loudly_on_transformer_lens(

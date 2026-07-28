@@ -40,24 +40,31 @@ equality. It has now been measured, on the parent's own committed `state_divine.
 | Cosine, float64, full precision | 0.99999999999998512 | 0.684911683824360 |
 | 1 − cos | 1.49e-14 | 0.315 |
 
-So it is not bit-identical: applying the map twice moves 88% of the entries. But it is
-also not an asymptote creeping toward one. The relative residual averages 2.11e-07 over
-the first third of the probe and 1.96e-07 over the last third — a ratio of 0.93 across 40
-iterations. It is not shrinking. It sits at **1.65 times float32 epsilon** and stays
-there.
+So it is not bit-identical: applying the map twice moves 88% of the entries. The residual
+also shows no clear trend over the probe — it averages 2.11e-07 over the first third and
+1.96e-07 over the last third, a ratio of 0.93, against a per-probe spread of 1.45e-07 to
+3.17e-07. A 7% drift inside that much scatter is not a trend one way or the other.
 
-The correct description is an **attracting period-2 cycle in float32 arithmetic**: a fixed
-point of the squared map to within the precision the arithmetic can represent. The state
-does not return to itself exactly, it returns to itself as closely as float32 permits, and
-it neither tightens nor loosens with further iteration.
+**What this supports, stated precisely: near period-2 recurrence, with the residual
+sitting at about 1.65 times float32 epsilon and no detected trend over 40 iterations.**
 
-Two things follow. First, **the cycle being attracting rather than bitwise-periodic is
-what makes it robust** — a bitwise-exact cycle would be a knife-edge, easily destroyed by
-any perturbation, whereas this one is a genuine dynamical attractor that pulls nearby
-states back. That is the stronger property of the two, and the more interesting one.
-Second, and practically: **any state-equality test in this repo has to be a tolerance test
-at float32 round-off.** `torch.equal` returns False on two states that are the same point
-of the dynamics, so an exact-equality assertion here tests the arithmetic, not the system.
+**What it does NOT support, and I had this wrong:** that the cycle is *attracting*. I
+wrote that, and it does not follow from this measurement. Attraction is a claim about what
+happens to *nearby* states — perturb one off the cycle and see whether it comes back. We
+measured a single orbit's own residual. That tells us the orbit is stable *in the sense of
+persisting*, not that it pulls anything toward it. I also asserted that a bitwise-exact
+cycle would be "a knife-edge"; that was invented. Bitwise exactness and attraction are
+independent properties and neither implies anything about the other.
+
+The perturbation test is the missing measurement and it is cheap: take the settled state,
+add noise at several magnitudes, iterate, and record whether the residual returns to the
+1.65-epsilon floor and how fast. Until that is run, the honest word is **recurrent**, not
+attracting. It is queued.
+
+One practical consequence does follow from what was measured: **any state-equality test in
+this repo has to be a tolerance test at float32 round-off.** `torch.equal` returns False on
+two states that are the same point of the dynamics, so an exact-equality assertion here
+tests the arithmetic rather than the system.
 
 So the honest word is **attractor**, not resonance. The system has a handful of states it
 falls into and stays in: 125 prompts across the parent's library land in 5 basins. That is
@@ -138,14 +145,17 @@ different animal in the way that a struck bell is: it is doing something, doing 
 and what it does is nearly independent of how you struck it. If the compression reading
 holds, that analogy is wrong and the picture is much more interesting.
 
-A second number that points the same way as the cautious reading: the readout invisibility
-ratio is 0.295. A large share of what happens in the residual stream never reaches the
-logits. So even where the state does differ, the output may not.
+There is a second number often quoted alongside this — the readout invisibility ratio of
+0.295, taken to mean that a large share of what happens in the residual stream never
+reaches the logits. **I am not going to use it as evidence here, because we cannot define
+it.** Its numerator, denominator, and whether it aggregates over layers or token positions
+are all unknown to this repo; it was inherited from the parent and never checked. A number
+whose measurement you cannot state is not evidence, and leaning on it while admitting that
+would be exactly the kind of move this file is supposed to catch.
 
-*(That ratio comes from the parent project and this note does not define it — numerator,
-denominator, and whether it is aggregated over layers or token positions all need pulling
-across before anyone leans on it. Recorded as a number we inherited, not one we have
-checked.)*
+It stands as an **unvalidated lead**: worth pulling across and defining, and worth
+re-measuring ourselves, at which point it may well support the cautious reading. Until
+then the argument above rests on the basin counting alone.
 
 **I don't think this kills the idea. I think it tells us exactly what the idea has to
 show to survive.**
