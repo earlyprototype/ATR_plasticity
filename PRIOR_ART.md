@@ -340,19 +340,79 @@ or "does not reproduce under this setup", never as falsification.
 
 ## The finding that changes our experiment
 
-**Oja's rule converges to the dominant eigenvector of the second-moment matrix
-E[x xᵀ] of whatever activations flow through it.** That is *ordinary PCA* only when
-those activations are zero-mean; on non-centred inputs the mean itself contributes and
-the result is biased relative to covariance PCA.
+An earlier version of this file said flatly that **Oja's rule converges to the dominant
+eigenvector of the second-moment matrix E[x xᵀ] of whatever activations flow through
+it.** That is a theorem, and like every theorem it has preconditions. Ours are not met in
+both arms of the experiment, and the difference between the two arms is exactly where the
+preconditions break. Getting this right sharpens the case for the offline control rather
+than weakening anything.
 
-This matters concretely here. At the current default site, x is post-GELU activation,
-which is **not** zero-mean, so the honest statement is "Oja finds the dominant direction
-of the second-moment matrix", not "Oja does PCA".
+### What the theorem actually requires
 
-Either way the point stands: **the weight matrix will move and the attractors will
-shift with no feedback whatsoever.** That is what the rule does. So a closed-loop result
-proves nothing on its own -- our claim is about the *coupling*, weights changing while
-the thing they are changing feeds back into them.
+Oja's convergence result is a stochastic-approximation result. It needs:
+
+1. **A stationary input sequence.** The activations x must be drawn from a fixed
+   distribution that does not change as the weights change.
+2. **A decaying step size** satisfying the usual Robbins–Monro conditions: the step sizes
+   must sum to infinity (so the process can travel any distance) while their squares sum
+   to something finite (so the noise averages away). A constant eta fails the second.
+
+Under those conditions the weight vector converges to the dominant eigenvector of
+E[x xᵀ]. That is *ordinary PCA* only when the activations are zero-mean; on non-centred
+inputs the mean itself contributes and the result is biased relative to covariance PCA.
+At the current default site x is post-GELU activation, which is **not** zero-mean, so
+even where the theorem applies the honest statement is "Oja finds the dominant direction
+of the **second-moment** matrix", not "Oja does PCA".
+
+### The offline arm: the theorem applies
+
+The offline arm replays a **fixed recording**. The input sequence is frozen before the
+rule ever touches it, so it is stationary by construction. Modulo the fixed step size —
+which is a real caveat, not a fatal one, since constant-eta Oja is well studied and
+converges to a bounded neighbourhood of the eigenvector rather than to a point —
+"converges to the dominant eigenvector of the second-moment matrix of the recorded
+activations" is the right description of this arm.
+
+**This is the baseline, and this is why it exists.** It is the arm where we know what the
+rule is supposed to do.
+
+### The closed-loop arm: the theorem does not apply
+
+The closed loop violates both preconditions, and violates the first one *by
+construction*:
+
+- **The activations are non-stationary on purpose.** They change *because* the weights
+  change. That is not a nuisance in our setup, it is the entire object of study. The
+  input distribution at step t depends on the weights at step t, which depend on the
+  activations at step t−1. There is no fixed E[x xᵀ] for the rule to find.
+- **Fixed step size, finite number of updates.** No decaying schedule, so no
+  Robbins–Monro guarantee.
+- **A norm ceiling that clips.** Once clipping is active the update is no longer Oja's
+  rule; it is Oja's rule composed with a projection. Convergence results for the
+  unprojected rule say nothing about it.
+
+So for the closed-loop arm, **convergence is not guaranteed and must not be assumed.**
+The correct description until we show otherwise is **coupling-induced drift**: the
+weights move, the activations move because the weights moved, and where that lands is an
+empirical question. It could converge, cycle, wander, or saturate. We do not get to
+assert any of those from theory.
+
+**If we want to claim the closed-loop arm converged, we have to demonstrate it
+empirically** — show the weight matrix settling, show the loop's fixed points stabilising
+across steps, and show it holding across seeds. A single run that stops changing is not a
+demonstration of convergence.
+
+### Why this makes the offline control essential rather than optional
+
+The point that survives unchanged is this: **the weight matrix will move and the
+attractors will shift with no feedback whatsoever.** That is simply what the rule does to
+any activation stream, and in the offline arm we can say precisely what it is doing and
+why. So a closed-loop result proves nothing on its own -- our claim is about the
+*coupling*, weights changing while the thing they are changing feeds back into them.
+
+The two arms are now cleanly separated in what we can say about them: the offline arm has
+a theory that predicts its endpoint, and the closed-loop arm does not. **The difference
+between the two arms is the only place our claim can live.**
 
 ### The offline control, specified
 
@@ -391,10 +451,31 @@ modes come with it, and we would have to say why ours differs.
 Papernot, Anderson & Gal, *AI models collapse when trained on recursively generated
 data*, Nature 631:755-759 (2024). **Verified** — volume and page range confirmed; note
 there is also a 2025 author correction on record. Models retrained on their own output
-degrade in a documented way: early collapse where distributional errors accumulate, late
-collapse where low-frequency events disappear permanently. Ours is the same shape at the
-activation level, on a timescale of seconds instead of generations. Their measurements
-transfer.
+degrade in a documented way: early collapse where distributional errors accumulate and
+the model drifts from the true distribution, late collapse where low-frequency events
+disappear permanently and the distribution narrows toward a point.
+
+Ours is the same *shape* -- a system consuming its own output -- at the activation level,
+on a timescale of seconds instead of generations. But **their measurements do not
+transfer automatically**, and it would be sloppy to say they do. They retrain a model
+from scratch each generation on a finite sample of text generated by the previous one;
+their damage comes from **sampling error compounding across generations**. We update one
+model's weights in place from its own activation stream, with no sampling of a dataset,
+no retraining, and no generational boundary. Given a seed our drift is deterministic;
+theirs is not.
+
+What transfers is the **shape of the diagnostics**, as candidates to try:
+
+| Their finding | Our analogue | How to measure it |
+|---|---|---|
+| Early collapse: tails of the distribution are lost first | The loop's activation distribution narrows as weights drift | Track variance and entropy of the activation distribution at the update site, per loop step, closed-loop arm vs offline arm |
+| Late collapse: low-frequency events vanish permanently | Rare tokens stop being reachable from the drifted model | Compare next-token probability mass assigned to rare tokens, drifted model vs frozen model, on a fixed held-out prompt set |
+| Drift away from the true distribution | Drift away from the frozen model's own behaviour | Perplexity of the drifted model on a held-out real corpus, against the frozen model as the reference point |
+| Collapse toward a single low-variance mode | The loop falls into one attractor and stops exploring | Count distinct fixed points reached from a fixed set of initial states, and their basin sizes, before and after drift |
+
+Each of these is a **candidate diagnostic borrowed by analogy**, not an imported result.
+None of their quantitative rates or their generation-count axis carries over, and a
+finding of ours should never be reported as replicating or contradicting theirs.
 
 ---
 
