@@ -18,6 +18,14 @@ huggingface/
 transformers_cache/
 torch_cache/
 
+# Experiment outputs: the saved residual-stream states are large binary arrays
+# and are regenerable from the frozen loop, so they stay out of git. The JSONL
+# rows and the write-ups are the record and are tracked.
+experiments/**/states/
+*.npy
+*.npz
+*.log
+
 # Editors, OS
 .DS_Store
 .idea/

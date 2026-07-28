@@ -636,8 +636,9 @@ def build_report(recs: list, meta: dict) -> str:
     if not p2:
         A("None found.")
     else:
-        A(f"{len(p2)} prompts. Listed with the two cosines that define the class: a lag-1 gate "
-          "reports every one of these as non-convergent; at their own period they are exact.")
+        A(f"{len(p2)} prompt{'s' if len(p2) != 1 else ''}. Listed with the two cosines that define "
+          "the class: a lag-1 gate reports every one of these as non-convergent; at their own "
+          "period they are exact.")
         A("")
         rows = []
         for r in sorted(p2, key=lambda r: r["prompt_id"]):
@@ -653,7 +654,7 @@ def build_report(recs: list, meta: dict) -> str:
         A("Prompt texts:")
         A("")
         for r in sorted(p2, key=lambda r: r["prompt_id"]):
-            A(f"- `{r['prompt_id']}` -- {json.dumps(r['prompt'])}")
+            A(f"- `{r['prompt_id']}` -- {json.dumps(r['prompt'], ensure_ascii=False)}")
     A("")
 
     if unsettled:
@@ -1183,10 +1184,17 @@ def main(argv=None):
         recs = read_all(out_dir)
         order = {p: i for i, p in enumerate(prompts)}
         recs.sort(key=lambda r: order.get(r["prompt_id"], 10 ** 6))
-        # Collapse the shards into the single canonical raw file, then drop them.
+        # Collapse the shards into the single canonical raw file. Only drop the
+        # shard files once every requested prompt is present: deleting them
+        # while a shard process is still appending would throw away its work.
         write_jsonl(out_dir / "basins.jsonl", recs)
-        for p in sorted(out_dir.glob("basins.shard*.jsonl")):
-            p.unlink()
+        if set(prompt_ids) <= {r["prompt_id"] for r in recs}:
+            for p in sorted(out_dir.glob("basins.shard*.jsonl")):
+                p.unlink()
+        else:
+            missing = [p for p in prompt_ids if p not in {r["prompt_id"] for r in recs}]
+            print(f"[merge] {len(missing)} prompt(s) still missing; shard files kept "
+                  f"(first missing: {missing[:5]})")
         metas = [json.loads(p.read_text()) for p in
                  sorted(out_dir.glob("run_meta*.json")) if p.stat().st_size]
         if metas:

@@ -2,12 +2,19 @@
 Tests for `offline_control` -- the arm that makes a closed-loop result mean
 something.
 
-Two of these are the point of the file:
+Three of these are the point of the file:
 
 `test_eta_zero_arms_are_bit_identical` is the harness's own C0. If the two arms
 do not produce the same matrix when the rule is turned off, the harness itself
 is introducing a difference and every divergence it later reports is that
-difference plus noise.
+difference plus noise. Exact by construction on any hardware -- `0 x anything`
+is `0` -- so this one is `torch.equal` and stays that way.
+
+`test_a_site_the_loop_does_not_route_through` is the detection limit. With the
+feedback path severed the arms must not diverge, and how much they still do is
+the floor beneath which no claim about feedback can be made. It asserts a bound
+rather than a value, because the quantity is float accumulation order and its
+magnitude is hardware-dependent.
 
 `test_verify_flags_each_matched_axis` is the guard on the guard. The verifier is
 the only thing standing between "the arms differed" and "the arms differed
