@@ -31,7 +31,9 @@ than it was.
 ## Verification status
 
 - **Daydreaming Hopfield networks — verified.** Title, authors, journal and substance
-  confirmed.
+  confirmed. Full body also read, which corrected our description of their stabilisers
+  (see the stabilisers section — the per-entry bound is called J_max, and it exists for a
+  different reason than this file previously gave).
 - **Chaudhary 2025 — verified, including the depth figures, but they say something
   different from what was recorded here.** See the correction below. This is the most
   important change in this revision.
@@ -483,8 +485,27 @@ finding of ours should never be reported as replicating or contradicting theirs.
 
 Nobody in the surveyed work got away with a single mechanism.
 
-- **Daydreaming Hopfield:** periodic renormalisation of the weight matrix, plus hard
-  clamping on individual entries, which becomes *necessary* at high load.
+- **Daydreaming Hopfield: verified from the paper body**, and the earlier description
+  here was imprecise. Two separate mechanisms:
+  - **Periodic L2 normalisation of the whole coupling matrix.** The update rule is
+    invariant under global rescaling of J, but they normalise anyway — "we prefer to keep
+    it well bounded, and so we normalize it every N steps", implemented in their
+    pseudocode as `J_ij ← J_ij / ||J||₂` once per epoch.
+  - **A per-entry magnitude threshold, J_max**, on the absolute value any single coupling
+    may take. Verbatim: "We have solved this problem by just introducing a threshold
+    J_max on the maximum absolute value that a single coupling can assume."
+  - **The reason for J_max is more interesting than "high load", which is what this file
+    said before.** On strongly correlated real data (MNIST, where background pixels are
+    perfectly correlated) the algorithm correctly tries to drive those couplings to
+    infinity. Then the global normalisation step divides everything by that huge norm and
+    **every other entry vanishes, erasing the information stored in the matrix.** J_max
+    exists to stop one runaway entry from wiping out the rest.
+  - Load enters separately: with J_max in place, they had to change *how* they normalise
+    so that the norm of J does not depend on the load α.
+  - **Directly relevant to us.** We have both mechanisms in the ATR loop — a norm ceiling
+    and a rescaling — and this is a documented case of the two interacting badly. Worth
+    checking whether a small number of entries in our drifted matrix are absorbing the
+    ceiling and flattening everything else.
 - **The reservoir work (Cazalets & Dambre): verified from the paper.** Mean-HAG holds a
   target mean firing rate with a permissible deviation band. Variance-HAG holds a target
   standard deviation *and* adds an explicit safeguard: if any neuron's state exceeds a
