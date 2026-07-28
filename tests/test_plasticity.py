@@ -150,7 +150,12 @@ class TestConstruction:
 
     @pytest.mark.parametrize("mode", OjaPlasticity.VALID_MODES)
     def test_every_advertised_mode_constructs(self, gpt2, site, mode):
-        """The four modes in the docstring are the four controls; all must exist."""
+        """
+        The modes in the docstring are the experiment and its controls; all must
+        exist. `anti_hebb` joined them for EXP-002 -- a mode advertised in the
+        docstring and missing from VALID_MODES is a ValueError an hour into a
+        sweep. Its own behaviour is tested in `test_antihebbian.py`.
+        """
         assert OjaPlasticity(gpt2, site=site, mode=mode).mode == mode
 
     @pytest.mark.parametrize(
@@ -289,12 +294,17 @@ class TestCollection:
         assert p._acc.shape == p.module.weight.shape == (D_MLP, D_MODEL)
         assert p._n_batches == 3
 
-    def test_collection_does_not_touch_the_weight(self, gpt2, site, r0, atr_step):
+    @pytest.mark.parametrize("mode", OjaPlasticity.VALID_MODES)
+    def test_collection_does_not_touch_the_weight(self, gpt2, site, r0, atr_step, mode):
         """
         Control C0: watching must not perturb. If the weight moves before any
         apply(), no downstream trajectory difference is interpretable.
+
+        Over every mode, because the rule branch runs inside the hook: a mode
+        that wrote from the hook rather than from apply() would break C0 for
+        that mode alone, and only that mode's runs would be confounded.
         """
-        p = OjaPlasticity(gpt2, site=site, eta=1e-3)
+        p = OjaPlasticity(gpt2, site=site, eta=1e-3, mode=mode)
         w_before = p.module.weight.detach().clone()
         with p:
             drive(gpt2, r0, atr_step, n=3)
@@ -472,9 +482,16 @@ class TestLearningRule:
         from the first apply onward. Anyone reading a delta_frac trace and
         expecting "Oja = Hebb minus a small correction" will misread the run,
         and any eta chosen for Hebb is far too large for Oja at the same site.
+
+        `anti_hebb` is measured in the same sweep because the same trap catches
+        the operator twice: it differs from Oja only in the sign of the
+        *smaller* term, so at matched eta its update norm sits within a percent
+        of Oja's (measured 36,496 against 36,339, with Hebb at 330). An eta
+        chosen from either is right for the other -- and, less comfortably, a
+        norm trace cannot tell you which of the two rules actually ran.
         """
         norms = {}
-        for mode in ("hebb", "oja"):
+        for mode in ("hebb", "oja", "anti_hebb"):
             p = OjaPlasticity(gpt2, site=site, eta=1e-6, mode=mode)
             try:
                 with p:
@@ -483,6 +500,8 @@ class TestLearningRule:
             finally:
                 p.revert()
         assert norms["oja"] > 10 * norms["hebb"]
+        assert norms["anti_hebb"] > 10 * norms["hebb"]
+        assert norms["anti_hebb"] == pytest.approx(norms["oja"], rel=0.05)
 
 
 # --------------------------------------------------------------------------

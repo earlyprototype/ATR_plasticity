@@ -198,9 +198,15 @@ def readout_detail(model, resid_vector: torch.Tensor, k: int = 5) -> dict:
     }
 
 
-def position_similarity(tensor: torch.Tensor):
-    """Mean off-diagonal cosine between token positions -- the parent's
-    `position_similarity`. 1.0 means every position holds the same direction.
+def position_stats(tensor: torch.Tensor):
+    """Off-diagonal cosine between token positions -- the parent's
+    `position_similarity`, plus its spread.
+
+    The mean is the parent's number: 1.0 means every position holds the same
+    direction and the sequence has stopped being a sequence. The mean alone
+    cannot distinguish "all positions identical" from "most identical, one
+    position holding out", which is exactly the question a within-basin spread
+    analysis will ask, so min/max/spread come along.
 
     Returns None for a single-position tensor, where the quantity is undefined
     rather than 0 or 1 (the parent would produce nan)."""
@@ -211,7 +217,20 @@ def position_similarity(tensor: torch.Tensor):
     normed = tensor / pos_norms
     sim = normed @ normed.T
     mask = ~torch.eye(seq_len, dtype=torch.bool, device=sim.device)
-    return float(sim[mask].mean())
+    off = sim[mask]
+    return {
+        "mean": float(off.mean()),
+        "min": float(off.min()),
+        "max": float(off.max()),
+        "spread": float(off.max() - off.min()),
+        "std": float(off.std()) if off.numel() > 1 else 0.0,
+    }
+
+
+def position_similarity(tensor: torch.Tensor):
+    """Just the parent's scalar, for the snapshot rows."""
+    st = position_stats(tensor)
+    return None if st is None else st["mean"]
 
 
 def lag_scan(stack: torch.Tensor, max_lag: int) -> dict:
@@ -234,7 +253,25 @@ def lag_scan(stack: torch.Tensor, max_lag: int) -> dict:
 # One prompt
 # ---------------------------------------------------------------------------
 
-def run_prompt(model, prompt_id: str, prompt: str, category: str, n_iter: int) -> dict:
+def save_state(states_dir: Path, prompt_id: str, tensor: torch.Tensor) -> str:
+    """Persist a settled residual state as `.npy`, keyed by prompt id.
+
+    The whole (seq_len, d_model) tensor, not the position mean: at ~30 KB per
+    prompt the full thing is free, and the position-mean is recoverable from it
+    while the converse is not. This is what makes within-basin spread measurable
+    later without a single extra forward pass -- whether prompts sharing a basin
+    land on bit-identical states (the attractor is a label, and the prompt's
+    content is destroyed) or on nearby-but-distinct states (it compresses).
+    """
+    import numpy as np
+    states_dir.mkdir(parents=True, exist_ok=True)
+    path = states_dir / f"{prompt_id}.npy"
+    np.save(path, tensor.detach().cpu().numpy().astype("float32"))
+    return f"states/{path.name}"
+
+
+def run_prompt(model, prompt_id: str, prompt: str, category: str, n_iter: int,
+               states_dir: Path | None = None) -> dict:
     """The frozen ATR loop on one prompt, fully instrumented. Never early-stops."""
     t0 = time.time()
     schedule = sorted(set(list(BASE_SCHEDULE) + [n_iter]) & set(range(0, n_iter + 1)))
@@ -274,7 +311,9 @@ def run_prompt(model, prompt_id: str, prompt: str, category: str, n_iter: int) -
             "cos_lag1_mean": 1.0, "cos_lag1_last": 1.0,
         })
 
+    prev_tensor = r.clone()
     for i in range(1, n_iter + 1):
+        prev_tensor = r
         r = step(model, r)
 
         if nonfinite_at is None and not bool(torch.isfinite(r).all()):
@@ -323,6 +362,15 @@ def run_prompt(model, prompt_id: str, prompt: str, category: str, n_iter: int) -
     final = readout_detail(model, r[-1, :])
     scan_mean = lag_scan(torch.stack(list(mean_tail)), MAX_LAG)
     scan_last = lag_scan(torch.stack(list(last_tail)), MAX_LAG)
+    pos = position_stats(r)
+
+    # Settled state, for the within-basin spread analysis. Both phases are kept:
+    # on a period-2 orbit the "final state" is one of two, and a spread analysis
+    # that mixes phases across prompts would measure the cycle, not the basin.
+    state_file = state_prev_file = None
+    if states_dir is not None:
+        state_file = save_state(states_dir, prompt_id, r)
+        state_prev_file = save_state(states_dir, f"{prompt_id}__prev", prev_tensor)
 
     def _basin_at(it):
         return model.tokenizer.decode([top1_traj[it]]) if it < len(top1_traj) else None
@@ -350,7 +398,17 @@ def run_prompt(model, prompt_id: str, prompt: str, category: str, n_iter: int) -
 
         "initial_norm": state0.initial_norm,
         "final_tensor_norm": float(r.norm()),
-        "final_position_similarity": position_similarity(r),
+        "final_position_similarity": None if pos is None else pos["mean"],
+        "final_position_stats": pos,
+        "final_position_spread": None if pos is None else pos["spread"],
+
+        # Saved settled states (relative to the output directory).
+        "state_file": state_file,
+        "state_prev_file": state_prev_file,
+        "state_shape": list(r.shape),
+        "state_dtype": "float32",
+        "cos_final_prev": float(F.cosine_similarity(
+            r.reshape(-1).unsqueeze(0), prev_tensor.reshape(-1).unsqueeze(0))),
 
         "lag_scan_mean_vec": {str(k): v for k, v in scan_mean.items()},
         "lag_scan_last_vec": {str(k): v for k, v in scan_last.items()},
@@ -655,6 +713,9 @@ def build_report(recs: list, meta: dict) -> str:
       "being a sequence.")
     A("")
 
+    # ---- saved states / position uniformity ------------------------------
+    L.extend(_states_section(recs))
+
     # ---- register breakdown ---------------------------------------------
     A("## Basin by register")
     A("")
@@ -770,6 +831,69 @@ def _published_section(recs, meta):
           "for a prompt sitting on a separatrix, which the per-prompt margins above would show as "
           "a near-zero top1-top2 logit margin.")
     A("")
+    return L
+
+
+def _states_section(recs):
+    """Saved settled states + position uniformity, the two inputs to the
+    within-basin spread question."""
+    L = []
+    A = L.append
+    n = len(recs)
+    saved = [r for r in recs if r.get("state_file")]
+    missing = [r["prompt_id"] for r in recs if not r.get("state_file")]
+
+    A("## Settled states")
+    A("")
+    A(f"Saved: **{len(saved)} / {n}** prompts, as `experiments/output_baseline/states/"
+      "<prompt_id>.npy` -- the full `(seq_len, 768)` float32 residual tensor at the final "
+      "iteration. A second file `<prompt_id>__prev.npy` holds the iterate immediately before it: "
+      "on a period-2 orbit the settled state is one of two, and a spread analysis that mixed "
+      "phases across prompts would be measuring the cycle rather than the basin. The JSONL row "
+      "for each prompt carries `state_file`, `state_prev_file` and `state_shape`.")
+    A("")
+    if missing:
+        A(f"**No saved state for {len(missing)} prompt(s):** " +
+          ", ".join(f"`{p}`" for p in missing) +
+          ". These were run before state saving was added; re-run them with "
+          "`--only <ids>` after deleting their JSONL rows if the states are needed.")
+        A("")
+    A("These files exist so within-basin spread can be measured with no further model time: "
+      "if prompts sharing a basin land on bit-identical tensors the attractor is a label and the "
+      "prompt's content is gone; if they land nearby but distinct, it compresses rather than "
+      "erases. This report does not answer that question -- it only makes it answerable.")
+    A("")
+
+    have_pos = [r for r in recs if r.get("final_position_stats")]
+    if have_pos:
+        A("### Position uniformity at the final iteration")
+        A("")
+        A("Cosine between token positions within one settled tensor (off-diagonal only). "
+          "`mean` is the parent's `position_similarity`; `spread` is max minus min across "
+          "position pairs, which is what separates \"every position identical\" from \"all but "
+          "one identical\".")
+        A("")
+        counts = Counter(r["basin"] for r in recs)
+        rows = []
+        for b, _ in counts.most_common():
+            sub = [r for r in have_pos if r["basin"] == b]
+            if not sub:
+                continue
+            rows.append([
+                f"`{b}`", len(sub),
+                f"{statistics.median(r['final_position_stats']['mean'] for r in sub):.6f}",
+                f"{min(r['final_position_stats']['min'] for r in sub):.6f}",
+                f"{max(r['final_position_stats']['spread'] for r in sub):.6f}",
+                sum(1 for r in sub if r['final_position_stats']['min'] > 0.999),
+            ])
+        L.extend(_table(rows, ["Basin", "n", "median mean-cos", "min pair-cos (worst prompt)",
+                               "max spread", "n fully uniform (min cos > 0.999)"]))
+        A("")
+        full = [r for r in have_pos if r["final_position_stats"]["min"] > 0.999]
+        A(f"Fully position-uniform (every pair of positions above cosine 0.999): "
+          f"**{len(full)} / {len(have_pos)}**. The parent reports this for the `Divine` state; "
+          "the table above says whether it holds for the other basins.")
+        A("")
     return L
 
 
@@ -957,6 +1081,8 @@ def main(argv=None):
     ap.add_argument("--parent", type=str,
                     default=os.environ.get("ATR_PARENT_PATH", PARENT_DEFAULT))
     ap.add_argument("--report-only", action="store_true")
+    ap.add_argument("--no-states", action="store_true",
+                    help="skip writing the settled-state .npy files")
     ap.add_argument("--out", type=str, default=str(OUT_DIR))
     args = ap.parse_args(argv)
 
@@ -965,6 +1091,9 @@ def main(argv=None):
     jsonl = out_dir / "basins.jsonl"
     report = out_dir / "BASELINE.md"
     meta_path = out_dir / "run_meta.json"
+    states_dir = out_dir / "states"
+    if not args.no_states:
+        states_dir.mkdir(parents=True, exist_ok=True)
 
     pl = load_prompt_library(args.parent)
     prompts = ordered_prompts(pl)
@@ -1031,7 +1160,8 @@ def main(argv=None):
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     t0 = time.time()
     for k, pid in enumerate(todo, 1):
-        rec = run_prompt(model, pid, prompts[pid], pl.CATEGORY_MAP.get(pid, "?"), args.iters)
+        rec = run_prompt(model, pid, prompts[pid], pl.CATEGORY_MAP.get(pid, "?"), args.iters,
+                         states_dir=None if args.no_states else states_dir)
         append_jsonl(jsonl, rec)
         cls = classify(rec)
         elapsed = time.time() - t0

@@ -166,3 +166,138 @@ Nothing here touches basin counts, the 125-prompt library, or the collapse quest
 Those need the full sweep and are the natural EXP-002. This is the cheapest sharp
 question available, chosen because it has an exact answer and an existing baseline
 measured to six decimal places.
+
+---
+
+## 7. The offline arm — a required arm, not an optional control
+
+**Added after the prior-art check.** `PRIOR_ART.md`, "The finding that changes our
+experiment": Oja's rule converges to the dominant eigenvector of the second-moment
+matrix of whatever activations pass through it, **and it does that with no feedback at
+all.** The weight matrix will move and the cycle will be perturbed regardless. So every
+outcome in §4 — cycle survives, cycle damps, period lengthens, trajectory diverges — is
+consistent with the rule simply doing its job on a fixed activation distribution, and
+none of them is on its own evidence about the coupling this project is about.
+
+EXP-001 therefore runs **two arms at every eta on the ladder**, not one.
+
+| Arm | What it is |
+|:---|:---|
+| Closed loop | Run the loop; every `k=1` iterations apply the rule to the activations flowing through right now. The changed `W_out` shapes the next iterate, which shapes the next update. |
+| Offline | Run the same loop **frozen**, recording those activations. Replay the recording through the same rule with no feedback. Install the resulting matrix. Re-run the loop frozen. |
+
+**The result is the difference between the arms.** A closed-loop number reported without
+its offline partner is not a finding and should not be written down.
+
+### Implementation
+
+`offline_control.py`. It owns no learning rule and no loop: the rule is `OjaPlasticity`
+exactly as `plasticity.py` defines it — same object, same `apply()`, same ceiling — and
+the loop is whatever `atr_step` is passed in, i.e. `atr_bridge.make_atr_step`.
+
+```python
+from atr_bridge import load_state, make_atr_step_from_state
+from offline_control import run_matched_arms
+
+state = load_state(".../state_divine.pt")
+step  = make_atr_step_from_state(model, state, layer_start=0, layer_end=11)
+res   = run_matched_arms(model, state.tensor, step, site="blocks.6.mlp",
+                         n_steps=200, eta=1e-5, apply_every=1)
+log(res.summary())
+```
+
+`tests/test_offline_control.py` is the acceptance suite.
+
+**One outstanding requirement on `plasticity.py`.** The replayer feeds recorded
+activations to `OjaPlasticity._hook` — a private method — because the only alternative is
+a second implementation of the accumulation step, and a second implementation is one more
+axis on which the arms could silently differ. `OjaPlasticity` should grow a public
+`observe(x, y)` that `_hook` itself calls, so the offline arm has a supported entry point.
+Nothing about the maths changes; it is a rename and a delegation. Until then, a change to
+`_hook`'s signature breaks the offline arm silently, and
+`test_a_single_step_replays_to_the_same_update_bit_exactly` is what will catch it.
+
+### The matched-axes requirement
+
+For the difference to be about feedback and nothing else, the arms must match on every
+axis in `PRIOR_ART.md`'s "must match" table. That table is mechanised as
+`offline_control.MATCHED_AXES`, every row is a first-class field on `ArmConfig` filled in
+by reading the rule object after the run, and `verify_arms_matched` checks each one:
+
+| Axis | Field |
+|:---|:---|
+| eta, and the ceiling | `eta`, `max_delta_frac` |
+| Total number of weight updates | `n_updates` |
+| Order of the activation samples | `sample_order` — the per-sample iteration index, in consumption order |
+| Batching of samples per update | `samples_per_update` |
+| Initial weight, and RNG seed | `w0_sha256` (byte hash), `seed`, `rng_state_sha256` |
+| Centring, or its deliberate absence | `centring`, read off the rule object rather than asserted |
+
+Plus `site`, `mode`, `transposed` and `dtype`, because a comparison across two different
+matrices, rules, layouts or precisions is not a comparison.
+
+**On a mismatch, `run_matched_arms` raises `ArmsMismatchError` and reports no comparison.**
+That is deliberate. A mismatched number with a caveat attached is how the caveat gets
+lost on the way into a write-up.
+
+Two axes are worth reading the small print on:
+
+- **`sample_order` is not "the arms saw the same values."** They cannot — that difference
+  *is* the experiment. It is "the arms consumed their samples in the same order, indexed
+  the same way, with nothing dropped and nothing repeated." This is why the recorder
+  raises `MemoryError` when a recording exceeds its budget instead of thinning it.
+- **`centring` currently reads `absent` in both arms**, because `plasticity.py` offers no
+  centring option — neither `x` nor `y` is ever mean-subtracted. The axis passes by shared
+  absence, which is the honest state of that check and is written into the recorded string
+  rather than hidden behind a `True`. It is read off the object, so the day a `centre`
+  flag is added, an arm with it and an arm without stop matching automatically. **If
+  centring is ever added it must be added to both arms in the same commit** — PRIOR_ART is
+  explicit that applying it to one arm alone moves the fixed point by itself.
+
+### Two paths, and which one "no feedback" means
+
+There are two routes by which a weight change reaches the next update, and they are not
+the same route:
+
+- **State feedback.** `W` changes → the loop's next iterate changes → the next `x`
+  changes. This is the coupling EXP-001 is about.
+- **The rule's own recursion.** `W` changes → `y = x W_out + b` changes → the next update
+  changes, with `x` held fixed. This is internal to Oja and is present in ordinary offline
+  Oja on a fixed dataset.
+
+Replaying the *recorded* `y` (`y_source="recorded"`, the default, and what PRIOR_ART
+specifies literally) freezes both. Replaying with `y` recomputed from the recorded `x` and
+the offline arm's own drifting weight (`y_source="recomputed"`) freezes the state feedback
+only. `run_matched_arms` measures both by default; they answer different questions and the
+gap between them is the floor below which a `recorded`-mode divergence is not about
+feedback.
+
+`tests/test_offline_control.py::test_a_site_the_loop_does_not_route_through` measures that
+floor directly: it reads the loop out at `blocks.3.hook_resid_post`, below the site, so no
+state feedback exists at all. The `recomputed` arm is then bit-identical to the closed arm;
+the `recorded` arm is not, and by how much is the harness's resolution limit at that eta.
+
+### Acceptance, before any eta > 0 number is believed
+
+1. **eta = 0 → the two arms produce bit-identical matrices**, and bit-identical
+   trajectories under them. This is C0 for the harness itself. `torch.equal`, not
+   `allclose`.
+2. **A site the loop does not route through → the `recomputed` arms are bit-identical.**
+   With the feedback path severed there is nothing left to differ by.
+3. Only then, eta > 0: report `cos_delta` (cosine between the two arms' *changes* — the
+   cosine between the full matrices is ~1 by construction and says nothing),
+   `rel_fro_diff = ‖W_closed − W_offline‖_F / ‖W_0‖_F`, and `diff_over_drift`, the same
+   difference against the larger of the two arms' own drift.
+
+### Reading the outcome
+
+Add a row to §4:
+
+| Outcome | Reading |
+|:---|:---|
+| The arms agree (difference at or below the no-route floor) | **Feedback contributes nothing detectable at this eta.** This is a real result about this substrate and it is what the reservoir literature in PRIOR_ART would predict. It is not a failed run, and nothing may be tuned to make the number larger. |
+
+That last clause is the point of the arm. `diff_over_drift ≈ 0` at every eta on the ladder
+would say the closed-loop result is Oja finding the dominant direction of the frozen
+loop's activations, which is what Oja does anywhere. Reporting it is the difference
+between a finding and an artefact.
