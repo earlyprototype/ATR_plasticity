@@ -250,7 +250,11 @@ what counts as *no* effect. Replaced with:
 2. **Pre-specify one primary metric** before looking at any result, and say so in writing.
    Everything else is secondary and reported as exploratory. The natural primary is the
    relative Frobenius distance between the two arms' final weight matrices; whatever is
-   chosen, it is chosen first.
+   chosen, it is chosen first. Any secondary metric describing the loop's attractor
+   structure must be **period-aware** — detected period k and the residual at that period,
+   plus basin sizes defined over periodic orbits, not over fixed points alone (see
+   "Convergence checks must allow for periodic orbits"). A metric that can only see fixed
+   points would score this project's own `Divine` result as a non-convergence.
 3. **Report an uncertainty interval on the mean paired difference**, from a permutation
    test over seeds (randomly flip the sign of each d(s); the null distribution is the
    distribution of the mean under exchangeability) or a bootstrap over seeds. Report the
@@ -388,15 +392,65 @@ Oja's convergence result is a stochastic-approximation result. It needs at least
 2. **A decaying step size** satisfying the usual Robbins–Monro conditions: the step sizes
    must sum to infinity (so the process can travel any distance) while their squares sum
    to something finite (so the noise averages away). A constant eta fails the second.
-3. **A simple dominant eigenvalue** — the largest eigenvalue of the second-moment matrix
-   must be non-degenerate. If the top two eigenvalues are equal or near-equal, the
-   "dominant eigenvector" is not unique and the rule has no single direction to converge
-   to. **Nobody has checked this for our second-moment matrix.** Record it as an
-   unverified assumption; it is cheap to measure and belongs in the first run.
+3. **A simple dominant eigenvalue** — Oja's original analysis assumes the largest
+   eigenvalue of the second-moment matrix is non-degenerate. If the top two eigenvalues
+   are equal or near-equal, the "dominant eigenvector" is not unique and the rule has no
+   single direction to converge to. This file previously recorded it as never having been
+   checked. A first check is now in hand, and it is only a first check:
+
+   | Matrix, ordinary text at the default site | λ₁ | λ₂ | λ₂/λ₁ |
+   |---|---|---|---|
+   | Second moment E[x xᵀ] | 21.749 | 7.436 | **0.342** |
+   | Covariance | 7.515 | 4.804 | **0.639** |
+
+   On the raw second moment the gap is comfortable, so the precondition looks satisfied
+   for that matrix on ordinary input. **On the centred matrix the gap is much weaker**,
+   which is a second reason centring is not a free choice. **Still unverified for the
+   closed loop**, where the matrix moves as the weights move and the gap can close at any
+   point — a spectral gap measured once at the start says nothing about step 5000. Track
+   λ₂/λ₁ across the run rather than assuming it.
 
 Under those conditions the weight vector converges to the dominant eigenvector of
 E[x xᵀ]. That is *ordinary PCA* only when the activations are zero-mean; on non-centred
 inputs the mean itself contributes and the result is biased relative to covariance PCA.
+
+### The non-zero-mean claim, measured
+
+This file previously asserted "post-GELU activation is not zero-mean" without a number.
+It is now measured, on this box, at the default site — `blocks.6.mlp.hook_post`, which is
+the x that Oja consumes at `blocks.6.mlp.W_out`. GPT-2 small, float32, weights frozen.
+
+| | Ordinary text (107 positions, 3 prompts) | `Divine` state (10 positions, renormalised to ‖x₀‖ = 1468.489) |
+|---|---|---|
+| Scalar mean of x | **−0.047466** | **−0.025227** |
+| Std of x | 0.182791 | 0.159973 |
+| Mean / std | −0.2597 | −0.1577 |
+| Fraction of entries negative | 0.8493 | 0.8229 |
+| min / max | −0.1700 / +3.9514 | −0.1700 / +2.5222 |
+| ‖E[x]‖ | 4.4969 | 8.9760 |
+| ‖E[x]E[x]ᵀ‖_F ⁄ ‖E[x xᵀ]‖_F | **0.7878** | **1.0000** |
+| ‖cov‖_F ⁄ ‖E[x xᵀ]‖_F | 0.5468 | **0.0000** |
+
+The claim holds and is not marginal. The mean is negative, roughly a quarter of a standard
+deviation, and **85% of post-GELU entries are negative** — GELU's floor at −0.1700 shows up
+exactly as expected. So **Oja here targets the raw second moment, not the covariance**,
+unless centring is explicitly applied. Describe it that way.
+
+**Two things worth more than the headline number.** First, on ordinary text the mean term
+carries **79% of the second-moment matrix's Frobenius norm**. Centring is not a
+refinement; it changes most of the matrix.
+
+Second, and this one is operational: **on the `Divine` state the covariance is
+numerically zero.** The `Divine` attractor is position-uniform — every token position
+holds nearly the same vector — so E[x xᵀ] is effectively rank-1 and equal to E[x]E[x]ᵀ.
+**If centring is ever switched on while running from `Divine`, Oja is left with nothing to
+work with.** That is not a subtlety, it is the difference between a rank-1 matrix and an
+empty one, and it makes the "centring, or the deliberate absence of it" row of the
+offline-control table load-bearing rather than pedantic.
+
+*Status: measured on this box at one site and one layer, over three ordinary prompts plus
+the committed `Divine` state. Not swept across sites, layers or seeds — treat the exact
+figures as indicative and the sign and order of magnitude as solid.*
 
 ### The offline arm: a fixed-input replay baseline, not a converging one
 
