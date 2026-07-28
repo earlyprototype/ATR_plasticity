@@ -648,6 +648,9 @@ def test_eta_positive_divergence_is_measured_and_reported(matched_run):
 
     r = res.comparison["weight_recomputed_y"]
     s = res.comparison["state"]
+    # Stated against the detection limit, which is what makes the number
+    # readable: `test_a_site_the_loop_does_not_route_through` puts the
+    # recomputed-y floor at zero (bit-identical), bounded below 1e-8.
     print(
         f"\n[offline arm] prompt={PROMPT!r} site={SITE} eta={ETA} "
         f"n_steps={N_STEPS} updates={res.closed.config.n_updates} cadence=1"
@@ -658,6 +661,8 @@ def test_eta_positive_divergence_is_measured_and_reported(matched_run):
         f"\n  drift closed={w['drift_closed_rel']:.6e} "
         f"offline={w['drift_offline_rel']:.6e}"
         f"\n  final state cos={s['cos']:.9f} rel_l2={s['rel_l2_diff']:.6e}"
+        f"\n  clears the 1e-8 detection limit: recorded={w['rel_fro_diff'] > 1e-8} "
+        f"recomputed={r['rel_fro_diff'] > 1e-8}"
     )
 
 

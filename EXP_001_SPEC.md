@@ -272,10 +272,40 @@ only. `run_matched_arms` measures both by default; they answer different questio
 gap between them is the floor below which a `recorded`-mode divergence is not about
 feedback.
 
-`tests/test_offline_control.py::test_a_site_the_loop_does_not_route_through` measures that
-floor directly: it reads the loop out at `blocks.3.hook_resid_post`, below the site, so no
-state feedback exists at all. The `recomputed` arm is then bit-identical to the closed arm;
-the `recorded` arm is not, and by how much is the harness's resolution limit at that eta.
+### The detection limit — read this before believing any difference
+
+`tests/test_offline_control.py::test_a_site_the_loop_does_not_route_through` measures the
+floor directly. It reads the loop out at `blocks.3.hook_resid_post`, below the site, so
+**no state feedback exists at all** and the `x` reaching the rule is bit-identical in both
+arms at every step. Whatever the arms still differ by there is noise, and no claim about
+feedback can be made underneath it.
+
+| Mode | Floor, feedback severed |
+|:---|:---|
+| `y_source="recomputed"` | **Zero — bit-identical.** Asserted as a bound (`rel_fro_diff < 1e-8`) *and* as `torch.equal`. |
+| `y_source="recorded"` | **6.8% of drift** at eta=1e-5 over 6 steps (`rel_fro_diff` 9.3e-4 against drift 1.3e-2). Not noise: it is Oja's own `y = xW` recursion, frozen by the recording. |
+
+That second row is the one to keep in view. In the default mode, a `diff_over_drift` of a
+few percent at a routed site is **inside the floor** and is not evidence of feedback. Use
+`weight_recomputed_y` for the feedback claim and `weight` for the literal PRIOR_ART
+protocol, and report both.
+
+The zero floor is a defended property, not luck. It holds only because
+`offline_control._recompute_y` reproduces the site's **fused `torch.addmm`** bit for bit
+rather than merely mathematically — TransformerLens's `batch_addmm` flattens to 2-D and
+calls `torch.addmm`, written that way to match HuggingFace's `Conv1D`. The obvious
+`x @ W + b` differs in the last bits (max|Δ| 1.9e-06 on `y` at this site), propagates into
+every offline update, and compounds: it put a floor of roughly **5e-09 relative Frobenius**
+under the entire comparison. That floor was hardware-dependent — 2.9e-09 on one machine and
+4.8e-09 on a GitHub Actions runner, same commit and same seed — which is the same class of
+trap as `initial_norm` reading 1468.48828125 on CI against 1468.4886474609375 locally.
+
+**Never assert a value for a floating-point floor; assert a bound.** The test does, and
+`test_recompute_y_reproduces_the_sites_own_forward_bit_exactly` pins the root cause
+separately so a regression names itself.
+
+The eta = 0 identity is a different and stronger kind of exactness — `0 × anything = 0`,
+so it is exact by construction on any hardware — and is asserted with `torch.equal`.
 
 ### Acceptance, before any eta > 0 number is believed
 

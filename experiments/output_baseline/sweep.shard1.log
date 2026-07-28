@@ -1,0 +1,6 @@
+[config] model=gpt2-small layers 0->11 iters=300 threads=1 shard=1/2
+[plan] 62 prompts in this shard, 0 already recorded, 62 to run -> basins.shard1.jsonl
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/148 [00:00<?, ?it/s]Loading weights: 100%|██████████| 148/148 [00:00<00:00, 34282.71it/s]
+Loaded pretrained model gpt2-small into HookedTransformer
+[model] loaded in 5.5s, n_layers=12, d_model=768
