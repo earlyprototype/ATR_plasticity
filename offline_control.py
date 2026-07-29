@@ -834,16 +834,23 @@ def _brief(value) -> str:
 
 def verify_arms_matched(closed: ArmConfig, offline: ArmConfig) -> dict:
     """
-    Hard pass/fail on whether the two arms differ by feedback and nothing else.
+    Hard pass/fail on the matched axes, plus a separate reading of whether the
+    comparison is about feedback at all.
 
     Checks every row of `MATCHED_AXES` mechanically, by reading the two configs
     -- not by trusting that they were constructed from the same arguments. The
     returned dict is the audit trail: one entry per axis, with both values and
     the reason the axis is on the list.
 
-    `ok` False means the difference between the arms is not evidence about
-    feedback. `run_matched_arms` turns that into an exception rather than a
-    footnote.
+    **Two different questions, and this used to conflate them.** `ok` False
+    means the arms differ on an axis they were supposed to share, and
+    `run_matched_arms` turns that into an exception rather than a footnote.
+    `feedback_interpretable` False means every axis matched and the comparison
+    still is not evidence about coupling -- which is the case for
+    `y_source="recorded"`, where the recording freezes Oja's own recursion in
+    one arm only. The docstring previously promised the first field answered
+    the second, and a recorded-y pair passed 17/17 while the module's own
+    header called it uninterpretable.
     """
     axes = []
     for name, why in MATCHED_AXES:
@@ -885,22 +892,38 @@ def verify_arms_matched(closed: ArmConfig, offline: ArmConfig) -> dict:
     # The severed-path control shows it empirically: with coupling physically
     # impossible, "recorded" still reports a difference, and "recomputed"
     # reports exactly zero.
-    if offline.y_source not in ("recomputed", "live"):
-        structural.append(
-            f"offline arm uses y_source={offline.y_source!r}: the arms then "
-            "differ by Oja's frozen y-recursion as well as by feedback, so "
-            "their difference is not evidence about feedback. Use "
-            "y_source='recomputed', or read the result as a mechanism "
-            "comparison rather than a feedback one")
+    feedback_interpretable = offline.y_source in ("recomputed", "live")
+    interpretation = (
+        "the arms differ by feedback alone; their difference is evidence "
+        "about coupling"
+        if feedback_interpretable else
+        f"y_source={offline.y_source!r} freezes Oja's own y = xW recursion in "
+        "the offline arm while the closed arm's runs live. The arms therefore "
+        "differ by that mechanism AS WELL AS by feedback, and their difference "
+        "is not evidence about coupling. The severed-path control shows this "
+        "empirically: with coupling physically impossible, this mode still "
+        "reports a difference while 'recomputed' reports exactly zero. Compare "
+        "cos_delta and the norm ratio separately, and read the result as a "
+        "mechanism comparison"
+    )
 
+    # `ok` stays a statement about the matched axes only, so a legitimate
+    # recorded-y run is still computed and reported rather than aborted. What
+    # the docstring used to over-promise is now carried by its own field: the
+    # axes can all match and the comparison still not be about feedback.
     ok = not mismatched and not structural
     return {
         "ok": ok,
         "axes": axes,
         "mismatched": mismatched,
         "structural_problems": structural,
+        "feedback_interpretable": ok and feedback_interpretable,
+        "interpretation": interpretation,
         "verdict": (
-            "MATCHED -- the arms differ by feedback alone"
+            ("MATCHED -- the arms differ by feedback alone"
+             if feedback_interpretable else
+             "MATCHED ON EVERY AXIS, BUT NOT A FEEDBACK COMPARISON -- "
+             + interpretation)
             if ok else
             "MISMATCHED -- the difference between these arms is not about feedback"
         ),
