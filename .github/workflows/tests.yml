@@ -62,7 +62,7 @@ jobs:
       # Both REQUIRE flags turn "the thing under test is unavailable" from a
       # skip into a failure. Without ATR_REQUIRE_MODEL, a runner missing
       # transformers or the checkpoint skips the whole suite and still exits 0
-      # — measured at 84 of 91 skipped, job green. Without ATR_REQUIRE_PARENT,
+      # — 227 tests, essentially all skipped, job green. Without ATR_REQUIRE_PARENT,
       # the bit-exactness acceptance test skips the same way. A check that
       # cannot fail is worse than no check.
       - name: Run tests
