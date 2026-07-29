@@ -776,9 +776,18 @@ class OjaPlasticity:
         through the identical rule with no feedback. `_hook` is the same thing
         wearing torch's hook signature.
 
-        Non-tensor or non-finite input is dropped rather than raising, matching
-        the hook path: a single bad batch marks `nonfinite` and is skipped, it
-        does not abort a run.
+        Two kinds of input are dropped rather than raising, and they are NOT
+        equivalent -- an earlier version of this docstring conflated them:
+
+        - **Non-finite values** set `nonfinite`, so `report()` shows the batch
+          was seen and rejected.
+        - **Non-tensor** `x` or `y` returns silently, leaving no trace. That
+          branch exists because a forward hook on some sites is handed a tuple
+          rather than a tensor, where skipping is correct and unremarkable. But
+          on the replay path it is a place a bug can hide: feed the wrong thing
+          and the arm accumulates nothing while `report()` looks healthy.
+          `n_applied` is the check -- an arm that observed nothing still
+          reports zero updates.
         """
         if not torch.is_tensor(x) or not torch.is_tensor(y):
             return

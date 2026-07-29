@@ -392,21 +392,34 @@ Oja's convergence result is a stochastic-approximation result. It needs at least
    must sum to infinity (so the process can travel any distance) while their squares sum
    to something finite (so the noise averages away). A constant eta fails the second.
 3. **A simple dominant eigenvalue** — Oja's original analysis assumes the largest
-   eigenvalue of the second-moment matrix is non-degenerate. If the top two eigenvalues
-   are equal or near-equal, the "dominant eigenvector" is not unique and the rule has no
-   single direction to converge to. This file previously recorded it as never having been
-   checked. A first check is now in hand, and it is only a first check:
+   eigenvalue of the second-moment matrix is non-degenerate. Two cases that this file
+   previously ran together, and which are not the same failure:
+
+   - **λ₁ = λ₂ exactly.** The eigenspace is two-dimensional, there is no unique dominant
+     eigenvector, and which direction the rule settles on is decided by the dynamics
+     rather than by the matrix. This is the condition the theorem actually excludes.
+   - **λ₁ and λ₂ merely close.** The dominant eigenvector is still unique — simplicity of
+     the top eigenvalue is all uniqueness requires. What a small gap costs is *rate*:
+     convergence slows, and the estimate becomes far more sensitive to finite-sample and
+     floating-point effects. A weak gap is a practical problem, not a lost target.
+
+   This file previously recorded the precondition as never having been checked. A first
+   check is now in hand, and it is only a first check:
 
    | Matrix, ordinary text at the default site | λ₁ | λ₂ | λ₂/λ₁ |
    |---|---|---|---|
    | Second moment E[x xᵀ] | 21.749 | 7.436 | **0.342** |
    | Covariance | 7.515 | 4.804 | **0.639** |
 
-   On the raw second moment the gap is comfortable, so the precondition looks satisfied
-   for that matrix on ordinary input. **On the centred matrix the gap is much weaker**,
-   which is a second reason centring is not a free choice. **Still unverified for the
-   closed loop**, where the matrix moves as the weights move and the gap can close at any
-   point — a spectral gap measured once at the start says nothing about step 5000. Track
+   Both are strictly simple, so on this input the dominant eigenvector is well defined in
+   either matrix and the theorem's precondition holds. The difference is margin: the raw
+   second moment has a comfortable gap, while **the centred matrix's gap is much weaker at
+   0.639**, meaning slower convergence and greater sensitivity to sampling and round-off —
+   a second reason centring is not a free choice, though not a loss of the target.
+
+   **Still unverified for the closed loop**, where the matrix moves as the weights move
+   and the gap can close at any point — a gap measured once at the start says nothing
+   about step 5000, and a ratio that reaches 1.0 mid-run *is* the degenerate case. Track
    λ₂/λ₁ across the run rather than assuming it.
 
 Under those conditions the weight vector converges to the dominant eigenvector of

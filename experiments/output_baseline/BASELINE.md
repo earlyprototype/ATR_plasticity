@@ -417,7 +417,7 @@ Single-threaded is also the reproducible choice, independently of speed: float32
 | Device / dtype | cpu / float32 |
 | Layers | 0 -> 11 (read `blocks.11.hook_resid_post`, write `blocks.0.hook_resid_pre`) |
 | Step implementation | `atr_bridge.make_atr_step` (bit-exact extraction of the parent's `atr_engine.run_atr_loop` body; see `tests/test_atr_bridge.py`) |
-| Normalisation | rescale to the trajectory's own `||x0||` before each injection; `initial_norm` captured once and held fixed |
+| Normalisation | rescale to the trajectory's own `‖x0‖` before each injection; `initial_norm` captured once and held fixed |
 | Iterations | 300 per prompt, fixed horizon, no early stop |
 | Readout | `ln_final(x[-1]) @ W_U + b_U`, argmax = basin label |
 | Convergence gate | cos(mean_t, mean_t-lag) > 0.999, patience 3, every 10 iters from 100; lags [1, 2] |
@@ -441,7 +441,7 @@ Single-threaded is also the reproducible choice, independently of speed: float32
 
 ### Reproducing
 
-```
+```bash
 .venv/bin/python experiments/baseline_basins.py
 ```
 

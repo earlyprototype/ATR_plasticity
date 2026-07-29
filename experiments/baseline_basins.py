@@ -1164,7 +1164,9 @@ def _validation_section(meta):
         A("")
         A("Note on what the trend test does and does not say. The per-probe residual itself ranges "
           f"{tr['l2_rel_min']:.3e} to {tr['l2_rel_max']:.3e} -- a factor of "
-          f"{tr['l2_rel_max'] / tr['l2_rel_min']:.2f} -- so a first-third/last-third ratio of "
+          + (f"{tr['l2_rel_max'] / tr['l2_rel_min']:.2f}" if tr['l2_rel_min']
+             else "infinity, some probe being bitwise exact")
+          + f" -- so a first-third/last-third ratio of "
           f"{tr['ratio_last_over_first']:.2f} sits well inside the sample's own scatter. The "
           "honest phrasing is **no trend detected over this window**, not a demonstration that "
           "the residual is constant. The criterion behind the flag "
@@ -1234,15 +1236,21 @@ def _perturbation_subsection(pt):
         lo, hi = ret[0], ret[-1]
         decades = math.log10(hi["magnitude_applied"] / lo["magnitude_applied"])
         per_dec = (hi["return_iteration"] - lo["return_iteration"]) / decades if decades else 0
-        A(f"Recovery time grows with perturbation size roughly linearly in the logarithm: "
+        # per_dec is 0 when the magnitudes span no decades, and also when two
+        # probes happen to return on the same iteration. Both make the
+        # contraction factor undefined rather than large.
+        A("Recovery time grows with perturbation size roughly linearly in the logarithm: "
           + ", ".join(f"{r['magnitude_requested']:.0e} -> {r['return_iteration']}"
                       for r in ret)
-          + f". That is about {per_dec:.0f} iterations per decade of displacement, implying a "
-            f"per-iteration contraction factor near {10 ** (-1 / per_dec):.4f} -- slow, steady, "
-            "linear convergence rather than a snap-back. It also explains why a 200-iteration "
-            "probe was not enough to settle this: the largest perturbations need "
-            f"{hi['return_iteration']} iterations, and a short horizon would have reported them "
-            "as failures to return.")
+          + (f". That is about {per_dec:.0f} iterations per decade of displacement, implying "
+             f"a per-iteration contraction factor near {10 ** (-1 / per_dec):.4f} -- slow, "
+             "steady, linear convergence rather than a snap-back."
+             if per_dec else
+             ". Recovery times do not separate across the tested magnitudes, so no "
+             "contraction factor is quoted.")
+          + " It also explains why a 200-iteration probe was not enough to settle this: the "
+            f"largest perturbations need {hi['return_iteration']} iterations, and a short "
+            "horizon would have reported them as failures to return.")
         A("")
     biggest = max(pt["results"], key=lambda r: r["magnitude_applied"])
     if biggest["same_orbit"]:
@@ -1545,7 +1553,7 @@ def _config_section(meta):
                    f"write `blocks.{LAYER_START}.hook_resid_pre`)"],
         ["Step implementation", "`atr_bridge.make_atr_step` (bit-exact extraction of the parent's "
                                 "`atr_engine.run_atr_loop` body; see `tests/test_atr_bridge.py`)"],
-        ["Normalisation", "rescale to the trajectory's own `||x0||` before each injection; "
+        ["Normalisation", "rescale to the trajectory's own `‖x0‖` before each injection; "
                           "`initial_norm` captured once and held fixed"],
         ["Iterations", f"{meta.get('n_iter')} per prompt, fixed horizon, no early stop"],
         ["Readout", "`ln_final(x[-1]) @ W_U + b_U`, argmax = basin label"],
@@ -1581,7 +1589,7 @@ def _config_section(meta):
     A("")
     A("### Reproducing")
     A("")
-    A("```")
+    A("```bash")
     A(".venv/bin/python experiments/baseline_basins.py")
     A("```")
     A("")
@@ -1668,12 +1676,16 @@ def cycle_exactness(model, state, n_probe: int = 10) -> dict:
         "shrink_ratio_threshold": SHRINK_RATIO_THRESHOLD,
         "shrink_criterion": f"ratio_last_over_first < {SHRINK_RATIO_THRESHOLD}",
         "verdict": ("shrinking" if ratio < SHRINK_RATIO_THRESHOLD else "no trend detected"),
+        # min(rel) is 0.0 exactly when the orbit is bitwise periodic -- which is
+        # the outcome this probe exists to test for, so it cannot be assumed away.
         "verdict_note": (
             "The per-probe residual itself ranges "
-            f"{min(rel):.3e} to {max(rel):.3e}, a factor of {max(rel) / min(rel):.2f}, so a "
-            f"first-third/last-third ratio of {ratio:.3f} sits well inside the sample's own "
-            "scatter. The correct reading is NO TREND DETECTED over this window -- not a "
-            "demonstration that the residual is constant."),
+            f"{min(rel):.3e} to {max(rel):.3e}, a factor of "
+            + (f"{max(rel) / min(rel):.2f}" if min(rel) else "infinity (some probe is "
+               "bitwise exact, so the spread is unbounded)")
+            + f", so a first-third/last-third ratio of {ratio:.3f} sits well inside the "
+            "sample's own scatter. The correct reading is NO TREND DETECTED over this "
+            "window -- not a demonstration that the residual is constant."),
     }
     trend["shrinking"] = ratio < SHRINK_RATIO_THRESHOLD
     return {

@@ -439,9 +439,15 @@ def run_cell(model, state0, step, mode: str, eta: float, d_target: float | None,
 # The cell list
 # ---------------------------------------------------------------------------
 
+# Calibration constant, asserted against the live weight in main() before any
+# cell runs. Backends disagree on this norm by ~0.005% (see the module
+# docstring), and a silent drift here would restate every D target -- and so
+# every recommended eta -- against a matrix that is not the one being swept.
+W0_NORM_CALIBRATED = 164.854
+
 def eta_for(mode: str, d: float) -> float:
     """`D * ||W0||_F / (N_STEPS * U_ref[mode])` -- see the module docstring."""
-    return d * 164.854 / (N_STEPS * U_REF[mode])
+    return d * W0_NORM_CALIBRATED / (N_STEPS * U_REF[mode])
 
 
 def build_cells() -> list:
@@ -772,9 +778,11 @@ def build_report(recs: list, meta: dict) -> str:
       f"‖x₀‖ = {_fmt(ref['initial_norm'], '.6f') if ref else '--'} |")
     A(f"| plasticity | cadence {CADENCE} (update after every step), "
       f"`max_delta_frac` = {MAX_DELTA_FRAC}, seed {SEED} |")
+    # build_cells() appends REFINE on top of the grid, so leaving it out here
+    # printed "35 recorded of 33" -- more cells recorded than exist.
     A(f"| cells | {len(recs)} recorded of "
-      f"{1 + len(MODES) * len(D_GRID)} = 1 frozen reference + "
-      f"{len(MODES)}×{len(D_GRID)} |")
+      f"{1 + len(MODES) * len(D_GRID) + len(REFINE)} = 1 frozen reference + "
+      f"{len(MODES)}x{len(D_GRID)} grid + {len(REFINE)} refinement |")
     A(f"| eta anchor | `eta = D · ‖W0‖_F / (N · U_ref)`, "
       f"U_ref = {json.dumps(U_REF)} |")
     A(f"| threads | {meta.get('torch_threads', TORCH_THREADS)} per process, "
@@ -1080,6 +1088,10 @@ def main(argv=None):
     model.requires_grad_(False)
     print(f"[model] loaded in {time.time() - t_load:.1f}s", flush=True)
     assert model.cfg.n_layers - 1 == LAYER_END
+    w0_now = model.blocks[int(SITE.split(".")[1])].mlp.W_out.double().norm().item()
+    assert abs(w0_now - W0_NORM_CALIBRATED) < 1e-2, (
+        f"||W0||_F is {w0_now:.6f}, not the {W0_NORM_CALIBRATED} eta_for() was "
+        "calibrated against -- every D target and recommended eta would be stale")
 
     # Iteration 0 and the step closure are built ONCE, on the frozen weights,
     # and shared by every cell. Rebuilding `initial_state` inside a cell would
