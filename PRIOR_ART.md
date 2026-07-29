@@ -7,8 +7,8 @@ What exists, in plain terms, and how close it gets.*
 
 **No work matching this combination was found: a hand-written local rule, on a
 pretrained frozen model, driven by a closed activation loop, with no task and no
-loss.** Every ingredient separately is well studied; the combination did not appear in
-what was searched.
+loss.** Each ingredient separately appears in work returned by this search; the
+combination did not.
 
 That is still a statement about a search, not about the literature. **It is not "nobody
 has done this."** It is now a considerably larger search: the forum gap and the
@@ -79,10 +79,10 @@ Read carefully, that sentence splits in two:
   general depth limit for plasticity.
 
 **What this changes for us.** We run an Oja rule, which is in the Hebbian family, not the
-gradient family. The one published depth stress test says that at 8 layers the Hebbian
-side does *not* blow up — it goes quiet. So the expected failure mode this paper points
-at is **saturation, not divergence.** That is the same direction the reservoir work
-points (below).
+gradient family. The one depth stress test this search found says that at 8 layers the
+Hebbian side does *not* blow up — it goes quiet. So the expected failure mode this paper
+points at is **saturation, not divergence.** That is the same direction the reservoir
+work points (below).
 
 **Two limits on how far this transfers.** Their deepest test is 8 layers; GPT-2 small is
 12, so 12 layers is past the deepest configuration this search found reported. And their
@@ -114,8 +114,8 @@ project's *specific* protocol and results may well be new; the general idea is n
 Gradient descent on a loss and a local correlation rule are different processes, not one
 process at two gains. Turning eta to zero recovers frozen weights, but there is no
 continuous path from Oja to backpropagation. The defensible framing is two separate axes
--- *what kind of rule* and *how strong* -- with the local-rule axis unswept at every
-strength.
+-- *what kind of rule* and *how strong* -- with no sweep of the local-rule axis found in
+this search.
 
 ---
 
@@ -695,11 +695,12 @@ Nobody in the surveyed work got away with a single mechanism.
 
 **Where we stand:** the activation rescaling in the ATR loop is already a fast homeostat,
 but it acts on activations, not weights. Oja's decay term is a weight-side one. Whether
-those two suffice is open, and the honest answer is that everyone else needed more.
+those two suffice is open; every entry in the surveyed work used more than one
+mechanism.
 
 ---
 
-## Published step sizes: still none found
+## Published step sizes: none found in this search
 
 **Searched again. Still could not find any published learning rate for an Oja-family rule
 inside a pretrained transformer.**
