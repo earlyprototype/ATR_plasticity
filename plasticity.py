@@ -226,13 +226,29 @@ class _WeightModuleSite:
 
     @property
     def weight(self) -> torch.Tensor:
+        """The live weight, in the module's own layout.
+
+        HuggingFace `Conv1D` stores (n_in, n_out), which is already the rules'
+        convention; `nn.Linear` stores (n_out, n_in) and is handled by the
+        `transposed` flip in `apply()`, not here.
+        """
         return self.module.weight
 
     def write(self, w: torch.Tensor) -> None:
+        """Overwrite the live weight in place, under `no_grad`.
+
+        In place because the module holds the `Parameter` object -- rebinding
+        would leave any hook or optimiser pointing at the old tensor.
+        """
         with torch.no_grad():
             self.module.weight.copy_(w)
 
     def install(self, sink):
+        """Register `sink` as a forward hook and return its handle.
+
+        The handle is the only teardown path -- see the hook-hygiene note on
+        `_TransformerLensMLPSite` for why `model.reset_hooks()` is never used.
+        """
         # The sink IS a torch forward hook here, registered directly. Not
         # wrapped: `tests/test_controls.py` injects its C0 defect by
         # subclassing OjaPlasticity and overriding `_hook`, and that override
@@ -242,6 +258,7 @@ class _WeightModuleSite:
 
     @staticmethod
     def remove(handle) -> None:
+        """Remove exactly the hook `install` added, and nothing else."""
         handle.remove()
 
 
@@ -322,13 +339,27 @@ class _TransformerLensMLPSite:
 
     @property
     def weight(self) -> torch.Tensor:
+        """The MLP's output projection, `W_out`, shape (d_mlp, d_model).
+
+        A bare `nn.Parameter` rather than a module's `.weight`, and already in
+        the rules' (n_in, n_out) convention -- so no transpose is needed here,
+        unlike the HuggingFace path.
+        """
         return self.module.W_out
 
     def write(self, w: torch.Tensor) -> None:
+        """Overwrite `W_out` in place, under `no_grad`."""
         with torch.no_grad():
             self.module.W_out.copy_(w)
 
     def install(self, sink):
+        """Capture x and y from two hook points and return both handles.
+
+        There is no single module behind this matmul, so the pre-activation and
+        the projection output are captured separately and paired: `_on_x`
+        stashes the input, `_on_y` consumes it and calls `sink` once, in torch's
+        forward-hook shape.
+        """
         self._pending = None
 
         def _on_x(_module, _inputs, output):
@@ -352,6 +383,12 @@ class _TransformerLensMLPSite:
         )
 
     def remove(self, handles) -> None:
+        """Remove both hooks and drop any half-captured pair.
+
+        Clearing `_pending` matters: a removal between `_on_x` and `_on_y`
+        would otherwise leave a stale input to be paired with the next run's
+        output.
+        """
         for h in handles:
             h.remove()
         self._pending = None
@@ -416,6 +453,13 @@ class _HeadSliceSite:
 
     @property
     def weight(self) -> torch.Tensor:
+        """This head's contiguous row block of the packed (n_in, n_out) matrix.
+
+        A view, not a copy: heads own rows of the *input* axis on HuggingFace,
+        which is why this adapter sets `supports_transposed = False` -- in the
+        (n_out, n_in) layout a head would own columns and the slice arithmetic
+        would silently address the wrong entries.
+        """
         return self.module.weight[self._lo:self._hi]
 
     def write(self, w: torch.Tensor) -> None:
@@ -426,6 +470,13 @@ class _HeadSliceSite:
             self.module.weight[self._lo:self._hi].copy_(w)
 
     def install(self, sink):
+        """Hook the owning projection and hand the sink this head's slice of x.
+
+        y is the *full* projection output, not this head's contribution to it:
+        the heads share one post-synaptic activity, and that choice is what
+        makes a head update bit-for-bit the row slice of the whole-matrix
+        update. `tests/test_head_sites.py` asserts that with `torch.equal`.
+        """
         lo, hi = self._lo, self._hi
 
         def _on_forward(module, inputs, output):
@@ -519,13 +570,30 @@ class _TransformerLensHeadSite:
 
     @property
     def weight(self) -> torch.Tensor:
+        """This head's (d_head, d_model) block of `W_O`.
+
+        No slice arithmetic is needed on this backend: TransformerLens already
+        stores `W_O` as (n_heads, d_head, d_model), so a head is an index.
+        """
         return self.module.W_O[self.head]
 
     def write(self, w: torch.Tensor) -> None:
+        """Write back into this head's block only, leaving the others untouched.
+
+        Indexed assignment rather than a whole-tensor write, so the other heads'
+        entries are never rewritten -- restoring them to identical values would
+        still round-trip through float32, which is a weaker guarantee than not
+        touching them.
+        """
         with torch.no_grad():
             self.module.W_O[self.head].copy_(w)
 
     def install(self, sink):
+        """Capture this head's slice of `hook_z` and pair it with the block output.
+
+        Same convention as the HuggingFace head adapter: x is the head's slice,
+        y is the shared full output.
+        """
         self._pending = None
         head = self.head
 
