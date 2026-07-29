@@ -157,6 +157,15 @@ MODES = ("hebb", "oja", "anti_hebb", "random")
 # 1e1 is two hundred times the ceiling.
 D_GRID = (1e-4, 1e-3, 1e-2, 3e-2, 1e-1, 3e-1, 1e0, 1e1)
 
+# Refinement cells, added after the main grid. `hebb` is the only mode whose
+# usable band came out narrower than the grid spacing -- 3.9e-5 to 1.2e-4, a
+# factor of three, with the ceiling already at 43% one grid point above -- so
+# it gets two extra points: one at the geometric middle of that band, so the
+# recommended eta is a measured cell rather than an interpolation, and one
+# between the last quiet cell and the first clipping one, to locate the upper
+# edge. The other three modes have bands two decades wide and need no help.
+REFINE = (("hebb", 1.8e-2), ("hebb", 5.6e-2))
+
 # Iterations at which the singular-value spectrum is taken. svdvals on a
 # (3072, 768) float64 matrix costs 0.25 s, so this is affordable densely, and
 # density is the point: effective rank is the diagnostic the whole hollowing-out
@@ -447,6 +456,8 @@ def build_cells() -> list:
     for mode in MODES:
         for d in D_GRID:
             cells.append({"mode": mode, "eta": eta_for(mode, d), "d_target": d})
+    for mode, d in REFINE:
+        cells.append({"mode": mode, "eta": eta_for(mode, d), "d_target": d})
     return cells
 
 
@@ -527,12 +538,19 @@ def band_for_mode(recs: list) -> dict:
                  max((r["eta"] for r in ok), default=None)],
         "n_usable": len(ok),
         "recommended": None,
+        "recommended_measured": None,
         "hollowed": [r["eta"] for r in recs if is_hollowed(r)],
     }
     if ok:
         lo, hi = out["band"]
+        # The geometric middle of the usable cells, not the cell that did the
+        # most interesting thing. If the middle happens to be a swept cell,
+        # `recommended_measured` equals it; otherwise it is the nearest one and
+        # the recommendation is an interpolation, which the report says.
         mid = math.sqrt(lo * hi) if lo > 0 and hi > 0 else (lo or hi)
-        out["recommended"] = min(ok, key=lambda r: abs(math.log10(r["eta"]) - math.log10(mid)))["eta"]
+        out["recommended"] = mid
+        out["recommended_measured"] = min(
+            ok, key=lambda r: abs(math.log10(r["eta"]) - math.log10(mid)))["eta"]
     return out
 
 
@@ -606,9 +624,13 @@ def build_report(recs: list, meta: dict) -> str:
               f"noise floor (rel. change ≥ {FLOOR_DELTA_FRAC:g}) and kept the "
               f"ceiling quiet (clip rate ≤ {CLIP_QUIET:g}).")
         else:
-            A(f"**Recommended eta: {b['recommended']:.3g}**, mid-band. "
-              f"Band {b['band'][0]:.3g} … {b['band'][1]:.3g} "
-              f"({b['n_usable']} cell(s)).")
+            meas = b["recommended_measured"]
+            same = abs(math.log10(meas) - math.log10(b["recommended"])) < 0.02
+            A(f"**Recommended eta: {b['recommended']:.3g}** — the geometric "
+              f"middle of the usable band {b['band'][0]:.3g} … "
+              f"{b['band'][1]:.3g} ({b['n_usable']} cell(s)), where the ceiling "
+              f"is quiet and the weights are actually moving."
+              + ("" if same else f" Nearest measured cell: {meas:.3g}."))
         A("")
         A(f"- Nothing happens at or below **{_fmt(b['eta_floor'], '.3g')}** "
           f"(relative weight change < {FLOOR_DELTA_FRAC:g}).")
