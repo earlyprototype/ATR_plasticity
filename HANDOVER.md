@@ -135,20 +135,18 @@ prompt has its *dynamical class* changed — a static fixed point becomes a two-
 oscillation, landing on the pre-existing `Divine` orbit (its nudged lag-1 of 0.661
 sits inside the range native `Divine` prompts show frozen: 0.659–0.696).
 
-**The offline arm.** The same run was done two ways: closed (weights change while the
-loop runs, live feedback) and offline (the identical rule replayed over activations
-recorded from the frozen run, no feedback path). Result: the offline arm produces
-`cos(ΔW_closed, ΔW_offline) = 0.99294` and **flips the same basin**. A severed-path
-control (loop read out at `blocks.3`, below the plastic site, so coupling is
-impossible) gives a floor of exactly 0.0 in the zero-floor `recomputed` mode.
+**The offline arm.** The same update was computed two ways: in situ (weights changing
+while the loop runs) and abstractly (the identical rule replayed over activations
+recorded from the frozen run, no feedback path). The two agree —
+`cos(ΔW_closed, ΔW_offline) = 0.99294`, and the offline arm flips the same basin. A
+severed-path control (loop read out at `blocks.3`, below the plastic site, so coupling
+is impossible) gives a floor of exactly 0.0 in the zero-floor `recomputed` mode.
 
-> **How to read that, and where each reading is recorded.** Mechanically it confirms
-> the rule computes the same update in situ or abstractly — a Hebbian update is a
-> function of the activation statistics, and it does not require the loop to be
-> closed. Issue #26 and `ORIENTATION.md` record the stronger design intent: the
-> project's claim about *coupling* was defined to live in the **difference** between
-> the arms, and at this step size that difference is small. Both statements are
-> compatible; do not let either drift into a write-up as more than it is.
+That agreement is what the arm is for: it verifies that the Hebbian update is a
+function of the activation statistics, so it can be computed abstractly or in situ and
+give the same result. Issue #26 separately defines a claim about *coupling* as living
+in the difference between the arms; if a coupling claim is ever made, that is the bar
+it has to clear.
 
 ### 3.4 Basin bifurcation (`BASIN_BIFURCATION.md`) — the newest result
 
