@@ -958,6 +958,11 @@ def build_report(recs: list, meta: dict) -> str:
     A("")
     A("## Provenance")
     A("")
+    A(f"{len(recs)} cells, {sum(r['seconds'] for r in recs) / 60:.0f} CPU-minutes "
+      f"total, run as {meta.get('shards', 1)} single-threaded shard(s) alongside "
+      f"another sweep on the same 4-core box. `wall_clock_seconds` below is the "
+      f"last invocation's only (the refinement pass), not the whole map's.")
+    A("")
     A("```json")
     A(json.dumps(meta, indent=2, sort_keys=True))
     A("```")

@@ -296,6 +296,8 @@ Stated so that the verdicts above can be recomputed or disagreed with.
 
 ## Provenance
 
+35 cells, 59 CPU-minutes total, run as 2 single-threaded shard(s) alongside another sweep on the same 4-core box. `wall_clock_seconds` below is the last invocation's only (the refinement pass), not the whole map's.
+
 ```json
 {
   "cadence": 1,
