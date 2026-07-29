@@ -871,6 +871,28 @@ def verify_arms_matched(closed: ArmConfig, offline: ArmConfig) -> dict:
     if closed.arm == offline.arm:
         structural.append(f"both arms are labelled {closed.arm!r}")
 
+    # y_source is deliberately not a matched axis -- it is part of what
+    # distinguishes the arms -- but only one of its settings leaves the
+    # comparison about feedback.
+    #
+    # "recomputed" recomputes y from the recorded x through the site's own
+    # forward, bit-exactly, so the offline arm differs from the closed one by
+    # the absence of feedback and nothing else.
+    #
+    # "recorded" replays the y captured during the frozen run. That freezes
+    # Oja's own y = xW recursion in the offline arm while the closed arm's
+    # recursion runs live -- a mechanism difference, not a feedback difference.
+    # The severed-path control shows it empirically: with coupling physically
+    # impossible, "recorded" still reports a difference, and "recomputed"
+    # reports exactly zero.
+    if offline.y_source not in ("recomputed", "live"):
+        structural.append(
+            f"offline arm uses y_source={offline.y_source!r}: the arms then "
+            "differ by Oja's frozen y-recursion as well as by feedback, so "
+            "their difference is not evidence about feedback. Use "
+            "y_source='recomputed', or read the result as a mechanism "
+            "comparison rather than a feedback one")
+
     ok = not mismatched and not structural
     return {
         "ok": ok,

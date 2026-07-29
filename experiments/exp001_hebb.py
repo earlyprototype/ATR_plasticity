@@ -1147,11 +1147,28 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
         A("")
         L.extend(_lens_section(lens, main))
         if main.get("cos_dW_closed_offline_recomputed") is not None:
+            _c = main['cos_dW_closed_offline_recomputed']
+            _r = (main['rel_weight_change_closed']
+                  / main['rel_weight_change_offline_recomputed'])
+            # Decompose the difference between the two updates into the part
+            # perpendicular to the closed arm (a direction change) and the part
+            # along it (a scale change), both relative to ||dW_closed||. A
+            # cosine near 1 does NOT mean "scale only": at cos 0.993 the
+            # perpendicular part is still several times the parallel one.
+            _perp = _r * math.sqrt(max(0.0, 1.0 - _c * _c))
+            _par = abs(1.0 - _r * _c)
             A(f"**Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = "
-              f"{main['cos_dW_closed_offline_recomputed']:.8f} (recomputed-y "
-              f"arm), with norm ratio "
-              f"{main['rel_weight_change_closed'] / main['rel_weight_change_offline_recomputed']:.6f}. "
-              "Near 1 means feedback changed nothing but scale.")
+              f"{_c:.8f} (recomputed-y arm), with norm ratio {_r:.6f}.")
+            A("")
+            A(f"Splitting the difference between the two updates: the component "
+              f"perpendicular to the closed-loop update is **{_perp:.4f}** of "
+              f"`||ΔW_closed||`, the component along it is **{_par:.4f}** -- a "
+              f"ratio of {_perp / _par:.2f} to 1"
+              + (" in favour of the perpendicular part." if _perp > _par else
+                 " in favour of the parallel part.")
+              + " The cosine and the norm ratio are reported separately for "
+                "this reason; a single mixed ratio cannot distinguish a "
+                "direction change from a magnitude change.")
             A("")
 
     # --- across basins ----------------------------------------------------

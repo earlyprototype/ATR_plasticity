@@ -128,7 +128,9 @@ The top-20 list answers "what does this direction point at" only in the loose se
 
 The loop went `prolet` → `comrade`. **All 3 of the tokens checked sit inside the null's 5–95% band**, including the one the flip landed on. The dominant direction of ΔW carries no measurable preference for the tokens whose basin it moved the loop into — the basin change is not legible in the weight change by logit lens, and the top-20 list above should be read as what a direction looks like through `W_U`, not as content.
 
-**Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = 0.99294294 (recomputed-y arm), with norm ratio 0.972248. Near 1 means feedback changed nothing but scale.
+**Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = 0.99294294 (recomputed-y arm), with norm ratio 0.972248.
+
+Splitting the difference between the two updates: the component perpendicular to the closed-loop update is **0.1153** of `||ΔW_closed||`, the component along it is **0.0346** -- a ratio of 3.33 to 1 in favour of the perpendicular part. The cosine and the norm ratio are reported separately for this reason; a single mixed ratio cannot distinguish a direction change from a magnitude change.
 
 ## 5. Does the ΔW direction differ by basin? (issue #32 section 3b)
 
