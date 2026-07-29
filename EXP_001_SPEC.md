@@ -28,7 +28,7 @@ There is also no per-step entry point. `atr_engine.run_atr_loop(model, prompt, .
 runs the whole loop internally, with its own injection hook; `controls.py` expects
 `atr_step(model, r) -> r_next`.
 
-Neither gap is deep. Both must close before any number here means anything.
+Both must close before any number here means anything.
 
 ## EXP-000 — The bridge (do this first)
 
@@ -89,13 +89,12 @@ destroys it.**
 - **It comes with a matched control object.** `state_prolet.pt` is the `Semantic`
   prompt's fixed point (per-step L2 ~3e-4, the numerical floor) at identical settings.
   Two dynamical objects, one run configuration: an oscillator and a fixed point.
-- **The falsifier is interesting either way.** A cycle that survives a modification
-  of the very map that generates it is a stronger result than one that breaks.
+- Both outcomes are informative under the criteria in §4.
 
 ## 3. Design
 
 - **Site:** `blocks.6.mlp` → `W_out`. Mid-stack, MLP down-projection: this repo's own
-  first choice, and the least entangled place to perturb.
+  first choice.
 - **Start:** the saved iteration-1000 state, not a fresh prompt run.
 - **eta ladder:** 0 (C0), then 1e-6, 3e-6, 1e-5, 3e-5, 1e-4. Half-orders.
 - **Horizon:** 200 iterations per eta. The cycle is locked in from ~250 and stable to
@@ -125,7 +124,7 @@ as a phase-locked special case rather than a point on a curve.
 
 | Outcome | Reading |
 |:---|:---|
-| lag-2 cosine stays 1.000000 | The cycle is robust to modification of the map that generates it. The striking result. |
+| lag-2 cosine stays 1.000000 | The cycle is robust to modification of the map that generates it. |
 | Cycle → fixed point | The oscillation is damped out; plasticity acts as a brake. Consolidation, in this repo's H1 sense. |
 | Cycle → longer period, or wanders | The update perturbs the flip axis without destroying the orbit. Measure the new period with a lag scan, not a lag-1 gate. |
 | Whole trajectory diverges | eta too high, or the ceiling is doing work — check `clipped` before interpreting anything. |
@@ -141,9 +140,8 @@ dead.
 1. **C0** at eta=0 on the real stack. Bit-exact. Gate.
 2. **C1** revert — the cycle must return to `cos(A, f(f(A))) = 1.000000` after
    `revert()`, from the same saved state.
-3. **C2** norm-matched random direction at whatever eta first moves the cycle. **This
-   is the one that decides whether the branch is interesting.** Two known subtleties,
-   both of which have to be handled or C2's verdict is not worth much:
+3. **C2** norm-matched random direction at whatever eta first moves the cycle. Two known
+   subtleties, both of which have to be handled or C2's verdict is not worth much:
 
    - The norm match is per-update, and accumulated Oja steps are correlated where
      random ones are a walk, so cumulative drift diverges with iteration count
@@ -163,9 +161,8 @@ dead.
 ## 6. What this does not ask
 
 Nothing here touches basin counts, the 125-prompt library, or the collapse question.
-Those need the full sweep and are the natural EXP-002. This is the cheapest sharp
-question available, chosen because it has an exact answer and an existing baseline
-measured to six decimal places.
+Those need the full sweep and are the natural EXP-002. Chosen because it has an exact
+answer and an existing baseline measured to six decimal places.
 
 ---
 
@@ -369,9 +366,7 @@ Add a row to §4:
 
 | Outcome | Reading |
 |:---|:---|
-| The arms agree (difference at or below the no-route floor) | **Feedback contributes nothing detectable at this eta.** This is a real result about this substrate and it is what the reservoir literature in PRIOR_ART would predict. It is not a failed run, and nothing may be tuned to make the number larger. |
+| The arms agree (difference at or below the no-route floor) | **Feedback contributes nothing detectable at this eta.** It is not a failed run, and nothing may be tuned to make the number larger. |
 
-That last clause is the point of the arm. `diff_over_drift ≈ 0` at every eta on the ladder
-would say the closed-loop result is Oja finding the dominant direction of the frozen
-loop's activations, which is what Oja does anywhere. Reporting it is the difference
-between a finding and an artefact.
+`diff_over_drift ≈ 0` at every eta on the ladder would say the closed-loop result is Oja
+finding the dominant direction of the frozen loop's activations.

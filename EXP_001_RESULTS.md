@@ -1,10 +1,10 @@
-# EXP-001 — the offline arm at the one step size where anything happens
+# EXP-001 — the offline arm at hebb, eta = 7.06517e-05
 
 Issues #26, #30, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120 steps, cadence 1, `max_delta_frac` = 0.05.
 
 The step-size map found `hebb` at this eta to be the only cell in the whole sweep that moves the loop inside a clean band: basin `prolet` → `comrade` at 1.12% relative weight change with the norm ceiling silent. `oja`, `anti_hebb` and `random` all have wide usable bands in which nothing whatsoever happens. Every offline-control number previously recorded in this repo was taken at `oja`, eta 1e-5 — inside the dead zone. This is the first time the control has been run where the loop actually moves.
 
-## 1. The headline: does the offline arm flip the basin too?
+## 1. Does the offline arm flip the basin too?
 
 `A01_physics`, seed 0, layers 0→11. Each arm's final matrix is installed and the loop re-run **frozen** under it from the same iteration-0 tensor, so the four rows differ only in which matrix produced the trajectory.
 
@@ -15,11 +15,11 @@ The step-size map found `hebb` at this eta to be the only cell in the whole swee
 | offline, `recomputed` y | `comrade` | 0.200 | 1.00000 | 0.99998 | 0.991624 |
 | offline, `recorded` y | `comrade` | 0.291 | 1.00000 | 0.99999 | 0.995913 |
 
-**The offline arm flips too.** Closed loop `prolet` → `comrade`; offline (`recomputed` y, the zero-floor path) `prolet` → `comrade`. Feedback is not required for the basin flip: the flip is a property of the rule applied to this activation distribution, which is what a Hebbian rule does anywhere, loop or no loop.
+**The offline arm flips too.** Closed loop `prolet` → `comrade`; offline (`recomputed` y, the zero-floor path) `prolet` → `comrade`. Feedback is not required for the basin flip: the flip is a property of the rule applied to this activation distribution.
 
 Closed arm against offline (`recomputed`) arm, final states: phase-aware cos = 0.999842824 (phase `final_prev`), relative L2 1.917e-02. The float32 round-off floor of this instrument is `1 − cos` ≈ 1.5e-14; this pair sits at 1.572e-04, i.e. 1e+10× the floor. `torch.equal` is not used anywhere here: two states that are the same point of the dynamics differ in their last bits.
 
-**Read the margin.** The frozen baseline sits at a top1−top2 logit margin of 0.230. 69 of the 125 baseline prompts have a margin below 0.5 and this prompt is one of them, so the basin label here is a coin balanced on its edge: a flip across it is a much weaker statement than a flip across a margin of 2. The lag-1/lag-2 columns and the final-state cosine are the quantities that do not depend on where an argmax happened to land.
+The frozen baseline sits at a top1−top2 logit margin of 0.230. 69 of the 125 baseline prompts have a margin below 0.5 and this prompt is one of them. The lag-1/lag-2 columns and the final-state cosine are the quantities that do not depend on where an argmax happened to land.
 
 ## 2. Arms matched, and the ceiling silent
 
@@ -42,7 +42,7 @@ Closed arm against offline (`recomputed`) arm, final states: phase-aware cos = 0
 
 ## 3. Routed against severed
 
-The severed arm reads the loop out at `blocks.3.hook_resid_post`, below the plastic site at layer 6. No state feedback can exist, so the `x` reaching the rule is bit-identical in both arms and **whatever the arms still differ by there is the floor**. Any effect claimed in the routed configuration has to exceed it.
+The severed arm reads the loop out at `blocks.3.hook_resid_post`, below the plastic site at layer 6. No state feedback can exist, so the `x` reaching the rule is bit-identical in both arms and **whatever the arms still differ by there is the floor**.
 
 | configuration | y_source | `cos_delta` | `rel_fro_diff` | `diff_over_drift` |
 |---|---|---|---|---|
@@ -51,15 +51,15 @@ The severed arm reads the loop out at `blocks.3.hook_resid_post`, below the plas
 | severed (0→3) | `recomputed` (floor 0) | 1.000e+00 … 1.000e+00 (median 1.000e+00, n=5) | 0.000e+00 … 0.000e+00 (median 0.000e+00, n=5) | 0.000e+00 … 0.000e+00 (median 0.000e+00, n=5) |
 | severed (0→3) | `recorded` (floor ≠ 0) | 1.000e+00 … 1.000e+00 (median 1.000e+00, n=5) | 8.111e-03 … 8.372e-03 (median 8.372e-03, n=5) | 2.842e-01 … 2.868e-01 (median 2.868e-01, n=5) |
 
-In the zero-floor `recomputed` mode the routed cells sit at 1.204e-01 against a severed floor of 0.000e+00. The severed arms come out **bit-identical** — `rel_fro_diff` is exactly 0.0, not small — so the floor is zero in the literal sense and the ratio is not a finite number. The routed difference is therefore entirely above the floor, and it is the one measurement in this file that is unambiguously about feedback. The usual objection to the severed control — that it runs a shallower loop (0→3) with different activation statistics, so its floor is not exactly the routed loop's — does not bite in this mode: `torch.equal` on the two matrices is True, and zero is zero at any depth. It does bite on the `recorded` row below.
+In the zero-floor `recomputed` mode the routed cells sit at 1.204e-01 against a severed floor of 0.000e+00. The severed arms come out **bit-identical** — `rel_fro_diff` is exactly 0.0, not small — so the floor is zero in the literal sense and the ratio is not a finite number. The routed difference is therefore entirely above the floor. The usual objection to the severed control — that it runs a shallower loop (0→3) with different activation statistics, so its floor is not exactly the routed loop's — does not bite in this mode: `torch.equal` on the two matrices is True, and zero is zero at any depth. It does bite on the `recorded` row below.
 
-In the default `recorded` mode the same comparison reads 2.476e-01 routed against 2.868e-01 severed. **The severed number is the larger of the two**, i.e. the naive protocol reports a bigger apparent effect with the feedback physically disconnected than with it connected, and no claim about feedback can be made from it.
+In the default `recorded` mode the same comparison reads 2.476e-01 routed against 2.868e-01 severed. **The severed number is the larger of the two**, i.e. in `recorded` mode the measured difference is larger with the feedback path severed than with it routed.
 
 ### Seeds
 
 Seeds [0, 1, 2] on the same prompt give `diff_over_drift` (recomputed) 1.203852e-01, 1.203852e-01, 1.203852e-01 — spread 0.000e+00.
 
-**The spread is exactly zero, and that is a fact about the rule, not a lucky run.** `seed` reaches `OjaPlasticity` only through `self._rng`, which is drawn from in `mode="random"` and nowhere else. `hebb` has no stochastic component, the model is frozen and single-threaded, so three seeds are three bit-identical runs. Reporting them as a three-seed spread would be reporting the same run three times. The spread that means something here is across prompts, below.
+**The spread is exactly zero, and that is a fact about the rule, not a lucky run.** `seed` reaches `OjaPlasticity` only through `self._rng`, which is drawn from in `mode="random"` and nowhere else. `hebb` has no stochastic component, the model is frozen and single-threaded, so three seeds are three bit-identical runs. Reporting them as a three-seed spread would be reporting the same run three times. Variation across prompts is reported below.
 
 Across prompts (all `prolet` under the frozen loop), seed 0:
 
@@ -83,7 +83,7 @@ Across prompts (all `prolet` under the frozen loop), seed 0:
 | effective rank (participation ratio) | 2.00 | 1.93 |
 | stable rank | 1.04 | 1.04 |
 
-The step-size map measured ΔW effective rank 1.8–3.8 for `oja` and 718.8 for the isotropic noise arm. This is the `hebb` number at the cell that moves the loop. Near-rank-1 is **expected** — it is the rule doing what the rule does — and is reported as a sanity check, never as a discovery.
+The step-size map measured ΔW effective rank 1.8–3.8 for `oja` and 718.8 for the isotropic noise arm. This is the `hebb` number at the cell that moves the loop.
 
 ### The dominant direction, decoded
 
@@ -114,11 +114,11 @@ The 768-side factor of ΔW lives in the residual stream's output space; pushed t
 
 The random controls are isotropic directions of **matched norm** (unit, as the singular vector is), decoded identically. Logit spread: ΔW direction σ = 0.1480, max 0.6723; controls σ = 0.1682, 0.1591, 0.1570, max 0.8111, 0.7056, 0.6573.
 
-**Read the two columns side by side before reading either one.** `W_U` is not isotropic; any direction pushed through it returns a list of tokens that can be narrativised. The question the control answers is whether the ΔW list is more concentrated, or more coherent, than a random direction's — not whether it looks meaningful on its own.
+`W_U` is not isotropic; any direction pushed through it returns a list of tokens that can be narrativised. The control permits comparison of concentration between the ΔW direction and isotropic directions of matched norm.
 
 On the one quantitative comparison available from these columns, the ΔW direction is **not** the more concentrated of the two: its logit spread is 0.1480 against a control median of 0.1591, and its largest logit is 0.6723 against 0.7056. It is flatter than isotropic noise, not sharper.
 
-The top-20 list answers "what does this direction point at" only in the loose sense that any direction points at twenty tokens. The sharp version is where the tokens this experiment is actually about sit in that direction's own ranking of all 50257 of them, against a null of 64 isotropic directions:
+The measurement below reports where the tokens this experiment is actually about sit in that direction's own ranking of all 50257 of them, against a null of 64 isotropic directions:
 
 | token | percentile under ΔW's dominant direction | null median | null 5–95% |
 |---|---|---|---|
@@ -126,7 +126,7 @@ The top-20 list answers "what does this direction point at" only in the loose se
 | " comrade" | 18.9 | 59.7 | 7.1 – 98.9 |
 | " Divine" | 82.8 | 57.3 | 16.5 – 88.3 |
 
-The loop went `prolet` → `comrade`. **All 3 of the tokens checked sit inside the null's 5–95% band**, including the one the flip landed on. The dominant direction of ΔW carries no measurable preference for the tokens whose basin it moved the loop into — the basin change is not legible in the weight change by logit lens, and the top-20 list above should be read as what a direction looks like through `W_U`, not as content.
+The loop went `prolet` → `comrade`. **All 3 of the tokens checked sit inside the null's 5–95% band**, including the one the flip landed on. The dominant direction of ΔW carries no measurable preference for the tokens whose basin it moved the loop into — the basin change is not legible in the weight change by logit lens.
 
 **Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = 0.99294294 (recomputed-y arm), with norm ratio 0.972248.
 
@@ -148,7 +148,7 @@ Within-basin median cosine +0.997680 (4 pairs); between-basin median +0.420884 (
 
 **The directions separate by basin**, so ΔW carries a recoverable trace of which attractor the episode ran in.
 
-Two things have to be said about that before it is worth anything. First, issue #32's two branches — "ΔW fingerprints the attractor" and "ΔW records the site's activation statistics and nothing about the episode" — are **not mutually exclusive here**, because the attractor is what determines the site's activation statistics. Section 1 showed the offline arm, which sees nothing but the frozen activation statistics, reproduces the closed arm's ΔW to cos = 0.99294. So this separation is the second branch, seen from the other side: the direction is a readout of the activation distribution, and the distribution differs between attractors. It is not evidence of anything episode-specific over and above that.
+Two features of this comparison: First, issue #32's two branches — "ΔW fingerprints the attractor" and "ΔW records the site's activation statistics and nothing about the episode" — are **not mutually exclusive here**, because the attractor is what determines the site's activation statistics. Section 1 showed the offline arm, which sees nothing but the frozen activation statistics, reproduces the closed arm's ΔW to cos = 0.99294. No measurement here isolates an episode-specific component from the site's activation statistics.
 
 Second, prompts in the same basin are not a random sample — `A01`/`A02`/`A04` are all Complex-register academic sentences and the two `Divine` prompts are as well, so prompt similarity and basin membership are confounded in this design. Separating them needs the within/between measurement over many prompts per basin that issue #32 asks for and this run does not have.
 
@@ -165,17 +165,17 @@ The reference is iterated in **lockstep**, not held fixed at the episode's last 
 
 Gap curve, lockstep: 4.747e-03 at iteration 1 → 1.322e-12 at 225. Fixed-target: 4.781e-03 → 3.189e-05.
 
-**The contraction measured here is faster than the ~0.968 the horizon was justified against**: 0.9521 per iteration on this trajectory, about 47 iterations per decade of displacement rather than 71. The 1000-iteration horizon was not needed in the end -- but it was chosen before the run, and at the 0.968 figure it was the right choice.
+**The contraction measured here is faster than the ~0.968 the horizon was justified against**: 0.9521 per iteration on this trajectory, about 47 iterations per decade of displacement rather than 71. The 1000-iteration horizon was not needed in the end -- it was chosen before the run, from the 0.968 figure.
 
 ## 7. What this does and does not establish
 
-- **ΔW ≠ 0 is not evidence of anything.** The rule moves the weights with no feedback whatsoever; only the arm comparison speaks to feedback.
-- **Magnitude is not evidence.** eta was chosen, from the step-size map.
+- **ΔW ≠ 0 was also produced by the offline arm**, which has no feedback path (section 1).
+- **The ΔW magnitude follows from the chosen eta.** eta was chosen from the step-size map.
 - **One prompt family, one site, one ceiling, 120 steps, cadence 1.** The map's caveats carry over unchanged.
 - **The `recorded`-mode numbers are reported but not claimed from.** Their floor is a frozen-`y` artefact that has been measured larger than the routed signal.
-- **None of this is learning.** No task, no loss, no target. The defensible phrase is that the weights carry a trace of the episode.
-- **The basin flip is not the finding.** The offline arm flips too, so the flip is what the rule does to this activation distribution. What survives is a small, measurable, above-floor difference in *where the two arms' weights land* — reported in section 3 — which is a much narrower claim than "the coupling changes the attractor".
-- **The severed control is the reason the section-3 number can be quoted at all.** In `recorded` mode the same protocol reports a larger apparent effect with the feedback physically disconnected. Only the `recomputed` path has a floor of literal zero, and only there does the routed number mean what it appears to mean.
+- **No task, no loss, no target.** The design contains none of the three.
+- **The offline arm flips too.** Section 3 reports a difference between the two arms' final weight matrices that is above the severed floor.
+- **The severed control sets the floor for section 3.** In `recorded` mode the same protocol reports a larger measured difference with the feedback path severed. Only the `recomputed` path has a floor of literal zero.
 
 ## Provenance
 

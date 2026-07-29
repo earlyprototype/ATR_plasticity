@@ -97,21 +97,19 @@ methods.
 ### Per-head sites
 
 Attention output projections can be targeted one head at a time. The parent found the
-two-step cycle carried by a single attention head in block 11, which is what makes head
-granularity worth having.
+two-step cycle carried by a single attention head in block 11. Head-level targeting exists
+so that site can be addressed directly.
 
 `x` is that head's slice of the input; `y` is the full projection output, since the heads
 share one post-synaptic activity. That choice makes a head update exactly the row slice of
 the whole-matrix update.
 
-## Why the offline arm is the centre of the design
-
-This is the part that determines whether any result means anything.
+## The offline arm: connected against disconnected
 
 **Oja's rule moves the weight matrix whether or not there is any feedback.** Feed it a
 recording of activations and it will still converge toward the dominant direction of their
 second-moment matrix. So "we ran the loop with plasticity on and the behaviour changed" is
-not evidence about the loop. It is the rule doing what the rule does.
+not evidence about the loop.
 
 The claim this project can make is about *coupling* — weights changing while the thing
 they change feeds back into them. That claim lives entirely in the difference between two
@@ -161,8 +159,8 @@ non-finite count, largest entry, and effective rank.
 
 Effective rank is there for a specific failure: one entry runs away, the normaliser
 rescales, and the rest of the matrix is flattened — while the norm stays constant and the
-clipping rate stays low. Every conventional reading looks healthy. A falling effective
-rank against a flat norm is that failure and little else.
+clipping rate stays low. Every conventional reading looks healthy. Effective rank is
+tracked so that this failure mode is visible when norm and clipping rate are not.
 
 ## Reading order
 
