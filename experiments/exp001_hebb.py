@@ -727,9 +727,12 @@ def logit_lens_extra(model, recs: list, n_null: int = 64) -> dict:
         if not r.get("dW_closed"):
             continue
         v = torch.tensor(r["dW_closed"]["u_right_768"], dtype=torch.float64)
+        ro = r.get("readout") or {}
         out["cells"][r["cell_id"]] = {
-            "basin_frozen": (r.get("readout", {}).get("frozen", {}) or {}).get("basin"),
-            "basin_closed": (r.get("readout", {}).get("closed", {}) or {}).get("basin"),
+            # Episode cells record the live arm as "closed_live"; only severed
+            # cells legitimately have no closed readout at all.
+            "basin_frozen": (ro.get("frozen") or {}).get("basin"),
+            "basin_closed": ((ro.get("closed") or ro.get("closed_live")) or {}).get("basin"),
             "ranks": ranks(v),
         }
     return out
@@ -1270,14 +1273,27 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
                 d0, d1 = math.sqrt(2 * first[1]), math.sqrt(2 * last[1])
                 n = last[0] - first[0]
                 lam = (d1 / d0) ** (1.0 / n)
-                A(f"**The contraction measured here is faster than the ~0.968 "
-                  f"the horizon was justified against**: {lam:.4f} per "
-                  f"iteration on this trajectory, about "
-                  f"{1 / max(-math.log10(lam), 1e-12):.0f} iterations per "
-                  f"decade of displacement rather than 71. The 1000-iteration "
-                  f"horizon was not needed in the end — but it was chosen "
-                  f"before the run, and at the 0.968 figure it was the right "
-                  f"choice.")
+                # The verdict has to be read off `lam`, not asserted. The
+                # earlier wording said "faster" unconditionally, and the
+                # max(..., 1e-12) floor would have turned a non-contracting
+                # run into a confident "1e+12 iterations per decade".
+                if lam >= 1.0:
+                    A(f"**The trajectory did not contract on this run**: the "
+                      f"measured per-iteration factor is {lam:.4f}, at or above "
+                      f"1, so no iterations-per-decade figure is meaningful and "
+                      f"the C1 return has to be read from the gap curve alone.")
+                else:
+                    per_decade = 1 / -math.log10(lam)
+                    faster = lam < 0.968
+                    A(f"**The contraction measured here is "
+                      f"{'faster' if faster else 'slower'} than the ~0.968 the "
+                      f"horizon was justified against**: {lam:.4f} per "
+                      f"iteration on this trajectory, about {per_decade:.0f} "
+                      f"iterations per decade of displacement rather than 71. "
+                      f"The 1000-iteration horizon was "
+                      f"{'not needed in the end' if faster else 'needed'} -- but "
+                      f"it was chosen before the run, and at the 0.968 figure it "
+                      f"was the right choice.")
                 A("")
 
     # --- what this does not say -------------------------------------------
@@ -1421,6 +1437,20 @@ def main(argv=None):
         if metas:
             meta.update(metas[0])
             meta["shards"] = max(m.get("shards", 1) for m in metas)
+            # sorted() puts exp001_meta.json first, so metas[0] supplied the
+            # revision and wall clock while the shard count came from the
+            # others -- publishing one shard's 282.9s for a run that actually
+            # spanned ~2900s across two revisions. Aggregate instead of picking.
+            revs = sorted({m.get("repo_rev") for m in metas if m.get("repo_rev")})
+            meta["repo_revs"] = revs
+            meta["wall_clock_seconds_per_meta"] = [
+                m.get("wall_clock_seconds") for m in metas]
+            meta["wall_clock_seconds"] = sum(
+                m.get("wall_clock_seconds") or 0.0 for m in metas)
+            if len(revs) > 1:
+                meta["provenance_warning"] = (
+                    "cells in this report were produced under more than one "
+                    "repo revision; see repo_revs")
         lens_path = out_dir / "dw_logit_lens.json"
         lens = json.loads(lens_path.read_text()) if lens_path.exists() else None
         Path(args.report).write_text(build_report(recs, meta, lens), encoding="utf-8")
@@ -1456,13 +1486,19 @@ def main(argv=None):
     # Every cell must start from the same W0. Every arm reverts in a finally
     # block, but a leak would look like a feedback effect, so it is checked
     # rather than assumed.
-    w0_ref = model.blocks[6].mlp.W_out.detach().clone()
+    # Derived from SITE, not hardcoded: a literal blocks[6].mlp would keep
+    # comparing an untouched matrix if SITE ever moved, and the guard would
+    # pass while the real plastic site leaked between cells.
+    _site_layer = int(SITE.split(".")[1])
+    def _live_w0():
+        return model.blocks[_site_layer].mlp.W_out
+    w0_ref = _live_w0().detach().clone()
 
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     t0 = time.time()
     for k, c in enumerate(todo, 1):
         cid = cell_id(c)
-        if not torch.equal(model.blocks[6].mlp.W_out, w0_ref):
+        if not torch.equal(_live_w0(), w0_ref):
             raise RuntimeError(
                 f"the live weight at {SITE} is not W0 at the start of {cid}; a "
                 "previous cell's revert did not restore it and every cell after "

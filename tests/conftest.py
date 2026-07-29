@@ -243,9 +243,13 @@ def _target_weight_unchanged(request):
             continue
         model = request.getfixturevalue(fixture)
         for path, attr in paths:
-            watched.append((f"{fixture}:{path}.{attr}",
-                            (w := getattr(resolve(model, path), attr)),
-                            w.detach().clone()))
+            # Keep the coordinates, not the tensor object. Holding the tensor
+            # would only catch in-place writes: a test that REBINDS the
+            # attribute to a fresh tensor or Parameter leaves the object we
+            # captured untouched, so the check would pass while the
+            # session-scoped model stayed contaminated.
+            watched.append((f"{fixture}:{path}.{attr}", model, path, attr,
+                            getattr(resolve(model, path), attr).detach().clone()))
         # A guard that silently watches nothing passes everything. If a path
         # above stops resolving -- a renamed attribute, a TransformerLens
         # layout change -- the AttributeError from `resolve` should surface
@@ -254,5 +258,6 @@ def _target_weight_unchanged(request):
 
     yield
 
-    for name, w, before in watched:
-        assert torch.equal(w, before), f"{name} left modified for subsequent tests"
+    for name, model, path, attr, before in watched:
+        after = getattr(resolve(model, path), attr)
+        assert torch.equal(after, before), f"{name} left modified for subsequent tests"

@@ -395,9 +395,10 @@ Oja's convergence result is a stochastic-approximation result. It needs at least
    eigenvalue of the second-moment matrix is non-degenerate. Two cases that this file
    previously ran together, and which are not the same failure:
 
-   - **λ₁ = λ₂ exactly.** The eigenspace is two-dimensional, there is no unique dominant
-     eigenvector, and which direction the rule settles on is decided by the dynamics
-     rather than by the matrix. This is the condition the theorem actually excludes.
+   - **λ₁ = λ₂ exactly.** The top eigenspace is at least two-dimensional -- more if
+     further eigenvalues tie with λ₁ -- so there is no unique dominant eigenvector, and
+     which direction the rule settles on is decided by the dynamics rather than by the
+     matrix. This is the condition the theorem actually excludes.
    - **λ₁ and λ₂ merely close.** The dominant eigenvector is still unique — simplicity of
      the top eigenvalue is all uniqueness requires. What a small gap costs is *rate*:
      convergence slows, and the estimate becomes far more sensitive to finite-sample and
@@ -406,16 +407,22 @@ Oja's convergence result is a stochastic-approximation result. It needs at least
    This file previously recorded the precondition as never having been checked. A first
    check is now in hand, and it is only a first check:
 
-   | Matrix, ordinary text at the default site | λ₁ | λ₂ | λ₂/λ₁ |
+   | Matrix, ordinary text at the default site | λ₁ | λ₂ | ratio λ₂/λ₁ |
    |---|---|---|---|
    | Second moment E[x xᵀ] | 21.749 | 7.436 | **0.342** |
    | Covariance | 7.515 | 4.804 | **0.639** |
 
-   Both are strictly simple, so on this input the dominant eigenvector is well defined in
-   either matrix and the theorem's precondition holds. The difference is margin: the raw
-   second moment has a comfortable gap, while **the centred matrix's gap is much weaker at
-   0.639**, meaning slower convergence and greater sensitivity to sampling and round-off —
-   a second reason centring is not a free choice, though not a loss of the target.
+   That column is a **ratio, not a gap**, and the two are not interchangeable: for the
+   covariance matrix λ₂/λ₁ = 0.639 corresponds to a relative separation of
+   1 − 0.639 = 0.361 and an absolute gap λ₁ − λ₂ = 2.711. A ratio near 1 is a weak
+   separation, near 0 a strong one.
+
+   Both matrices have a strictly simple top eigenvalue, so on this input the dominant
+   eigenvector is well defined in either and the theorem's precondition holds. The
+   difference is margin: the raw second moment separates comfortably at a ratio of 0.342,
+   while **the centred matrix is much weaker at 0.639**, meaning slower convergence and
+   greater sensitivity to sampling and round-off — a second reason centring is not a free
+   choice, though not a loss of the target.
 
    **Still unverified for the closed loop**, where the matrix moves as the weights move
    and the gap can close at any point — a gap measured once at the start says nothing
@@ -764,7 +771,7 @@ than it was.
   does not satisfy the theorem either. Both are empirical questions. See "The finding that
   changes our experiment".
 - **The simple-dominant-eigenvalue precondition is checked only once, on ordinary text.**
-  λ₂/λ₁ = 0.342 on the raw second moment (comfortable) and 0.639 centred (weak). Unchecked
+  spectral ratio λ₂/λ₁ = 0.342 on the raw second moment (comfortable) and 0.639 centred (weak) -- the ratio, not the absolute gap. Unchecked
   inside the closed loop, where the matrix moves and the gap can close mid-run. Track it
   across the run.
 - **The post-GELU measurements are one site, one layer, one box.** `blocks.6.mlp`, three
