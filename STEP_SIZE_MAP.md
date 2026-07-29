@@ -28,7 +28,7 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### `hebb`
 
-**Recommended eta: 6.8e-05** — the geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)), where the ceiling is quiet and the weights are actually moving.
+**Recommended eta: 6.8e-05** — the geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 7.07e-05.
 
 - Nothing happens at or below **3.93e-06** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **0.00022**.

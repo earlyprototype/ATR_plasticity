@@ -815,7 +815,7 @@ def build_report(recs: list, meta: dict) -> str:
               f"ceiling quiet (clip rate ≤ {CLIP_QUIET:g}).")
         else:
             meas = b["recommended_measured"]
-            same = abs(math.log10(meas) - math.log10(b["recommended"])) < 0.02
+            same = abs(math.log10(meas) - math.log10(b["recommended"])) < 0.005
             A(f"**Recommended eta: {b['recommended']:.3g}** — the geometric "
               f"middle of the usable band {b['band'][0]:.3g} … "
               f"{b['band'][1]:.3g} ({b['n_usable']} cell(s)), where the ceiling "
