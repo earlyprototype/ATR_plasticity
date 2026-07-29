@@ -43,7 +43,8 @@ pass bit-exactly before any result here means anything.
 from __future__ import annotations
 
 import math
-from typing import Optional
+from dataclasses import dataclass, replace
+from typing import Iterable, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -79,6 +80,26 @@ import torch.nn as nn
 # sign, which makes it a linear map with a bounded fixed point at
 # W* = -<x y^T> <y y^T>^-1 rather than a divergence.
 # `tests/test_antihebbian.py` measures both arms on real GPT-2 weights.
+#
+# COMPOSING TERMS. The modes above are fixed recipes over two primitives:
+# H = <x y^T> (reinforcement) and D = W <y y^T> (the brake). Issue #25's third
+# row -- "sign, per subspace: reinforce inside the target subspace, erode
+# outside it" -- is none of them, because `mode` is one string and selects one
+# branch, so a site can carry reinforcement OR erosion and never both. `terms=`
+# opens the recipe up. Each term names a primitive, a sign, an optional
+# projector of its own and an optional scale, and one hook firing contributes
+#
+#     dW = sum_i scale_i * sign_i * (T_i P_i)      T_i in {H, D}
+#
+# which makes issue #24 step 2's Hebbian/anti-Hebbian balance a single site's
+# rule: `[+H P, -H (I - P), -D]` reinforces inside P, erodes outside it, and
+# keeps one brake over both. Composed per firing, not per apply(), for the same
+# reason the single-mode path is -- D reads the live effective weight.
+#
+# The modes are NOT reimplemented on top of this. `terms=None` runs exactly the
+# arithmetic it always did, in the order it always did, so every number already
+# recorded in this repo stays reproducible bit-for-bit; the composed path is a
+# second branch alongside it rather than a refactor of it.
 
 
 def _hebb_term(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -116,6 +137,142 @@ def subspace_projector(basis: torch.Tensor) -> torch.Tensor:
                          "than the basis and the projector would be ambiguous")
     q, _ = torch.linalg.qr(b.transpose(0, 1))          # (n, k), orthonormal columns
     return (q @ q.transpose(0, 1)).to(basis.dtype)
+
+
+def _as_projector(
+    project: torch.Tensor, n_out: int, like: torch.Tensor, what: str
+) -> torch.Tensor:
+    """
+    Check `project` is an (n_out, n_out) projection and return it on `like`'s
+    device and dtype. `what` names the offending argument in the errors.
+
+    Checked here rather than trusted: a matrix that is not idempotent is not a
+    projection, and passing one -- a raw basis, say, instead of
+    `subspace_projector(basis)` -- would rescale and rotate every update while
+    every number in report() stayed plausible. Held to float32 precision, the
+    dtype the product is formed in.
+    """
+    if project.dim() != 2 or project.shape != (n_out, n_out):
+        raise ValueError(
+            f"{what} must be ({n_out}, {n_out}) -- the update's output "
+            f"axis in the rules' (n_in, n_out) convention -- got "
+            f"{tuple(project.shape)}"
+        )
+    p = project.detach().to(device=like.device, dtype=like.dtype)
+    residual = (p @ p - p).double().norm().item()
+    if residual > 1e-4 * max(p.double().norm().item(), 1e-12):
+        raise ValueError(
+            f"{what} is not idempotent to float32 precision "
+            f"(||PP - P||_F / ||P||_F = "
+            f"{residual / max(p.double().norm().item(), 1e-12):.2e}), "
+            "so it is not a projection; build it with subspace_projector()"
+        )
+    return p
+
+
+# --------------------------------------------------------------------------
+# Composed rules
+# --------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class TermSpec:
+    """
+    One signed, optionally-projected primitive of a composed update rule.
+
+    A list of these is what `OjaPlasticity(terms=...)` takes, and the list reads
+    as the rule: `[TermSpec("hebb", +1, P), TermSpec("hebb", -1, P_perp),
+    TermSpec("decay", -1)]` is "reinforce inside P, erode outside it, brake over
+    both" -- issue #25's per-subspace sign, at one site.
+
+    primitive : {"hebb", "decay"}
+        Which of the two quantities the rules are built from:
+          "hebb"  -- `<x y^T>`, the reinforcement term. Independent of W.
+          "decay" -- `W <y y^T>`, the Oja brake, read against the LIVE effective
+                     weight `W0 + delta` at the firing, exactly as the built-in
+                     modes read it. Positive semi-definite `<y y^T>` is what
+                     makes the sign of this term the difference between a brake
+                     and an accelerator, so it is spelled unsigned here and the
+                     sign is yours: `sign=-1` brakes, `sign=+1` diverges.
+    sign : {+1, -1}
+        Exactly +1 or -1, nothing else. Magnitude belongs in `scale`, and a
+        `sign` that quietly doubled as a coefficient would put the same number
+        in two places and make neither readable in a log.
+    project : torch.Tensor, optional
+        An (n_out, n_out) orthogonal projector applied to THIS TERM ALONE, as
+        `T @ P`, before the sign and scale. `subspace_projector(basis)` builds
+        one; `torch.eye(n_out) - P` is its complement, which is how "outside the
+        target subspace" is spelled. Composes with `OjaPlasticity(project=...)`:
+        the per-term projectors shape each term, the whole-update one is applied
+        afterwards to the sum (see `OjaPlasticity`).
+    scale : float
+        A positive coefficient on the term, default 1.0 -- the knob for an
+        unbalanced pair, e.g. eroding outside a direction at a third of the rate
+        it is reinforced inside it. `eta` scales the whole rule; this scales one
+        term relative to the others. Must be finite and > 0; a negative or zero
+        scale is a `sign` or a deleted term written the wrong way round.
+    """
+
+    HEBB = "hebb"
+    DECAY = "decay"
+    VALID_PRIMITIVES = ("hebb", "decay")
+
+    primitive: str
+    sign: float = 1.0
+    project: Optional[torch.Tensor] = None
+    scale: float = 1.0
+
+    def __post_init__(self) -> None:
+        # Everything except the projector, which needs the target matrix's width
+        # and is therefore checked by `OjaPlasticity`. These need nothing, so
+        # they fail at the point the spec is written rather than an import later.
+        if self.primitive not in self.VALID_PRIMITIVES:
+            raise ValueError(
+                f"primitive must be one of {self.VALID_PRIMITIVES}, got "
+                f"{self.primitive!r}"
+            )
+        try:
+            sign = float(self.sign)
+        except (TypeError, ValueError):
+            sign = None
+        if sign not in (1.0, -1.0):
+            raise ValueError(
+                f"sign must be exactly +1 or -1, got {self.sign!r}; a coefficient "
+                "belongs in scale="
+            )
+        try:
+            scale = float(self.scale)
+        except (TypeError, ValueError):
+            scale = float("nan")
+        if not math.isfinite(scale) or scale <= 0.0:
+            raise ValueError(
+                f"scale must be a finite positive number, got {self.scale!r}; "
+                "the direction of a term is sign=, not a negative scale"
+            )
+
+    @classmethod
+    def coerce(cls, term: Union["TermSpec", dict]) -> "TermSpec":
+        """Accept a `TermSpec` as-is, or a plain dict of its fields -- the same
+        contract `multi_site.SiteSpec.coerce` offers, so a composed rule can be
+        written in whatever a sweep script already builds its cells in. An
+        unknown key is a `TypeError` from the constructor, not a silently
+        ignored field."""
+        if isinstance(term, TermSpec):
+            return term
+        if isinstance(term, dict):
+            return cls(**term)
+        raise TypeError(
+            f"each term must be a TermSpec or a dict of its fields, got "
+            f"{type(term).__name__}"
+        )
+
+    def __repr__(self) -> str:
+        s = "+" if float(self.sign) > 0 else "-"
+        bits = f"{s}{self.primitive}"
+        if float(self.scale) != 1.0:
+            bits = f"{s}{self.scale:g}*{self.primitive}"
+        if self.project is not None:
+            bits += "@P"
+        return f"TermSpec({bits})"
 
 
 # --------------------------------------------------------------------------
@@ -674,6 +831,7 @@ class OjaPlasticity:
         "random"    - random update matched in Frobenius norm to what Oja would
                       have applied (Control C2: is the *direction* doing work?)
         "off"       - accumulate statistics, apply nothing (Control C0/C1)
+        Mutually exclusive with `terms`; see there.
     cadence : int
         Informational only; you decide when to call apply().
     max_delta_frac : float
@@ -692,11 +850,47 @@ class OjaPlasticity:
         is exactly zero. `subspace_projector(basis)` builds one from directions.
         Applied to the "random" arm too, so C2 stays a comparison of directions
         inside the same subspace rather than of subspaces.
+        Composes with per-term projectors: those shape each term as it is
+        accumulated, this one is applied to the averaged sum in `apply()`, so
+        the net effect is `(sum_i scale_i sign_i (T_i P_i)) P`. Both are linear,
+        so the order is immaterial to the result and only to where it is legible.
+    terms : list of TermSpec (or dicts), optional
+        A composed rule, replacing the fixed recipe `mode` selects. One firing
+        contributes `sum_i scale_i * sign_i * (T_i P_i)`, with the terms taken
+        in the order given; everything downstream -- the whole-update projector,
+        eta, the ceiling, delta, revert, report -- is unchanged and identical to
+        the built-in modes. This is what makes issue #25's per-subspace sign
+        expressible at ONE site:
+
+            P = subspace_projector(gpt2.lm_head.weight[:1])     # a direction
+            I = torch.eye(P.shape[0])
+            OjaPlasticity(model, site, eta=1e-6, terms=[
+                TermSpec("hebb",  +1, P),          # reinforce inside it
+                TermSpec("hebb",  -1, I - P),      # erode outside it
+                TermSpec("decay", -1),             # one brake over both
+            ])
+
+        PRECEDENCE, and why it is an error rather than a rule: `mode` and
+        `terms` are two spellings of the same thing, so passing both is
+        ambiguous and raises. `terms` is only accepted while `mode` is left at
+        its default ("oja") -- an explicit `mode="anti_hebb"` alongside `terms`
+        is a `ValueError`, not a silently-ignored argument. An explicit
+        `mode="oja"` is indistinguishable from the default and is therefore
+        accepted, with the terms winning; that is the one case where the two can
+        be written together and the composed rule is what runs.
+        `report()["mode"]` is then "terms", because none of the five named rules
+        is the one that ran and a log row claiming "oja" would be false.
+        An empty list is rejected: it would accumulate zero on every firing and
+        report a run that did nothing.
     device / dtype
         Inferred from the target weight.
     """
 
     VALID_MODES = ("oja", "hebb", "anti_hebb", "random", "off")
+    # The value of `mode` that counts as "not set", so `terms=` may be used, and
+    # the value `mode` takes when it is.
+    DEFAULT_MODE = "oja"
+    TERMS_MODE = "terms"
 
     def __init__(
         self,
@@ -709,14 +903,26 @@ class OjaPlasticity:
         transposed: bool = False,
         seed: Optional[int] = 0,
         project: Optional[torch.Tensor] = None,
+        terms: Optional[Iterable[Union["TermSpec", dict]]] = None,
     ):
         if mode not in self.VALID_MODES:
             raise ValueError(f"mode must be one of {self.VALID_MODES}, got {mode!r}")
+        if terms is not None and mode != self.DEFAULT_MODE:
+            # Two spellings of the same thing, and no defensible way to merge
+            # them: silently letting `terms` win would run a rule the caller's
+            # `mode=` and every log row disagree with. Refused at construction,
+            # naming both, rather than found out in the analysis.
+            raise ValueError(
+                f"mode={mode!r} and terms= both specify the update rule; pass one "
+                f"or the other. `terms` is accepted only while `mode` is left at "
+                f"its default {self.DEFAULT_MODE!r}, and then the composed rule "
+                f"runs and report()['mode'] is {self.TERMS_MODE!r}"
+            )
 
         self.model = model
         self.site = site
         self.eta = float(eta)
-        self.mode = mode
+        self.mode = self.TERMS_MODE if terms is not None else mode
         self.cadence = int(cadence)
         self.max_delta_frac = float(max_delta_frac)
         self.transposed = bool(transposed)
@@ -754,30 +960,40 @@ class OjaPlasticity:
         # and no rank assumption -- Oja updates are not low-rank.)
         self.delta = torch.zeros_like(self.W0)
 
-        # Checked here rather than trusted: a matrix that is not idempotent is
-        # not a projection, and passing one -- a raw basis, say, instead of
-        # `subspace_projector(basis)` -- would rescale and rotate every update
-        # while every number in report() stayed plausible. Held to float32
-        # precision, the dtype the product is formed in.
+        # The update's output width in the rules' (n_in, n_out) convention --
+        # what every projector, whole-update or per-term, has to match.
+        n_out = self.W0.shape[0] if self.transposed else self.W0.shape[1]
+
+        # Checked rather than trusted -- see `_as_projector`, which is where the
+        # shape and idempotency tests live so that the whole-update projector
+        # and the per-term ones are held to one standard and one message.
         self.project = None
         if project is not None:
-            n_out = self.W0.shape[0] if self.transposed else self.W0.shape[1]
-            if project.dim() != 2 or project.shape != (n_out, n_out):
+            self.project = _as_projector(project, n_out, self.W0, "project")
+
+        # The composed rule, if there is one. Validated here, where W0 fixes the
+        # output width and the device/dtype each per-term projector must live
+        # on; the rest of each term was checked when the TermSpec was built.
+        self.terms: Optional[tuple[TermSpec, ...]] = None
+        if terms is not None:
+            specs = [TermSpec.coerce(t) for t in terms]
+            if not specs:
                 raise ValueError(
-                    f"project must be ({n_out}, {n_out}) -- the update's output "
-                    f"axis in the rules' (n_in, n_out) convention -- got "
-                    f"{tuple(project.shape)}"
+                    "terms= is empty. A composed rule with no terms accumulates "
+                    "zero on every firing and reports a run that did nothing, "
+                    "which is indistinguishable in a log from mode='off' and "
+                    "from a site that never fired. Pass at least one term, or "
+                    "leave terms unset and use mode="
                 )
-            p = project.detach().to(device=self.W0.device, dtype=self.W0.dtype)
-            residual = (p @ p - p).double().norm().item()
-            if residual > 1e-4 * max(p.double().norm().item(), 1e-12):
-                raise ValueError(
-                    "project is not idempotent to float32 precision "
-                    f"(||PP - P||_F / ||P||_F = "
-                    f"{residual / max(p.double().norm().item(), 1e-12):.2e}), "
-                    "so it is not a projection; build it with subspace_projector()"
+            self.terms = tuple(
+                t if t.project is None else replace(
+                    t,
+                    project=_as_projector(
+                        t.project, n_out, self.W0, f"terms[{i}].project"
+                    ),
                 )
-            self.project = p
+                for i, t in enumerate(specs)
+            )
 
         self._acc: Optional[torch.Tensor] = None   # pending update, pre-eta
         self._n_batches = 0
@@ -871,26 +1087,65 @@ class OjaPlasticity:
         # for nn.Linear -- `_effective_W` hands the decay term a flipped view.
         # The flip back into the weight's own layout happens in apply(), which
         # is the only place that touches module.weight.
-        upd = _hebb_term(x, y)
-        if self.mode == "anti_hebb":
-            # The reinforcement term is negated; the decay term is NOT. Note
-            # this is `-hebb - decay`, not `-(hebb - decay)`: the second is what
-            # a negative eta computes, and it turns the brake into an
-            # accelerator. Everything downstream -- eta, the ceiling, delta,
-            # revert -- is identical to the other modes; only this sign differs.
-            w_eff = self._effective_W()
-            upd = -upd - _oja_decay(w_eff, y)
-        elif self.mode in ("oja", "random"):
-            # "random" subtracts the decay too: apply() norm-matches the noise
-            # to whatever is accumulated here, and the docstring promises that
-            # target is "what Oja would have applied". Matching the raw Hebb
-            # term instead biases C2 -- and the bias grows with weight scale,
-            # since the Hebb term does not depend on W and the decay does.
-            w_eff = self._effective_W()
-            upd = upd - _oja_decay(w_eff, y)
+        if self.terms is not None:
+            # A composed rule. A SEPARATE branch, not a generalisation of the
+            # one below: rewriting the five modes as term lists would reorder
+            # their float arithmetic, and every number recorded in this repo so
+            # far was produced by the arithmetic below, in this order.
+            upd = self._composed_update(x, y)
+        else:
+            upd = _hebb_term(x, y)
+            if self.mode == "anti_hebb":
+                # The reinforcement term is negated; the decay term is NOT. Note
+                # this is `-hebb - decay`, not `-(hebb - decay)`: the second is what
+                # a negative eta computes, and it turns the brake into an
+                # accelerator. Everything downstream -- eta, the ceiling, delta,
+                # revert -- is identical to the other modes; only this sign differs.
+                w_eff = self._effective_W()
+                upd = -upd - _oja_decay(w_eff, y)
+            elif self.mode in ("oja", "random"):
+                # "random" subtracts the decay too: apply() norm-matches the noise
+                # to whatever is accumulated here, and the docstring promises that
+                # target is "what Oja would have applied". Matching the raw Hebb
+                # term instead biases C2 -- and the bias grows with weight scale,
+                # since the Hebb term does not depend on W and the decay does.
+                w_eff = self._effective_W()
+                upd = upd - _oja_decay(w_eff, y)
 
         self._acc = upd if self._acc is None else self._acc + upd
         self._n_batches += 1
+
+    def _composed_update(self, x, y) -> torch.Tensor:
+        """
+        One firing's contribution from a `terms` rule:
+        `sum_i scale_i * sign_i * (T_i P_i)`, summed in the order given.
+
+        Composed per firing rather than per apply() because the decay term reads
+        the live effective weight, which moves between applies -- exactly the
+        reason the single-mode path composes here too.
+
+        `_effective_W()` is read at most once, and only if some term asks for
+        the decay primitive: a purely Hebbian composed rule never touches the
+        weight, which is what keeps it identical to `mode="hebb"`.
+        """
+        total = None
+        w_eff = None
+        for t in self.terms:
+            if t.primitive == TermSpec.HEBB:
+                term = _hebb_term(x, y)
+            else:
+                if w_eff is None:
+                    w_eff = self._effective_W()
+                term = _oja_decay(w_eff, y)
+            if t.project is not None:
+                # This term's own subspace, on the output axis, the same side
+                # and the same convention as the whole-update projector in
+                # apply(). Applied BEFORE the sign and scale, so `sign` is the
+                # sign of the term that actually lands.
+                term = term @ t.project
+            term = (t.sign * t.scale) * term
+            total = term if total is None else total + term
+        return total
 
     def _effective_W(self) -> torch.Tensor:
         w = self.W0 + self.delta
