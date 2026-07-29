@@ -102,15 +102,19 @@ Three facts worth carrying forward:
 - **No spectral collapse anywhere.** Effective rank stays flat (~642 of 768) and
   *rises* under `oja`/`anti_hebb`. The changes are not a hollowing-out artifact.
 
-> **Note on framing.** The four modes are not four competing rules. There are two
-> terms — reinforcement `H = E[x yᵀ]` and the decay/brake `D = W E[y yᵀ]` — and
-> `oja = H − D`, `hebb = H` (brake ablated), `anti_hebb = −H − D` (reinforcement
-> flipped, brake kept at its stabilising sign). `random` is a magnitude control.
-> `anti_hebb` is **not** a sign-variant for its own sake: per issue #25 it exists to
-> **erode** what the loop has settled into, and it has its own bounded fixed point at
-> `W* = −E[x yᵀ] E[y yᵀ]⁻¹`. Implementing it as a negative eta would flip the brake
-> into an accelerator — the single easiest way to produce a confident wrong answer
-> (issue #27 item 6).
+**How the rules relate**, from `ORIENTATION.md` and the `plasticity.py` header:
+
+```
+hebb       dW =   E[x yᵀ]                 no brake
+oja        dW =   E[x yᵀ] − W E[y yᵀ]     the second term is the brake
+anti_hebb  dW = − E[x yᵀ] − W E[y yᵀ]     reinforcement flipped, brake kept
+random     norm-matched noise             the magnitude control
+```
+
+`anti_hebb` exists to erode what the loop has settled into; issue #25 calls it the
+active ingredient in EXP-002, and it has a bounded fixed point at
+`W* = −E[x yᵀ] E[y yᵀ]⁻¹`. Do not implement it as a negative eta — that flips the
+brake as well and turns it into an accelerator (issue #27 item 6).
 
 ### 3.3 EXP-001 (`EXP_001_RESULTS.md`)
 
