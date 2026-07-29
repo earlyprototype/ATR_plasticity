@@ -12,7 +12,7 @@ Issue #30. Where, for each local rule, the weights actually move without the run
 | prompt | `A01_physics` — "The implications of quantum entanglement suggest that" |
 | loop | layers 0→11, 120 steps, ‖x₀‖ = 1289.226318 |
 | plasticity | cadence 1 (update after every step), `max_delta_frac` = 0.05, seed 0 |
-| cells | 33 recorded of 33 = 1 frozen reference + 4×8 |
+| cells | 35 recorded of 33 = 1 frozen reference + 4×8 |
 | eta anchor | `eta = D · ‖W0‖_F / (N · U_ref)`, U_ref = {"hebb": 350.0, "oja": 14000.0, "anti_hebb": 14000.0, "random": 14000.0} |
 | threads | 1 per process, 2 shard(s) |
 
@@ -28,15 +28,15 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### `hebb`
 
-**Recommended eta: 3.93e-05**, mid-band. Band 3.93e-05 … 0.000118 (2 cell(s)).
+**Recommended eta: 6.8e-05** — the geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)), where the ceiling is quiet and the weights are actually moving.
 
 - Nothing happens at or below **3.93e-06** (relative weight change < 0.001).
-- Ceiling audible / diverges at or above **0.000393**.
+- Ceiling audible / diverges at or above **0.00022**.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ### `oja`
 
-**Recommended eta: 2.94e-06**, mid-band. Band 9.81e-07 … 9.81e-06 (3 cell(s)).
+**Recommended eta: 3.1e-06** — the geometric middle of the usable band 9.81e-07 … 9.81e-06 (3 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **2.94e-05**.
@@ -44,7 +44,7 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### `anti_hebb`
 
-**Recommended eta: 2.94e-06**, mid-band. Band 9.81e-07 … 2.94e-05 (4 cell(s)).
+**Recommended eta: 5.37e-06** — the geometric middle of the usable band 9.81e-07 … 2.94e-05 (4 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **9.81e-05**.
@@ -52,7 +52,7 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### `random`
 
-**Recommended eta: 9.81e-06**, mid-band. Band 2.94e-06 … 2.94e-05 (3 cell(s)).
+**Recommended eta: 9.31e-06** — the geometric middle of the usable band 2.94e-06 … 2.94e-05 (3 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 9.81e-06.
 
 - Nothing happens at or below **9.81e-07** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **9.81e-05**.
@@ -68,7 +68,9 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 | `hebb` | 1e-04 | 3.93e-07 | 4.906e-05 | 164.8543 | 0.0% | 0 | 642.6 | -0.00% | 33.4 | 3.7099 | `prolet` | 1.00000 | 1.00000 | noise floor |
 | `hebb` | 1e-03 | 3.93e-06 | 4.964e-04 | 164.8561 | 0.0% | 0 | 642.6 | -0.00% | 33.4 | 3.7113 | `prolet` | 1.00000 | 1.00000 | noise floor |
 | `hebb` | 1e-02 | 3.93e-05 | 5.599e-03 | 164.8785 | 0.0% | 0 | 642.6 | -0.00% | 33.5 | 3.7271 | `prolet` | 1.00000 | 0.99999 | usable |
+| `hebb` | 2e-02 | 7.07e-05 | 1.124e-02 | 164.9072 | 0.0% | 0 | 642.6 | -0.01% | 33.5 | 3.7465 | `comrade` | 1.00000 | 0.99999 | usable |
 | `hebb` | 3e-02 | 0.000118 | 2.204e-02 | 164.9743 | 0.0% | 0 | 642.4 | -0.03% | 33.6 | 3.7858 | `comrade` | 0.99999 | 0.99997 | usable |
+| `hebb` | 6e-02 | 0.00022 | 5.000e-02 | 165.2201 | 7.5% | 0 | 641.7 | -0.15% | 33.8 | 3.8387 | `locality` | 0.99998 | 0.99993 | ceiling |
 | `hebb` | 1e-01 | 0.000393 | 5.000e-02 | 165.1871 | 43.3% | 0 | 641.7 | -0.14% | 33.5 | 3.8340 | `locality` | 0.99999 | 0.99997 | ceiling |
 | `hebb` | 3e-01 | 0.00118 | 5.000e-02 | 165.1909 | 83.3% | 0 | 641.6 | -0.16% | 33.4 | 3.8102 | `comrade` | 0.99999 | 0.99996 | ceiling |
 | `hebb` | 1e+00 | 0.00393 | 5.000e-02 | 165.2062 | 95.8% | 0 | 641.4 | -0.20% | 33.8 | 3.7652 | `comrade` | 0.99999 | 0.99997 | ceiling |
@@ -107,7 +109,9 @@ Against the frozen `off` cell. `cos(final,frozen)` is between the position-mean 
 | `hebb` | 3.93e-07 | 4.91e-05 | 0.0% | no |
 | `hebb` | 3.93e-06 | 4.96e-04 | 0.0% | cos(final,frozen)=0.999991 |
 | `hebb` | 3.93e-05 | 5.60e-03 | 0.0% | cos(final,frozen)=0.998771 |
+| `hebb` | 7.07e-05 | 1.12e-02 | 0.0% | basin 'prolet'->'comrade'; cos(final,frozen)=0.995000 |
 | `hebb` | 0.000118 | 2.20e-02 | 0.0% | basin 'prolet'->'comrade'; cos(final,frozen)=0.982135 |
+| `hebb` | 0.00022 | 5.00e-02 | 7.5% | basin 'prolet'->'locality'; lag1 1.00000->0.99998; cos(final,frozen)=0.936008 |
 | `hebb` | 0.000393 | 5.00e-02 | 43.3% | basin 'prolet'->'locality'; cos(final,frozen)=0.932387 |
 | `hebb` | 0.00118 | 5.00e-02 | 83.3% | basin 'prolet'->'comrade'; cos(final,frozen)=0.967701 |
 | `hebb` | 0.00393 | 5.00e-02 | 95.8% | basin 'prolet'->'comrade'; cos(final,frozen)=0.978233 |
@@ -147,7 +151,9 @@ The ATR loop rescales the state to ‖x₀‖ before every injection, so the pos
 | `hebb` | 3.93e-07 | 3553.29 → 4782.96 | 4927.11 | 3.70995 | no |
 | `hebb` | 3.93e-06 | 3553.29 → 4784.64 | 4927.20 | 3.71125 | cos(final,frozen)=0.999991 |
 | `hebb` | 3.93e-05 | 3553.29 → 4805.09 | 4928.02 | 3.72711 | cos(final,frozen)=0.998771 |
+| `hebb` | 7.07e-05 | 3553.29 → 4830.14 | 4930.55 | 3.74654 | basin 'prolet'->'comrade'; cos(final,frozen)=0.995000 |
 | `hebb` | 0.000118 | 3553.29 → 4880.69 | 4933.89 | 3.78575 | basin 'prolet'->'comrade'; cos(final,frozen)=0.982135 |
+| `hebb` | 0.00022 | 3553.29 → 4949.02 | 4949.30 | 3.83875 | basin 'prolet'->'locality'; lag1 1.00000->0.99998; cos(final,frozen)=0.936008 |
 | `hebb` | 0.000393 | 3553.29 → 4942.93 | 4946.30 | 3.83403 | basin 'prolet'->'locality'; cos(final,frozen)=0.932387 |
 | `hebb` | 0.00118 | 3553.29 → 4912.26 | 4934.84 | 3.81024 | basin 'prolet'->'comrade'; cos(final,frozen)=0.967701 |
 | `hebb` | 0.00393 | 3553.29 → 4854.24 | 5060.93 | 3.76523 | basin 'prolet'->'comrade'; cos(final,frozen)=0.978233 |
@@ -189,7 +195,9 @@ Note what the ceiling does to the first column. With `max_delta_frac` = 0.05, �
 | `hebb` | 3.93e-07 | 1.20e-06 | 642.6 → 642.6 | 642.6 | 0.0323 | 33.38 | 0.0079 | 2.2 | 0.0247 |
 | `hebb` | 3.93e-06 | 1.22e-05 | 642.6 → 642.6 | 642.6 | 0.0323 | 33.39 | 0.0079 | 2.2 | 0.0248 |
 | `hebb` | 3.93e-05 | 1.48e-04 | 642.6 → 642.6 | 642.6 | 0.0323 | 33.46 | 0.0079 | 2.1 | 0.0251 |
+| `hebb` | 7.07e-05 | 3.22e-04 | 642.6 → 642.6 | 642.6 | 0.0324 | 33.53 | 0.0079 | 2.0 | 0.0253 |
 | `hebb` | 0.000118 | 7.30e-04 | 642.6 → 642.4 | 642.4 | 0.0325 | 33.64 | 0.0079 | 1.9 | 0.0253 |
+| `hebb` | 0.00022 | 2.26e-03 | 642.6 → 641.7 | 641.7 | 0.0330 | 33.76 | 0.0079 | 1.7 | 0.0249 |
 | `hebb` | 0.000393 | 2.32e-03 | 642.6 → 641.7 | 641.7 | 0.0329 | 33.49 | 0.0079 | 1.3 | 0.0254 |
 | `hebb` | 0.00118 | 2.38e-03 | 642.6 → 641.6 | 641.6 | 0.0334 | 33.42 | 0.0080 | 1.0 | 0.0293 |
 | `hebb` | 0.00393 | 2.51e-03 | 642.6 → 641.4 | 641.4 | 0.0340 | 33.77 | 0.0080 | 1.0 | 0.0359 |
@@ -244,7 +252,7 @@ Stated so that the verdicts above can be recomputed or disagreed with.
   ],
   "device": "cpu",
   "dtype": "float32",
-  "finished": "2026-07-29T00:20:49Z",
+  "finished": "2026-07-29T00:23:14Z",
   "issue": 30,
   "layer_end": 11,
   "layer_start": 0,
@@ -255,11 +263,11 @@ Stated so that the verdicts above can be recomputed or disagreed with.
   "platform": "Linux 6.18.5 x86_64",
   "prompt_id": "A01_physics",
   "python_version": "3.11.15",
-  "repo_rev": "22e55812efc1c26841d3f8576f53909f4135a886",
+  "repo_rev": "c4f51240b77d1eeebaf048768970df2e506c10d6",
   "seed": 0,
   "shards": 2,
   "site": "blocks.6.mlp",
-  "started": "2026-07-28T23:51:49Z",
+  "started": "2026-07-29T00:22:21Z",
   "torch_threads": 1,
   "torch_version": "2.13.0+cpu",
   "transformer_lens_version": "3.5.1",
@@ -269,7 +277,7 @@ Stated so that the verdicts above can be recomputed or disagreed with.
     "oja": 14000.0,
     "random": 14000.0
   },
-  "wall_clock_seconds": 1740.5
+  "wall_clock_seconds": 53.2
 }
 ```
 
