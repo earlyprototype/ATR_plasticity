@@ -1,7 +1,7 @@
 # Prior art
 
-*Search run 2026-07-27. Extended and verified 2026-07-28. What exists, in plain
-terms, and how close it gets.*
+*Search run 2026-07-27. Extended, verified and review-corrected 2026-07-28/29.
+What exists, in plain terms, and how close it gets.*
 
 ## The claim, stated at the strength the search supports
 
@@ -12,21 +12,20 @@ what was searched.
 
 That is still a statement about a search, not about the literature. **It is not "nobody
 has done this."** It is now a considerably larger search: the forum gap and the
-citation-graph gap have been closed and turned up nothing, and most entries below have
-been verified against their sources. The remaining coverage limits are recorded at the
-bottom and they are still real. Treat the claim as provisional, but less provisional
-than it was.
+citation-graph gap have been closed and turned up nothing, and every entry below has been
+verified against its source. The remaining coverage limits are recorded at the bottom and
+they are still real. Treat the claim as provisional, but less provisional than it was.
 
 ## How the search was done
 
 | | |
 |---|---|
-| Method | ~20 web searches by an automated agent (27 Jul), then a targeted verification and gap-closing pass (28 Jul) |
-| Dates | 2026-07-27, extended 2026-07-28 |
+| Method | ~20 web searches by an automated agent (27 Jul), then a targeted verification and gap-closing pass (28 Jul), then two review passes correcting over-claims (28-29 Jul) |
+| Dates | 2026-07-27, extended 2026-07-28, corrected 2026-07-29 |
 | Databases | Open web, arXiv API, Semantic Scholar (metadata + forward citations), PubMed Central, GitHub code and repository search |
 | Forums | LessWrong and the Alignment Forum searched directly through the site's own search API — 16 phrasings across posts, comments and wikitags. Plus general web and GitHub |
 | Inclusion | Any work combining two or more of: local unsupervised rule, pretrained frozen model, closed activation loop, no objective |
-| Verification | Every entry below now carries a status. Most are verified against the source with a quote |
+| Verification | Every entry below carries a status, and all are verified against the source, most with a quote |
 
 ## Verification status
 
