@@ -734,19 +734,16 @@ def replay_offline(
     The control arm: the same rule, the same samples, the same order, no loop.
 
     No forward pass happens here. The recorded (x, y) pairs are handed straight
-    to `OjaPlasticity._hook` -- the same entry point a live forward hook calls,
-    with the same arguments -- and `apply()` fires on the same cadence, over the
-    same number of samples per update, as the closed-loop arm.
+    to `OjaPlasticity.observe` -- the same accumulation the live forward hook
+    reaches, since `_hook` does nothing but unpack torch's arguments and call
+    `observe` -- and `apply()` fires on the same cadence, over the same number
+    of samples per update, as the closed-loop arm.
 
-    (`_hook` is private. It is used anyway, because the alternative is a second
-    implementation of the accumulation step, and a second implementation is a
-    one more axis on which the arms could silently differ, and one the verifier
-    could not see. The requirement this implies for `plasticity.py` -- a public
-    `observe(x, y)` that `_hook` itself calls -- is recorded in
-    `EXP_001_SPEC.md`. Until it exists, a change to `_hook`'s signature breaks
-    the offline arm silently, and
-    `test_a_single_step_replays_to_the_same_update_bit_exactly` is what catches
-    it.)
+    Sharing that entry point is the point. A second implementation of the
+    accumulation step would be one more axis on which the two arms could
+    silently differ, and one the verifier could not see.
+    `test_a_single_step_replays_to_the_same_update_bit_exactly` is what pins the
+    two paths together.
 
     `y_source`:
       "recorded"   replay y as captured from the frozen loop. Freezes both the
@@ -792,7 +789,7 @@ def replay_offline(
                     y = record.y[j].to(plast.W0.dtype)
                 else:
                     y = _recompute_y(x, plast._effective_W(), bias)
-                plast._hook(plast.module, (x,), y)
+                plast.observe(x, y)
                 sample_order.append(i)
             if (i + 1) % apply_every == 0:
                 batched = plast._n_batches

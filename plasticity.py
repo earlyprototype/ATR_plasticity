@@ -757,9 +757,29 @@ class OjaPlasticity:
     # ----------------------------------------------------------- collection
 
     def _hook(self, module, inputs, output):
-        """Capture pre- and post-synaptic activity and accumulate an update."""
-        x = inputs[0]
-        y = output
+        """Capture pre- and post-synaptic activity and accumulate an update.
+
+        Kept as the torch forward-hook signature and as the single override
+        point -- the C0 fail-direction test subclasses this class and replaces
+        this method. It unpacks the hook arguments and delegates to `observe`,
+        which is where the rule actually lives.
+        """
+        self.observe(inputs[0], output)
+
+    def observe(self, x, y) -> None:
+        """
+        Accumulate one update from a pre/post activation pair.
+
+        The public entry point for feeding activations to the rule, and the
+        supported way to drive it without a live forward pass -- the offline
+        replay arm in `offline_control.py` calls this to push a recording
+        through the identical rule with no feedback. `_hook` is the same thing
+        wearing torch's hook signature.
+
+        Non-tensor or non-finite input is dropped rather than raising, matching
+        the hook path: a single bad batch marks `nonfinite` and is skipped, it
+        does not abort a run.
+        """
         if not torch.is_tensor(x) or not torch.is_tensor(y):
             return
 
