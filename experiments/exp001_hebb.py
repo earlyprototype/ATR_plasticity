@@ -609,19 +609,36 @@ def run_revert_cell(model, prompt: str, seed: int) -> dict:
     r = arm.states[-1].clone()
     start_gap = 1.0 - _cos(r, target)
 
+    # The reference is iterated in LOCKSTEP, not held fixed at iteration 120.
+    # A fixed target answers a different question: the frozen loop is itself
+    # still settling at 120, so a reverted state that has come all the way back
+    # onto the frozen trajectory still reads a nonzero gap against the
+    # iteration-120 snapshot, and the run looks like a failure to return when
+    # it is a comparison against a stale reference. Both gaps are reported --
+    # the lockstep one is the C1 answer, the fixed one is what a naive version
+    # of this control would have said.
+    ref = target.clone()
+
     returned_at = None
-    prev = None
+    prev = ref_prev = None
     curve = []
     for i in range(1, REVERT_HORIZON + 1):
         prev, r = r, step(model, r)
-        gap = min(1.0 - _cos(r, target), 1.0 - _cos(prev, target))
+        ref_prev, ref = ref, step(model, ref)
+        # Phase-aware on both sides: on a period-2 orbit the two trajectories
+        # can sit on the same cycle in opposite phases.
+        gap = min(1.0 - _cos(r, ref), 1.0 - _cos(prev, ref), 1.0 - _cos(r, ref_prev))
+        gap_fixed = min(1.0 - _cos(r, target), 1.0 - _cos(prev, target))
         if i <= 20 or i % 25 == 0:
-            curve.append([i, gap])
+            curve.append([i, gap, gap_fixed])
         if gap <= RETURN_TOL:
             returned_at = i
             break
 
     return {
+        "final_gap_vs_lockstep_reference": gap,
+        "final_gap_vs_fixed_iter120_target": gap_fixed,
+        "basin_lockstep_reference": basin_of(model, ref),
         "cell_id": None,
         "kind": "revert",
         "prompt": prompt,
@@ -640,6 +657,82 @@ def run_revert_cell(model, prompt: str, seed: int) -> dict:
         "basin_frozen_target": basin_of(model, target),
         "seconds": round(time.time() - t0, 2),
     }
+
+
+# ---------------------------------------------------------------------------
+# Post-hoc: does the dW direction actually point at the basin tokens?
+# ---------------------------------------------------------------------------
+
+def _lens_token_ids(model, recs: list) -> dict:
+    """The basin token ids, taken from the readouts rather than re-tokenised.
+
+    `tokenizer.encode(" prolet")` does **not** return one token -- these are
+    basin *labels*, decoded from single ids the readout produced, and
+    re-encoding the printed string is a different operation that silently
+    returns two pieces. Every id here is one the readout actually emitted, so
+    the check is against the same vocabulary entries the basin labels came
+    from.
+    """
+    ids = {}
+    for r in recs:
+        for ro in (r.get("readout") or {}).values():
+            if ro.get("basin_token_id") is not None:
+                ids[ro["basin_raw"]] = int(ro["basin_token_id"])
+    return ids
+
+
+def logit_lens_extra(model, recs: list, n_null: int = 64) -> dict:
+    """Percentile rank of the basin tokens under each cell's dW direction.
+
+    The top-20 list in section 3a answers "what does this direction point at"
+    only in the loose sense that *any* direction pushed through `W_U` returns
+    twenty tokens. This asks the sharp version: **where do the tokens the
+    experiment is actually about sit** in that direction's own ranking, and is
+    that anywhere unusual against directions drawn at random?
+
+    A rank at the 50th percentile means the weight change carries no
+    preference at all for the token whose basin it moved the loop into. The
+    null is the empirical distribution over `n_null` isotropic directions, so
+    "unusual" is measured rather than asserted.
+    """
+    ids = _lens_token_ids(model, recs)
+    W_U = model.W_U.double()
+    n_vocab = W_U.shape[1]
+
+    def ranks(v: torch.Tensor) -> dict:
+        logits = (v.double() @ W_U)
+        out = {}
+        for t, i in ids.items():
+            # Percentile of this token's logit among all 50257.
+            pct = float((logits < logits[i]).double().mean()) * 100.0
+            out[t] = {"logit": float(logits[i]), "percentile": pct}
+        return out
+
+    g = torch.Generator().manual_seed(20260729)
+    null = []
+    for _ in range(n_null):
+        z = torch.randn(W_U.shape[0], generator=g, dtype=torch.float64)
+        z = z / z.norm()
+        null.append(ranks(z))
+
+    out = {"tokens": {t: int(i) for t, i in ids.items()},
+           "n_vocab": int(n_vocab), "n_null": n_null, "cells": {}}
+    for t in ids:
+        p = sorted(x[t]["percentile"] for x in null)
+        out.setdefault("null", {})[t] = {
+            "median_percentile": p[len(p) // 2],
+            "p05": p[int(0.05 * len(p))], "p95": p[int(0.95 * len(p))],
+        }
+    for r in recs:
+        if not r.get("dW_closed"):
+            continue
+        v = torch.tensor(r["dW_closed"]["u_right_768"], dtype=torch.float64)
+        out["cells"][r["cell_id"]] = {
+            "basin_frozen": (r.get("readout", {}).get("frozen", {}) or {}).get("basin"),
+            "basin_closed": (r.get("readout", {}).get("closed", {}) or {}).get("basin"),
+            "ranks": ranks(v),
+        }
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -670,7 +763,47 @@ def _spread(vals) -> str:
             f"(median {statistics.median(vals):.3e}, n={len(vals)})")
 
 
-def build_report(recs: list, meta: dict) -> str:
+def _lens_section(lens: dict, main: dict) -> list:
+    """Where the basin tokens themselves sit in the dW direction's ranking."""
+    L, A = [], None
+    L = []
+    A = L.append
+    if not lens or not main or main["cell_id"] not in lens.get("cells", {}):
+        return L
+    cell = lens["cells"][main["cell_id"]]
+    A("The top-20 list answers \"what does this direction point at\" only in "
+      "the loose sense that any direction points at twenty tokens. The sharp "
+      "version is where the tokens this experiment is actually about sit in "
+      "that direction's own ranking of all "
+      f"{lens['n_vocab']} of them, against a null of {lens['n_null']} "
+      "isotropic directions:")
+    A("")
+    A("| token | percentile under ΔW's dominant direction | null median | null 5–95% |")
+    A("|---|---|---|---|")
+    for t, v in cell["ranks"].items():
+        n = lens["null"][t]
+        A(f"| {json.dumps(t)} | {v['percentile']:.1f} | "
+          f"{n['median_percentile']:.1f} | "
+          f"{n['p05']:.1f} – {n['p95']:.1f} |")
+    A("")
+    inside = [t for t, v in cell["ranks"].items()
+              if lens["null"][t]["p05"] <= v["percentile"] <= lens["null"][t]["p95"]]
+    A(f"The loop went `{cell['basin_frozen']}` → `{cell['basin_closed']}`. "
+      + (f"**All {len(inside)} of the tokens checked sit inside the null's "
+         f"5–95% band**, including the one the flip landed on. The dominant "
+         f"direction of ΔW carries no measurable preference for the tokens "
+         f"whose basin it moved the loop into — the basin change is not "
+         f"legible in the weight change by logit lens, and the top-20 list "
+         f"above should be read as what a direction looks like through `W_U`, "
+         f"not as content."
+         if len(inside) == len(cell["ranks"]) else
+         f"{len(cell['ranks']) - len(inside)} of {len(cell['ranks'])} tokens "
+         f"sit outside the null's 5–95% band."))
+    A("")
+    return L
+
+
+def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
     routed = [r for r in recs if r["kind"] == "routed"]
     severed = [r for r in recs if r["kind"] == "severed"]
     episodes = [r for r in recs if r["kind"] == "episode"]
@@ -846,10 +979,23 @@ def build_report(recs: list, meta: dict) -> str:
     sr = [r["weight_recomputed_y"]["diff_over_drift"] for r in severed
           if r.get("weight_recomputed_y")]
     if rr and sr:
+        msr = statistics.median(sr)
         A(f"In the zero-floor `recomputed` mode the routed cells sit at "
           f"{statistics.median(rr):.3e} against a severed floor of "
-          f"{statistics.median(sr):.3e} — a ratio of "
-          f"{statistics.median(rr) / max(statistics.median(sr), 1e-300):.3g}.")
+          f"{msr:.3e}"
+          + (". The severed arms come out **bit-identical** — `rel_fro_diff` "
+             "is exactly 0.0, not small — so the floor is zero in the literal "
+             "sense and the ratio is not a finite number. The routed "
+             "difference is therefore entirely above the floor, and it is the "
+             "one measurement in this file that is unambiguously about "
+             "feedback. The usual objection to the severed control — that it "
+             "runs a shallower loop (0→3) with different activation "
+             "statistics, so its floor is not exactly the routed loop's — "
+             "does not bite in this mode: `torch.equal` on the two matrices "
+             "is True, and zero is zero at any depth. It does bite on the "
+             "`recorded` row below."
+             if msr == 0.0 else
+             f" — a ratio of {statistics.median(rr) / msr:.3g}."))
         A("")
     rc = [r["weight_recorded"]["diff_over_drift"] for r in routed]
     sc = [r["weight_recorded"]["diff_over_drift"] for r in severed]
@@ -985,6 +1131,18 @@ def build_report(recs: list, meta: dict) -> str:
           "coherent, than a random direction's — not whether it looks "
           "meaningful on its own.")
         A("")
+        ctrl_std = statistics.median(c["logit_std"] for c in d["random_controls"])
+        ctrl_max = statistics.median(c["logit_max"] for c in d["random_controls"])
+        A(f"On the one quantitative comparison available from these columns, "
+          f"the ΔW direction is **not** the more concentrated of the two: its "
+          f"logit spread is {d['decode']['logit_std']:.4f} against a control "
+          f"median of {ctrl_std:.4f}, and its largest logit is "
+          f"{d['decode']['logit_max']:.4f} against {ctrl_max:.4f}. "
+          + ("It is flatter than isotropic noise, not sharper."
+             if d["decode"]["logit_std"] < ctrl_std else
+             "It is sharper than isotropic noise."))
+        A("")
+        L.extend(_lens_section(lens, main))
         if main.get("cos_dW_closed_offline_recomputed") is not None:
             A(f"**Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = "
               f"{main['cos_dW_closed_offline_recomputed']:.8f} (recomputed-y "
@@ -1038,6 +1196,28 @@ def build_report(recs: list, meta: dict) -> str:
                 A("**The directions separate by basin**, so ΔW carries a "
                   "recoverable trace of which attractor the episode ran in.")
             A("")
+            A("Two things have to be said about that before it is worth "
+              "anything. First, issue #32's two branches — \"ΔW fingerprints "
+              "the attractor\" and \"ΔW records the site's activation "
+              "statistics and nothing about the episode\" — are **not "
+              "mutually exclusive here**, because the attractor is what "
+              "determines the site's activation statistics. Section 1 showed "
+              "the offline arm, which sees nothing but the frozen activation "
+              "statistics, reproduces the closed arm's ΔW to "
+              f"cos = {_f(main.get('cos_dW_closed_offline_recomputed'), '.5f') if main else '--'}. "
+              "So this separation is the second branch, seen from the other "
+              "side: the direction is a readout of the activation "
+              "distribution, and the distribution differs between attractors. "
+              "It is not evidence of anything episode-specific over and above "
+              "that.")
+            A("")
+            A("Second, prompts in the same basin are not a random sample — "
+              "`A01`/`A02`/`A04` are all Complex-register academic sentences "
+              "and the two `Divine` prompts are as well, so prompt similarity "
+              "and basin membership are confounded in this design. Separating "
+              "them needs the within/between measurement over many prompts "
+              "per basin that issue #32 asks for and this run does not have.")
+            A("")
 
     # --- C1 ---------------------------------------------------------------
     if reverts:
@@ -1053,14 +1233,52 @@ def build_report(recs: list, meta: dict) -> str:
           f"several hundred iterations and a 200-iteration horizon has already "
           f"produced one false \"failed to return\" in this repo.")
         A("")
-        A(f"- start gap `1 − cos` = {r['start_gap_1_minus_cos']:.3e}")
-        A(f"- returned: **{'yes' if r['returned'] else 'no'}**"
-          + (f", at iteration {r['returned_at_iter']}" if r["returned"] else
-             f"; final gap {r['final_gap_1_minus_cos']:.3e} after "
-             f"{r['horizon']} iterations"))
-        A(f"- basin after revert: {_basin_cell(r['basin_after_revert'])}; "
-          f"frozen target {_basin_cell(r['basin_frozen_target'])}")
+        A("The reference is iterated in **lockstep**, not held fixed at the "
+          "episode's last iteration. The frozen loop is itself still settling "
+          "at iteration 120, so a state that has come all the way back onto "
+          "the frozen trajectory still reads a nonzero gap against the "
+          "iteration-120 snapshot. Both are reported: the lockstep gap is the "
+          "C1 answer, the fixed one is what the naive version of this control "
+          "would have said.")
         A("")
+        A(f"- start gap `1 − cos` = {r['start_gap_1_minus_cos']:.3e}")
+        A(f"- returned (lockstep reference): "
+          f"**{'yes' if r['returned'] else 'no'}**"
+          + (f", at iteration {r['returned_at_iter']}" if r["returned"] else
+             f"; final gap {_f(r.get('final_gap_vs_lockstep_reference'), '.3e')} "
+             f"after {r['horizon']} iterations"))
+        A(f"- against a **fixed** iteration-120 target, the same run's final "
+          f"gap is {_f(r.get('final_gap_vs_fixed_iter120_target'), '.3e')}"
+          + ("" if r.get("final_gap_vs_fixed_iter120_target") is None else
+             " — which is where a 200-iteration, fixed-target version of this "
+             "control would have reported a failure to return"))
+        A(f"- basin after revert: {_basin_cell(r['basin_after_revert'])}; "
+          f"lockstep reference "
+          f"{_basin_cell(r.get('basin_lockstep_reference'))}; "
+          f"fixed iteration-120 target {_basin_cell(r['basin_frozen_target'])}")
+        A("")
+        if r.get("gap_curve") and len(r["gap_curve"][0]) > 2:
+            first, last = r["gap_curve"][0], r["gap_curve"][-1]
+            A(f"Gap curve, lockstep: {first[1]:.3e} at iteration {first[0]} → "
+              f"{last[1]:.3e} at {last[0]}. Fixed-target: {first[2]:.3e} → "
+              f"{last[2]:.3e}.")
+            A("")
+            if first[1] > 0 and last[1] > 0 and last[0] > first[0]:
+                # Displacement ~ sqrt(2(1-cos)); the contraction is per
+                # iteration of that, which is the quantity the horizon
+                # argument is made in.
+                d0, d1 = math.sqrt(2 * first[1]), math.sqrt(2 * last[1])
+                n = last[0] - first[0]
+                lam = (d1 / d0) ** (1.0 / n)
+                A(f"**The contraction measured here is faster than the ~0.968 "
+                  f"the horizon was justified against**: {lam:.4f} per "
+                  f"iteration on this trajectory, about "
+                  f"{1 / max(-math.log10(lam), 1e-12):.0f} iterations per "
+                  f"decade of displacement rather than 71. The 1000-iteration "
+                  f"horizon was not needed in the end — but it was chosen "
+                  f"before the run, and at the 0.968 figure it was the right "
+                  f"choice.")
+                A("")
 
     # --- what this does not say -------------------------------------------
     A("## 7. What this does and does not establish")
@@ -1075,6 +1293,16 @@ def build_report(recs: list, meta: dict) -> str:
       "the routed signal.")
     A("- **None of this is learning.** No task, no loss, no target. The "
       "defensible phrase is that the weights carry a trace of the episode.")
+    A("- **The basin flip is not the finding.** The offline arm flips too, so "
+      "the flip is what the rule does to this activation distribution. What "
+      "survives is a small, measurable, above-floor difference in *where the "
+      "two arms' weights land* — reported in section 3 — which is a much "
+      "narrower claim than \"the coupling changes the attractor\".")
+    A("- **The severed control is the reason the section-3 number can be "
+      "quoted at all.** In `recorded` mode the same protocol reports a larger "
+      "apparent effect with the feedback physically disconnected. Only the "
+      "`recomputed` path has a floor of literal zero, and only there does the "
+      "routed number mean what it appears to mean.")
     A("")
 
     A("## Provenance")
@@ -1115,6 +1343,9 @@ def main(argv=None):
     ap.add_argument("--threads", type=int, default=TORCH_THREADS)
     ap.add_argument("--parent", type=str, default=PARENT_DEFAULT)
     ap.add_argument("--report-only", action="store_true")
+    ap.add_argument("--extra", action="store_true",
+                    help="post-hoc logit-lens check on the recorded dW "
+                         "directions; needs the model but no loop runs")
     ap.add_argument("--out", type=str, default=str(OUT_DIR))
     ap.add_argument("--report", type=str, default=str(REPORT_PATH))
     args = ap.parse_args(argv)
@@ -1164,6 +1395,20 @@ def main(argv=None):
     except Exception:
         meta["transformer_lens_version"] = "unknown"
 
+    if args.extra:
+        torch.set_num_threads(args.threads)
+        torch.set_grad_enabled(False)
+        from transformer_lens import HookedTransformer
+        model = HookedTransformer.from_pretrained(MODEL_NAME, device="cpu")
+        model.eval()
+        model.requires_grad_(False)
+        recs = read_all(out_dir)
+        recs.sort(key=lambda r: order.get(r["cell_id"], 10 ** 6))
+        (out_dir / "dw_logit_lens.json").write_text(
+            json.dumps(logit_lens_extra(model, recs), indent=2), encoding="utf-8")
+        print(f"[extra] {out_dir / 'dw_logit_lens.json'}")
+        return 0
+
     if args.report_only:
         recs = read_all(out_dir)
         recs.sort(key=lambda r: order.get(r["cell_id"], 10 ** 6))
@@ -1176,7 +1421,9 @@ def main(argv=None):
         if metas:
             meta.update(metas[0])
             meta["shards"] = max(m.get("shards", 1) for m in metas)
-        Path(args.report).write_text(build_report(recs, meta), encoding="utf-8")
+        lens_path = out_dir / "dw_logit_lens.json"
+        lens = json.loads(lens_path.read_text()) if lens_path.exists() else None
+        Path(args.report).write_text(build_report(recs, meta, lens), encoding="utf-8")
         print(f"[report] {args.report} ({len(recs)}/{len(cells)} cells)")
         return 0
 

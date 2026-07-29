@@ -33,6 +33,7 @@ experiments/**/*.log
 # basins.jsonl and then unlinks them, so tracking a shard means a routine report
 # rebuild deletes a tracked file. The merged basins.jsonl is what to keep.
 experiments/**/basins.shard*.jsonl
+experiments/**/exp001.shard*.jsonl
 
 # Editors, OS
 .DS_Store
