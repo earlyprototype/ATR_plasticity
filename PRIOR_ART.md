@@ -720,10 +720,17 @@ than it was.
   in statistical physics; Chaudhary has 1, in vision transformers; Cazalets & Dambre has
   1, in theoretical neuroscience; Lee et al. has 0. No citing paper is closer to us than
   the paper it cites.
-- ~~Most entries unverified.~~ **Closed.** Every entry now carries a status, and all but
-  one are verified against the source.
+- ~~Most entries unverified.~~ **Closed.** Every entry now carries a status, and all are
+  verified against the source.
 - ~~The Chaudhary depth figures.~~ **Closed, and they say something different from what
   was recorded.** See the correction near the top of this file.
+- ~~The "10-20 seconds" homeostasis figure is not pinned to a source.~~ **Closed.** It is
+  in Zenke, Gerstner & Ganguli 2017, quoted verbatim in the stabilisers section. The
+  earlier guess that it belonged to the companion paper was wrong.
+- ~~"Post-GELU activation is not zero-mean" asserted without a number.~~ **Closed.**
+  Measured at the default site: mean −0.047 on ordinary text, 85% of entries negative, and
+  the mean term carrying 79% of the second-moment matrix's Frobenius norm. Table in "The
+  non-zero-mean claim, measured".
 
 **Still open:**
 
@@ -731,9 +738,6 @@ than it was.
   small is 12. Whatever the Hebbian side does at 12 layers in a closed loop on frozen
   pretrained weights is unmeasured by anyone, including in the direction of "quietly does
   nothing".
-- **The "10-20 seconds" homeostasis figure is not pinned to a source.** Do not quote the
-  number until someone opens one of the two Zenke papers. The qualitative argument is
-  safe.
 - **Non-English and non-indexed venues were not searched**, nor were workshop
   proceedings that do not appear on arXiv, closed Discord/Slack research communities, or
   university theses. A collision could still live in any of those.
@@ -742,11 +746,22 @@ than it was.
   sweep immediately before any write-up.
 - **No published step size exists to anchor our eta sweep.** Not a search gap any more —
   a real one. See the section above.
-- **Whether the closed-loop arm converges at all is unknown, and no theory covers it.**
-  Oja's convergence result needs a stationary input and a decaying step size; our loop has
-  neither, plus a clipping norm ceiling. Convergence there has to be demonstrated
-  empirically or not claimed. See "The finding that changes our experiment".
+- **Neither arm has a convergence guarantee, and neither has been shown to converge.**
+  The closed loop breaks stationarity by construction, and the offline arm — despite
+  replaying a fixed recording — is a single finite sample path under constant eta, which
+  does not satisfy the theorem either. Both are empirical questions. See "The finding that
+  changes our experiment".
+- **The simple-dominant-eigenvalue precondition is checked only once, on ordinary text.**
+  λ₂/λ₁ = 0.342 on the raw second moment (comfortable) and 0.639 centred (weak). Unchecked
+  inside the closed loop, where the matrix moves and the gap can close mid-run. Track it
+  across the run.
+- **The post-GELU measurements are one site, one layer, one box.** `blocks.6.mlp`, three
+  ordinary prompts plus the `Divine` state, no sweep over sites, layers or seeds. Sign and
+  order of magnitude are solid; the exact figures are indicative.
 - **We have not checked whether our norm ceiling and our rescaling interact badly.** The
   Daydreaming authors hit exactly that failure — a few runaway entries plus global
   normalisation flattening everything else — and needed a per-entry bound (J_max) to fix
   it. Whether our matrix does the same thing is unmeasured.
+- **No equivalence margin has been chosen.** Until someone picks a δ in advance, this
+  experiment can report "no detectable effect at this sample size" but cannot report that
+  the two arms are the same.
