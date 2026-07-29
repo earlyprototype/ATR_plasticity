@@ -699,7 +699,7 @@ those two suffice is open, and the honest answer is that everyone else needed mo
 
 ---
 
-## Published step sizes: still nothing
+## Published step sizes: still none found
 
 **Searched again. Still could not find any published learning rate for an Oja-family rule
 inside a pretrained transformer.**
