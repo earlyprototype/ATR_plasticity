@@ -62,11 +62,23 @@ import torch.nn as nn
 #
 # Raw Hebbian:  dW = <x y^T>                     -- diverges, included to show why
 # Oja subspace: dW = <x y^T> - W <y y^T>         -- intrinsically normalised
+# Anti-Hebbian: dW = -<x y^T> - W <y y^T>        -- erodes, and still braked
 #
 # The Oja decay term is what makes this the right rule here rather than a
 # convenience: Oja's rule is Hebbian learning with normalisation built in, and
 # it performs power iteration on the input correlation structure. ATR is
 # nonlinear power iteration on activations. Same mathematics, one loop up.
+#
+# ANTI-HEBBIAN IS NOT A NEGATIVE ETA, and the difference is the decay term.
+# `eta = -e` scales the whole rule, so it flips BOTH terms: the reinforcement
+# term decorrelates (wanted) and the brake `-W <y y^T>` becomes `+W <y y^T>`
+# (not wanted). `<y y^T>` is positive semi-definite, so `+W <y y^T>` points
+# along W and the weight grows without bound -- the one property Oja exists to
+# provide is exactly the one a sign-flipped eta destroys. The anti-Hebbian mode
+# flips the reinforcement term only and keeps the brake with its stabilising
+# sign, which makes it a linear map with a bounded fixed point at
+# W* = -<x y^T> <y y^T>^-1 rather than a divergence.
+# `tests/test_antihebbian.py` measures both arms on real GPT-2 weights.
 
 
 def _hebb_term(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -82,6 +94,30 @@ def _oja_decay(w: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return w @ yy
 
 
+def subspace_projector(basis: torch.Tensor) -> torch.Tensor:
+    """
+    Orthogonal projector onto the span of `basis`'s rows, (n, n).
+
+    `basis` is (k, n): k directions in the output space of the target matrix --
+    an unembedding row, a mean of embeddings, a J-space basis vector. The rows
+    need not be orthonormal, but they must be linearly independent; a rank-
+    deficient basis makes the projector ill-defined and is rejected rather than
+    silently reduced.
+
+    Built in float64 and returned in the basis's dtype: P is `Q Q^T` from a QR,
+    and in float32 the residual non-idempotency of that product is of the same
+    order as the tolerance `OjaPlasticity` checks it against.
+    """
+    if basis.dim() != 2 or basis.shape[0] == 0:
+        raise ValueError(f"basis must be (k, n) with k >= 1, got {tuple(basis.shape)}")
+    b = basis.detach().double()
+    if torch.linalg.matrix_rank(b).item() < b.shape[0]:
+        raise ValueError("basis rows are linearly dependent; the span is smaller "
+                         "than the basis and the projector would be ambiguous")
+    q, _ = torch.linalg.qr(b.transpose(0, 1))          # (n, k), orthonormal columns
+    return (q @ q.transpose(0, 1)).to(basis.dtype)
+
+
 # --------------------------------------------------------------------------
 # Site adapters
 # --------------------------------------------------------------------------
@@ -95,6 +131,10 @@ def _oja_decay(w: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 #   .install(sink) start feeding sink(x, y) on every forward; return a handle
 #   .remove(h)     undo exactly that, and nothing else
 #
+# and, optionally, `.supports_transposed = False` if the adapter's addressing
+# assumes the (n_in, n_out) layout -- the per-head ones do, because a head owns
+# rows there and columns in the other layout.
+#
 # Two backends:
 #
 #   _WeightModuleSite       a dotted path to an nn.Module with a 2-D .weight,
@@ -105,8 +145,50 @@ def _oja_decay(w: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 #                           matrix is a bare Parameter and no single module's
 #                           forward is the matmul, so x and y are read from the
 #                           two TransformerLens hook points that bracket it.
+#   _HeadSliceSite          "...attn.c_proj.head.{h}": one attention head's
+#                           stripe of the block's output projection, on
+#                           HuggingFace.
+#   _TransformerLensHeadSite
+#                           "blocks.{L}.attn.head.{h}": the same head, on the
+#                           model where W_O is already stored per head.
 #
 # Adding a third backend means writing four methods, not touching a rule.
+
+
+# Suffix that turns a matrix site into one head of it. Spelled the same way on
+# both backends so a site string reads the same in a log whichever model
+# produced it.
+_HEAD_MARK = ".head."
+
+
+def _split_head(site: str) -> tuple[str, int]:
+    """Split `<path>.head.{h}` into (path, head index)."""
+    path, _, index = site.rpartition(_HEAD_MARK)
+    if not path or not index.isdigit():
+        raise TypeError(
+            f"{site!r} is not a per-head site; spell it '<path>.head.{{h}}', "
+            f"e.g. 'transformer.h.11.attn.c_proj.head.7'"
+        )
+    return path, int(index)
+
+
+def _n_heads(module: nn.Module, site: str) -> int:
+    """
+    How many heads share this projection, asked of the module that owns them.
+
+    Never inferred from the matrix: (768, 768) is twelve heads of 64 on GPT-2
+    small and would be equally consistent with any other factorisation, so a
+    guess here would silently slice the wrong rows on the next model.
+    """
+    for attr in ("num_heads", "n_heads", "n_head"):
+        n = getattr(module, attr, None)
+        if isinstance(n, int) and n > 0:
+            return n
+    raise TypeError(
+        f"{site}: cannot determine the head count from {type(module).__name__}; "
+        "it exposes none of num_heads / n_heads / n_head, so which rows belong "
+        "to which head is unknown"
+    )
 
 
 def _resolve_path(model: nn.Module, path: str):
@@ -144,13 +226,29 @@ class _WeightModuleSite:
 
     @property
     def weight(self) -> torch.Tensor:
+        """The live weight, in the module's own layout.
+
+        HuggingFace `Conv1D` stores (n_in, n_out), which is already the rules'
+        convention; `nn.Linear` stores (n_out, n_in) and is handled by the
+        `transposed` flip in `apply()`, not here.
+        """
         return self.module.weight
 
     def write(self, w: torch.Tensor) -> None:
+        """Overwrite the live weight in place, under `no_grad`.
+
+        In place because the module holds the `Parameter` object -- rebinding
+        would leave any hook or optimiser pointing at the old tensor.
+        """
         with torch.no_grad():
             self.module.weight.copy_(w)
 
     def install(self, sink):
+        """Register `sink` as a forward hook and return its handle.
+
+        The handle is the only teardown path -- see the hook-hygiene note on
+        `_TransformerLensMLPSite` for why `model.reset_hooks()` is never used.
+        """
         # The sink IS a torch forward hook here, registered directly. Not
         # wrapped: `tests/test_controls.py` injects its C0 defect by
         # subclassing OjaPlasticity and overriding `_hook`, and that override
@@ -160,6 +258,7 @@ class _WeightModuleSite:
 
     @staticmethod
     def remove(handle) -> None:
+        """Remove exactly the hook `install` added, and nothing else."""
         handle.remove()
 
 
@@ -233,19 +332,34 @@ class _TransformerLensMLPSite:
         raise TypeError(
             f"{site!r} is not a supported TransformerLens site. Spell it "
             "'blocks.{L}.mlp' -- the site names the MLP module and means its "
-            "W_out. Attention sites are not offered: TransformerLens stores "
-            "W_Q/W_K/W_V/W_O per head, 3-D, and the rules here are 2-D."
+            "W_out. A whole attention layer is not a site: TransformerLens "
+            "stores W_Q/W_K/W_V/W_O per head, 3-D, and the rules here are 2-D. "
+            "One head of W_O is a site -- spell it 'blocks.{L}.attn.head.{h}'."
         )
 
     @property
     def weight(self) -> torch.Tensor:
+        """The MLP's output projection, `W_out`, shape (d_mlp, d_model).
+
+        A bare `nn.Parameter` rather than a module's `.weight`, and already in
+        the rules' (n_in, n_out) convention -- so no transpose is needed here,
+        unlike the HuggingFace path.
+        """
         return self.module.W_out
 
     def write(self, w: torch.Tensor) -> None:
+        """Overwrite `W_out` in place, under `no_grad`."""
         with torch.no_grad():
             self.module.W_out.copy_(w)
 
     def install(self, sink):
+        """Capture x and y from two hook points and return both handles.
+
+        There is no single module behind this matmul, so the pre-activation and
+        the projection output are captured separately and paired: `_on_x`
+        stashes the input, `_on_y` consumes it and calls `sink` once, in torch's
+        forward-hook shape.
+        """
         self._pending = None
 
         def _on_x(_module, _inputs, output):
@@ -269,6 +383,243 @@ class _TransformerLensMLPSite:
         )
 
     def remove(self, handles) -> None:
+        """Remove both hooks and drop any half-captured pair.
+
+        Clearing `_pending` matters: a removal between `_on_x` and `_on_y`
+        would otherwise leave a stale input to be paired with the next run's
+        output.
+        """
+        for h in handles:
+            h.remove()
+        self._pending = None
+
+
+class _HeadSliceSite:
+    """
+    Site = one attention head's stripe of a block's output projection.
+
+    HuggingFace packs GPT-2's twelve heads into ONE Conv1D of shape
+    (n_heads*d_head, d_model) = (768, 768) at `transformer.h.{L}.attn.c_proj`.
+    The head merge upstream is a reshape, so head h owns rows
+    [h*d_head : (h+1)*d_head] of the input axis and nothing else. A per-head
+    site is therefore a row slice of a shared matrix rather than a parameter of
+    its own, which is why it needs an adapter rather than a longer site string.
+
+    Spelling: `transformer.h.{L}.attn.c_proj.head.{h}`.
+
+        x   this head's slice of the c_proj input,  (N, d_head)
+        y   the FULL c_proj output,                 (N, d_model)
+
+    y is not sliced, and must not be. The post-synaptic activity of an output
+    unit is what that unit actually does, and all twelve heads write to all 768
+    of them; this head's isolated contribution is an activity the model never
+    computes. That choice has an exact consequence worth relying on: because
+    both rules are row-wise in the (n_in, n_out) convention -- `<x y^T>` row i
+    uses x_i, and `W <y y^T>` row i uses W row i -- the update this site
+    produces is bit-for-bit the corresponding row slice of the update the
+    whole-matrix site would have produced. Confining plasticity to one head is a
+    restriction of the same rule, not a different rule.
+
+    W0, delta and the `max_delta_frac` ceiling are all the stripe's, so
+    `delta_frac` is drift relative to ||W_head||_F, not to the whole matrix.
+    """
+
+    backend = "module"
+    supports_transposed = False
+
+    def __init__(self, model: nn.Module, site: str):
+        path, head = _split_head(site)
+        self.module = _resolve_path(model, path)
+        w = getattr(self.module, "weight", None)
+        if not torch.is_tensor(w) or w.dim() != 2:
+            raise TypeError(f"{path} has no 2-D .weight; not a supported target")
+
+        owner_path = path.rsplit(".", 1)[0]
+        if owner_path == path:
+            raise TypeError(f"{site}: cannot find the module that owns {path}")
+        n_heads = _n_heads(_resolve_path(model, owner_path), site)
+        if not 0 <= head < n_heads:
+            raise TypeError(f"{site}: head {head} is out of range for {n_heads} heads")
+        if w.shape[0] % n_heads:
+            raise TypeError(
+                f"{site}: input axis {w.shape[0]} is not divisible by {n_heads} "
+                "heads, so the head stripes are not contiguous row blocks"
+            )
+
+        self.head = head
+        self.d_head = w.shape[0] // n_heads
+        self._lo = head * self.d_head
+        self._hi = self._lo + self.d_head
+
+    @property
+    def weight(self) -> torch.Tensor:
+        """This head's contiguous row block of the packed (n_in, n_out) matrix.
+
+        A view, not a copy: heads own rows of the *input* axis on HuggingFace,
+        which is why this adapter sets `supports_transposed = False` -- in the
+        (n_out, n_in) layout a head would own columns and the slice arithmetic
+        would silently address the wrong entries.
+        """
+        return self.module.weight[self._lo:self._hi]
+
+    def write(self, w: torch.Tensor) -> None:
+        # A slice assignment, so the other heads' rows are not written at all --
+        # not rewritten with the same values, which would still round-trip
+        # through float32 and is not the same guarantee.
+        with torch.no_grad():
+            self.module.weight[self._lo:self._hi].copy_(w)
+
+    def install(self, sink):
+        """Hook the owning projection and hand the sink this head's slice of x.
+
+        y is the *full* projection output, not this head's contribution to it:
+        the heads share one post-synaptic activity, and that choice is what
+        makes a head update bit-for-bit the row slice of the whole-matrix
+        update. `tests/test_head_sites.py` asserts that with `torch.equal`.
+        """
+        lo, hi = self._lo, self._hi
+
+        def _on_forward(module, inputs, output):
+            x = inputs[0]
+            if torch.is_tensor(x):
+                # Same forward-hook shape the sink sees everywhere else, with x
+                # narrowed to this head's rows. The C0 fail-direction test
+                # overrides `_hook`, and the sink is that method, so it still
+                # bites here.
+                sink(module, (x[..., lo:hi],), output)
+
+        return self.module.register_forward_hook(_on_forward)
+
+    @staticmethod
+    def remove(handle) -> None:
+        handle.remove()
+
+
+class _TransformerLensHeadSite:
+    """
+    Site = `blocks.{L}.attn.head.{h}` on a `HookedTransformer`: head h's block
+    of that attention layer's W_O.
+
+    TransformerLens stores W_O as (n_heads, d_head, d_model) -- already
+    per-head, so there is no slicing arithmetic to get wrong here, and W_O[h] is
+    (d_head, d_model), which is the rules' (n_in, n_out) convention with no
+    transpose. The HuggingFace adapter above has to reconstruct by hand what
+    this backend hands over; `tests/test_head_sites.py` checks the two agree.
+
+        x  blocks.{L}.attn.hook_z    (n_heads, d_head), this head's slice taken
+        y  blocks.{L}.hook_attn_out  (d_model), the summed attention output
+
+    y is the whole layer's output for the reason given on `_HeadSliceSite`: it
+    is what the output units actually do, and `hook_result` -- the per-head
+    contribution -- is off by default in TransformerLens precisely because
+    materialising it costs n_heads times the memory for a quantity the model
+    never forms.
+
+    Hook hygiene as for `_TransformerLensMLPSite`: plain torch forward hooks on
+    the HookPoint modules, removed by their own handles, never a model-wide
+    `reset_hooks()`.
+    """
+
+    backend = "transformer_lens"
+    supports_transposed = False
+
+    def __init__(self, model: nn.Module, site: str):
+        path, head = _split_head(site)
+        layer = self._parse(path, site)
+        try:
+            self.module = model.blocks[layer].attn
+        except (IndexError, AttributeError) as exc:
+            raise TypeError(f"{site} does not name an attention layer: {exc}") from exc
+
+        w = getattr(self.module, "W_O", None)
+        if not torch.is_tensor(w) or w.dim() != 3:
+            raise TypeError(f"{site} has no 3-D W_O; not a supported target")
+        if not 0 <= head < w.shape[0]:
+            raise TypeError(f"{site}: head {head} is out of range for {w.shape[0]} heads")
+
+        hooks = getattr(model, "hook_dict", {})
+        self._x_point = hooks.get(f"blocks.{layer}.attn.hook_z")
+        self._y_point = hooks.get(f"blocks.{layer}.hook_attn_out")
+        if self._x_point is None or self._y_point is None:
+            raise TypeError(
+                f"{site}: model lacks blocks.{layer}.attn.hook_z / "
+                f"blocks.{layer}.hook_attn_out, so pre- and post-synaptic "
+                "activity cannot be observed"
+            )
+        self.head = head
+        self.n_heads = w.shape[0]
+        self.d_head = w.shape[1]
+        self._pending = None
+
+    @staticmethod
+    def _parse(path: str, site: str) -> int:
+        """`blocks.{L}.attn` is the only accepted prefix; `W_O` is an alias."""
+        parts = path.split(".")
+        if parts and parts[-1] == "W_O":
+            parts = parts[:-1]
+        if len(parts) == 3 and parts[0] == "blocks" and parts[1].isdigit() \
+                and parts[2] == "attn":
+            return int(parts[1])
+        raise TypeError(
+            f"{site!r} is not a supported TransformerLens per-head site. Spell "
+            "it 'blocks.{L}.attn.head.{h}' -- the site names one head's block "
+            "of that layer's W_O. Q, K and V are not offered: they are read by "
+            "the attention pattern rather than written to the residual stream, "
+            "so there is no post-synaptic activity of theirs to Hebb against."
+        )
+
+    @property
+    def weight(self) -> torch.Tensor:
+        """This head's (d_head, d_model) block of `W_O`.
+
+        No slice arithmetic is needed on this backend: TransformerLens already
+        stores `W_O` as (n_heads, d_head, d_model), so a head is an index.
+        """
+        return self.module.W_O[self.head]
+
+    def write(self, w: torch.Tensor) -> None:
+        """Write back into this head's block only, leaving the others untouched.
+
+        Indexed assignment rather than a whole-tensor write, so the other heads'
+        entries are never rewritten -- restoring them to identical values would
+        still round-trip through float32, which is a weaker guarantee than not
+        touching them.
+        """
+        with torch.no_grad():
+            self.module.W_O[self.head].copy_(w)
+
+    def install(self, sink):
+        """Capture this head's slice of `hook_z` and pair it with the block output.
+
+        Same convention as the HuggingFace head adapter: x is the head's slice,
+        y is the shared full output.
+        """
+        self._pending = None
+        head = self.head
+
+        n_heads = self.n_heads
+
+        def _on_x(_module, _inputs, output):
+            # The head axis is second-to-last, and is checked rather than
+            # assumed: hook_z is (batch, pos, n_heads, d_head), and indexing the
+            # wrong axis of it stays in range on GPT-2 small -- 7 is a valid
+            # index into 64 as well as into 12 -- so a silent wrong answer is
+            # available here and a loud one is not.
+            if (torch.is_tensor(output) and output.dim() >= 3
+                    and output.shape[-2] == n_heads):
+                self._pending = output[..., head, :]
+
+        def _on_y(_module, _inputs, output):
+            x, self._pending = self._pending, None
+            if torch.is_tensor(x) and torch.is_tensor(output):
+                sink(self.module, (x,), output)
+
+        return (
+            self._x_point.register_forward_hook(_on_x),
+            self._y_point.register_forward_hook(_on_y),
+        )
+
+    def remove(self, handles) -> None:
         for h in handles:
             h.remove()
         self._pending = None
@@ -277,7 +628,11 @@ class _TransformerLensMLPSite:
 def _make_site(model: nn.Module, site: str):
     """Pick the adapter from the model, not from the site string."""
     if _is_hooked_transformer(model):
+        if _HEAD_MARK in site:
+            return _TransformerLensHeadSite(model, site)
         return _TransformerLensMLPSite(model, site)
+    if _HEAD_MARK in site:
+        return _HeadSliceSite(model, site)
     return _WeightModuleSite(model, site)
 
 
@@ -300,15 +655,25 @@ class OjaPlasticity:
           TransformerLens "blocks.6.mlp" -- names the MLP module and means its
                           `W_out`. `candidate_sites(model)` lists the options
                           in the right spelling for whichever model you pass.
+        A `.head.{h}` suffix narrows the target to one attention head's stripe
+        of a block's output projection -- "transformer.h.11.attn.c_proj.head.7"
+        or "blocks.11.attn.head.7". Everything downstream (W0, delta, the
+        ceiling, report) is then the stripe's, not the whole matrix's;
+        `candidate_sites(model, heads=True)` lists them.
     eta : float
         Learning rate. Start absurdly small (1e-6) and work up. There is no
         gradient here and no optimiser to save you.
-    mode : {"oja", "hebb", "random", "off"}
-        "oja"    - Oja subspace rule (the real experiment)
-        "hebb"   - raw Hebbian, no decay (will diverge; pedagogical)
-        "random" - random update matched in Frobenius norm to what Oja would
-                   have applied (Control C2: is the *direction* doing work?)
-        "off"    - accumulate statistics, apply nothing (Control C0/C1)
+    mode : {"oja", "hebb", "anti_hebb", "random", "off"}
+        "oja"       - Oja subspace rule (the real experiment)
+        "hebb"      - raw Hebbian, no decay (will diverge; pedagogical)
+        "anti_hebb" - Oja with the reinforcement term negated and the decay
+                      term left alone: dW = -<x y^T> - W <y y^T>. Erodes what
+                      the loop has settled into while staying bounded. NOT the
+                      same as eta < 0, which flips the brake too; see the note
+                      above the learning rules.
+        "random"    - random update matched in Frobenius norm to what Oja would
+                      have applied (Control C2: is the *direction* doing work?)
+        "off"       - accumulate statistics, apply nothing (Control C0/C1)
     cadence : int
         Informational only; you decide when to call apply().
     max_delta_frac : float
@@ -319,11 +684,19 @@ class OjaPlasticity:
     transposed : bool
         Set True for nn.Linear (weight is (n_out, n_in)). False for Conv1D and
         for TransformerLens W_out, both of which are already (n_in, n_out).
+    project : torch.Tensor, optional
+        An (n_out, n_out) orthogonal projector, in the rules' convention, that
+        the update is multiplied by before the ceiling: `upd = upd @ P`. Drift
+        is then confined to the subspace P projects onto -- a direction in
+        residual-stream space, say -- and every column of the update outside it
+        is exactly zero. `subspace_projector(basis)` builds one from directions.
+        Applied to the "random" arm too, so C2 stays a comparison of directions
+        inside the same subspace rather than of subspaces.
     device / dtype
         Inferred from the target weight.
     """
 
-    VALID_MODES = ("oja", "hebb", "random", "off")
+    VALID_MODES = ("oja", "hebb", "anti_hebb", "random", "off")
 
     def __init__(
         self,
@@ -335,6 +708,7 @@ class OjaPlasticity:
         max_delta_frac: float = 0.05,
         transposed: bool = False,
         seed: Optional[int] = 0,
+        project: Optional[torch.Tensor] = None,
     ):
         if mode not in self.VALID_MODES:
             raise ValueError(f"mode must be one of {self.VALID_MODES}, got {mode!r}")
@@ -351,6 +725,16 @@ class OjaPlasticity:
         # raises TypeError here if the site is not a 2-D matrix with observable
         # pre- and post-synaptic activity.
         self._site = _make_site(model, site)
+        if self.transposed and not getattr(self._site, "supports_transposed", True):
+            # A head owns ROWS of an (n_in, n_out) matrix and COLUMNS of an
+            # (n_out, n_in) one. The slicing here is row-wise and would take the
+            # wrong 64 numbers rather than fail, so this combination is refused
+            # instead of supported approximately.
+            raise ValueError(
+                f"transposed=True is not supported for the per-head site {site!r}: "
+                "the head's stripe is rows in the (n_in, n_out) layout and "
+                "columns in the transposed one"
+            )
         self.backend = self._site.backend
         # The enclosing module of the target matrix: the Conv1D/Linear itself on
         # the HuggingFace path, the MLP on the TransformerLens one.
@@ -369,6 +753,31 @@ class OjaPlasticity:
         # inspect/revert properties as a low-rank adapter, with less machinery
         # and no rank assumption -- Oja updates are not low-rank.)
         self.delta = torch.zeros_like(self.W0)
+
+        # Checked here rather than trusted: a matrix that is not idempotent is
+        # not a projection, and passing one -- a raw basis, say, instead of
+        # `subspace_projector(basis)` -- would rescale and rotate every update
+        # while every number in report() stayed plausible. Held to float32
+        # precision, the dtype the product is formed in.
+        self.project = None
+        if project is not None:
+            n_out = self.W0.shape[0] if self.transposed else self.W0.shape[1]
+            if project.dim() != 2 or project.shape != (n_out, n_out):
+                raise ValueError(
+                    f"project must be ({n_out}, {n_out}) -- the update's output "
+                    f"axis in the rules' (n_in, n_out) convention -- got "
+                    f"{tuple(project.shape)}"
+                )
+            p = project.detach().to(device=self.W0.device, dtype=self.W0.dtype)
+            residual = (p @ p - p).double().norm().item()
+            if residual > 1e-4 * max(p.double().norm().item(), 1e-12):
+                raise ValueError(
+                    "project is not idempotent to float32 precision "
+                    f"(||PP - P||_F / ||P||_F = "
+                    f"{residual / max(p.double().norm().item(), 1e-12):.2e}), "
+                    "so it is not a projection; build it with subspace_projector()"
+                )
+            self.project = p
 
         self._acc: Optional[torch.Tensor] = None   # pending update, pre-eta
         self._n_batches = 0
@@ -416,9 +825,38 @@ class OjaPlasticity:
     # ----------------------------------------------------------- collection
 
     def _hook(self, module, inputs, output):
-        """Capture pre- and post-synaptic activity and accumulate an update."""
-        x = inputs[0]
-        y = output
+        """Capture pre- and post-synaptic activity and accumulate an update.
+
+        Kept as the torch forward-hook signature and as the single override
+        point -- the C0 fail-direction test subclasses this class and replaces
+        this method. It unpacks the hook arguments and delegates to `observe`,
+        which is where the rule actually lives.
+        """
+        self.observe(inputs[0], output)
+
+    def observe(self, x, y) -> None:
+        """
+        Accumulate one update from a pre/post activation pair.
+
+        The public entry point for feeding activations to the rule, and the
+        supported way to drive it without a live forward pass -- the offline
+        replay arm in `offline_control.py` calls this to push a recording
+        through the identical rule with no feedback. `_hook` is the same thing
+        wearing torch's hook signature.
+
+        Two kinds of input are dropped rather than raising, and they are NOT
+        equivalent -- an earlier version of this docstring conflated them:
+
+        - **Non-finite values** set `nonfinite`, so `report()` shows the batch
+          was seen and rejected.
+        - **Non-tensor** `x` or `y` returns silently, leaving no trace. That
+          branch exists because a forward hook on some sites is handed a tuple
+          rather than a tensor, where skipping is correct and unremarkable. But
+          on the replay path it is a place a bug can hide: feed the wrong thing
+          and the arm accumulates nothing while `report()` looks healthy.
+          `n_applied` is the check -- an arm that observed nothing still
+          reports zero updates.
+        """
         if not torch.is_tensor(x) or not torch.is_tensor(y):
             return
 
@@ -434,7 +872,15 @@ class OjaPlasticity:
         # The flip back into the weight's own layout happens in apply(), which
         # is the only place that touches module.weight.
         upd = _hebb_term(x, y)
-        if self.mode in ("oja", "random"):
+        if self.mode == "anti_hebb":
+            # The reinforcement term is negated; the decay term is NOT. Note
+            # this is `-hebb - decay`, not `-(hebb - decay)`: the second is what
+            # a negative eta computes, and it turns the brake into an
+            # accelerator. Everything downstream -- eta, the ceiling, delta,
+            # revert -- is identical to the other modes; only this sign differs.
+            w_eff = self._effective_W()
+            upd = -upd - _oja_decay(w_eff, y)
+        elif self.mode in ("oja", "random"):
             # "random" subtracts the decay too: apply() norm-matches the noise
             # to whatever is accumulated here, and the docstring promises that
             # target is "what Oja would have applied". Matching the raw Hebb
@@ -468,6 +914,15 @@ class OjaPlasticity:
         if self.mode == "off":
             return self.report()
 
+        if self.project is not None:
+            # Confine the drift to the chosen subspace. Before the random arm,
+            # not after: norm-matching an unprojected Oja update and then
+            # projecting the noise would leave C2's two arms differing in
+            # magnitude by the fraction of the noise that survives projection
+            # (~sqrt(k/n_out) -- a factor of 28 for a single direction at
+            # d_model=768), which is precisely the confound C2 exists to remove.
+            upd = upd @ self.project
+
         if self.mode == "random":
             # Match in float64. C2's entire verdict rests on these two arms
             # carrying the same magnitude, and a float32 match leaves ~3e-4
@@ -477,6 +932,8 @@ class OjaPlasticity:
             noise = torch.randn(
                 upd.shape, generator=self._rng, device=upd.device, dtype=upd.dtype
             )
+            if self.project is not None:
+                noise = noise @ self.project
             upd = noise * (target_norm / (noise.double().norm().item() + 1e-12))
 
         if self.transposed:
@@ -582,7 +1039,9 @@ class OjaPlasticity:
 # Convenience: enumerate plausible target sites in a GPT-2-like model
 # --------------------------------------------------------------------------
 
-def candidate_sites(model: nn.Module, prefix: Optional[str] = None) -> list[str]:
+def candidate_sites(
+    model: nn.Module, prefix: Optional[str] = None, heads: bool = False
+) -> list[str]:
     """
     List the plasticity targets this model offers, spelled for its backend.
 
@@ -598,27 +1057,57 @@ def candidate_sites(model: nn.Module, prefix: Optional[str] = None) -> list[str]
     Hebbian update there is three different experiments at once.
 
     On a TransformerLens `HookedTransformer` -- the model the ATR engine
-    actually runs -- the only offered sites are `blocks.{L}.mlp`, meaning that
-    MLP's `W_out`. That is deliberately narrower than the HuggingFace list:
+    actually runs -- the only offered matrix sites are `blocks.{L}.mlp`, meaning
+    that MLP's `W_out`. That is deliberately narrower than the HuggingFace list:
     `W_in` has no post-synaptic activity that is cleanly the output of a single
     matmul (the nonlinearity sits in between), and the attention matrices are
-    stored per-head and 3-D, which the 2-D rules here cannot address at all.
+    stored per-head and 3-D, which the 2-D rules cannot address whole.
     Returning a site this module cannot actually attach to would be worse than
     returning fewer.
+
+    `heads=True` appends the per-head output-projection sites -- one per
+    (layer, head), 144 of them on GPT-2 small -- after the matrix sites. They
+    are off by default because they are a different granularity of experiment
+    rather than a longer list of the same one: a whole-matrix run and a
+    per-head run at the same eta are not comparable, since `max_delta_frac` is a
+    fraction of whatever W0 the site names. Reach for them when the object of
+    study is a head, which is the case issue #25 raises -- the parent project's
+    period-2 oscillation is carried by a single head in the last block.
     """
+    wanted = prefix if prefix is not None else "transformer.h"
+
     if _is_hooked_transformer(model):
         sites = []
         for layer, block in enumerate(model.blocks):
             w = getattr(getattr(block, "mlp", None), "W_out", None)
             if torch.is_tensor(w) and w.dim() == 2:
                 sites.append(f"blocks.{layer}.mlp")
+        if heads:
+            for layer, block in enumerate(model.blocks):
+                w = getattr(getattr(block, "attn", None), "W_O", None)
+                if torch.is_tensor(w) and w.dim() == 3:
+                    sites += [f"blocks.{layer}.attn.head.{h}" for h in range(w.shape[0])]
         return sites
 
     out = []
     for name, mod in model.named_modules():
-        if not name.startswith(prefix if prefix is not None else "transformer.h"):
+        if not name.startswith(wanted):
             continue
         w = getattr(mod, "weight", None)
         if torch.is_tensor(w) and w.dim() == 2:
             out.append(name)
+
+    if heads:
+        # Only the output projection: c_attn packs Q, K and V, whose head
+        # stripes run along the OUTPUT axis three times over, so the same suffix
+        # would mean something different there and mean it silently.
+        for name in list(out):
+            if not name.endswith("attn.c_proj"):
+                continue
+            owner = _resolve_path(model, name.rsplit(".", 1)[0])
+            try:
+                n = _n_heads(owner, name)
+            except TypeError:
+                continue
+            out += [f"{name}{_HEAD_MARK}{h}" for h in range(n)]
     return out

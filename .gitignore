@@ -18,6 +18,23 @@ huggingface/
 transformers_cache/
 torch_cache/
 
+# Experiment outputs: the saved residual-stream states are large binary arrays
+# and are regenerable from the frozen loop, so they stay out of git. The merged
+# JSONL and the write-ups are the record and are tracked.
+#
+# Scoped under experiments/ deliberately -- unanchored *.npy would also swallow
+# any small array fixture a test legitimately needs to commit.
+experiments/**/states/
+experiments/**/*.npy
+experiments/**/*.npz
+experiments/**/*.log
+
+# Per-shard JSONL is scratch: baseline_basins.py merges the shards into
+# basins.jsonl and then unlinks them, so tracking a shard means a routine report
+# rebuild deletes a tracked file. The merged basins.jsonl is what to keep.
+experiments/**/basins.shard*.jsonl
+experiments/**/exp001.shard*.jsonl
+
 # Editors, OS
 .DS_Store
 .idea/

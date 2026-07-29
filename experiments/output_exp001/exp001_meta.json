@@ -1,0 +1,50 @@
+{
+  "issues": [
+    26,
+    30,
+    32
+  ],
+  "model": "gpt2-small",
+  "site": "blocks.6.mlp",
+  "mode": "hebb",
+  "eta": 7.065171428571429e-05,
+  "eta_provenance": "D * ||W0||_F / (N_STEPS * U_ref[hebb]) with D=1.8e-2, U_ref=350, ||W0||_F=164.854 -- the step-size map's own anchor, recomputed rather than copied from its rounded table entry",
+  "n_steps": 120,
+  "cadence": 1,
+  "max_delta_frac": 0.05,
+  "layer_start": 0,
+  "layer_end": 11,
+  "layer_end_severed": 3,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "prompts_prolet": [
+    "A01_physics",
+    "A02_medical",
+    "A04_climate"
+  ],
+  "prompts_divine": [
+    "A14_kant",
+    "A08_linguistics"
+  ],
+  "y_sources": [
+    "recorded",
+    "recomputed"
+  ],
+  "revert_horizon": 1000,
+  "device": "cpu",
+  "dtype": "float32",
+  "norms_dtype": "float64",
+  "torch_threads": 1,
+  "shards": 1,
+  "torch_version": "2.13.0+cpu",
+  "python_version": "3.11.15",
+  "platform": "Linux 6.18.5 x86_64",
+  "repo_rev": "af8082dbcb18c4e856d4d432e5ae703848eced45",
+  "transformer_lens_version": "3.5.1",
+  "started": "2026-07-29T02:10:08Z",
+  "finished": "2026-07-29T02:14:51Z",
+  "wall_clock_seconds": 282.9
+}

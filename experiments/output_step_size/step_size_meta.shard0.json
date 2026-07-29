@@ -1,0 +1,41 @@
+{
+  "issue": 30,
+  "model": "gpt2-small",
+  "site": "blocks.6.mlp",
+  "prompt_id": "A01_physics",
+  "n_steps": 120,
+  "seed": 0,
+  "max_delta_frac": 0.05,
+  "cadence": 1,
+  "u_ref": {
+    "hebb": 350.0,
+    "oja": 14000.0,
+    "anti_hebb": 14000.0,
+    "random": 14000.0
+  },
+  "d_grid": [
+    0.0001,
+    0.001,
+    0.01,
+    0.03,
+    0.1,
+    0.3,
+    1.0,
+    10.0
+  ],
+  "layer_start": 0,
+  "layer_end": 11,
+  "torch_version": "2.13.0+cpu",
+  "python_version": "3.11.15",
+  "platform": "Linux 6.18.5 x86_64",
+  "torch_threads": 1,
+  "shards": 2,
+  "device": "cpu",
+  "dtype": "float32",
+  "norms_dtype": "float64",
+  "repo_rev": "c4f51240b77d1eeebaf048768970df2e506c10d6",
+  "transformer_lens_version": "3.5.1",
+  "started": "2026-07-29T00:22:21Z",
+  "finished": "2026-07-29T00:23:14Z",
+  "wall_clock_seconds": 53.2
+}

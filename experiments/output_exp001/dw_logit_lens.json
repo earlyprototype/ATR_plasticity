@@ -1,0 +1,244 @@
+{
+  "tokens": {
+    " prolet": 22758,
+    " comrade": 47998,
+    " Divine": 13009
+  },
+  "n_vocab": 50257,
+  "n_null": 64,
+  "cells": {
+    "routed:A01_physics:seed0": {
+      "basin_frozen": "prolet",
+      "basin_closed": "comrade",
+      "ranks": {
+        " prolet": {
+          "logit": -0.10197153517827359,
+          "percentile": 23.980739001532125
+        },
+        " comrade": {
+          "logit": -0.12845483992651036,
+          "percentile": 18.896870087748972
+        },
+        " Divine": {
+          "logit": 0.13994796281962993,
+          "percentile": 82.76260023479315
+        }
+      }
+    },
+    "routed:A01_physics:seed1": {
+      "basin_frozen": "prolet",
+      "basin_closed": "comrade",
+      "ranks": {
+        " prolet": {
+          "logit": -0.10197153517827359,
+          "percentile": 23.980739001532125
+        },
+        " comrade": {
+          "logit": -0.12845483992651036,
+          "percentile": 18.896870087748972
+        },
+        " Divine": {
+          "logit": 0.13994796281962993,
+          "percentile": 82.76260023479315
+        }
+      }
+    },
+    "routed:A01_physics:seed2": {
+      "basin_frozen": "prolet",
+      "basin_closed": "comrade",
+      "ranks": {
+        " prolet": {
+          "logit": -0.10197153517827359,
+          "percentile": 23.980739001532125
+        },
+        " comrade": {
+          "logit": -0.12845483992651036,
+          "percentile": 18.896870087748972
+        },
+        " Divine": {
+          "logit": 0.13994796281962993,
+          "percentile": 82.76260023479315
+        }
+      }
+    },
+    "routed:A02_medical:seed0": {
+      "basin_frozen": "prolet",
+      "basin_closed": "comrade",
+      "ranks": {
+        " prolet": {
+          "logit": -0.09813146201256598,
+          "percentile": 25.013430964840715
+        },
+        " comrade": {
+          "logit": -0.12828298550193803,
+          "percentile": 19.179417792546314
+        },
+        " Divine": {
+          "logit": 0.15215345777349942,
+          "percentile": 84.66482281075272
+        }
+      }
+    },
+    "routed:A04_climate:seed0": {
+      "basin_frozen": "prolet",
+      "basin_closed": "Divine",
+      "ranks": {
+        " prolet": {
+          "logit": -0.1070609198743272,
+          "percentile": 22.749069781323993
+        },
+        " comrade": {
+          "logit": -0.14346113064846608,
+          "percentile": 16.216646437312214
+        },
+        " Divine": {
+          "logit": 0.12549879487280674,
+          "percentile": 80.3032413395149
+        }
+      }
+    },
+    "severed:A01_physics:seed0": {
+      "basin_frozen": null,
+      "basin_closed": null,
+      "ranks": {
+        " prolet": {
+          "logit": 0.019965695432208955,
+          "percentile": 87.56989076148596
+        },
+        " comrade": {
+          "logit": 0.004548229335955891,
+          "percentile": 59.337007780010744
+        },
+        " Divine": {
+          "logit": -0.0009036115359976072,
+          "percentile": 46.783532642218994
+        }
+      }
+    },
+    "severed:A01_physics:seed1": {
+      "basin_frozen": null,
+      "basin_closed": null,
+      "ranks": {
+        " prolet": {
+          "logit": 0.019965695432208955,
+          "percentile": 87.56989076148596
+        },
+        " comrade": {
+          "logit": 0.004548229335955891,
+          "percentile": 59.337007780010744
+        },
+        " Divine": {
+          "logit": -0.0009036115359976072,
+          "percentile": 46.783532642218994
+        }
+      }
+    },
+    "severed:A01_physics:seed2": {
+      "basin_frozen": null,
+      "basin_closed": null,
+      "ranks": {
+        " prolet": {
+          "logit": 0.019965695432208955,
+          "percentile": 87.56989076148596
+        },
+        " comrade": {
+          "logit": 0.004548229335955891,
+          "percentile": 59.337007780010744
+        },
+        " Divine": {
+          "logit": -0.0009036115359976072,
+          "percentile": 46.783532642218994
+        }
+      }
+    },
+    "severed:A02_medical:seed0": {
+      "basin_frozen": null,
+      "basin_closed": null,
+      "ranks": {
+        " prolet": {
+          "logit": 0.020305250758732192,
+          "percentile": 87.86238732912828
+        },
+        " comrade": {
+          "logit": 0.0039012048551167124,
+          "percentile": 57.810852219591304
+        },
+        " Divine": {
+          "logit": -0.0007664706955424039,
+          "percentile": 47.04419284875739
+        }
+      }
+    },
+    "severed:A04_climate:seed0": {
+      "basin_frozen": null,
+      "basin_closed": null,
+      "ranks": {
+        " prolet": {
+          "logit": 0.020242990801944596,
+          "percentile": 87.78080665379947
+        },
+        " comrade": {
+          "logit": 0.00428202320302653,
+          "percentile": 58.646556698569356
+        },
+        " Divine": {
+          "logit": -0.0007406795146206301,
+          "percentile": 47.121793978948205
+        }
+      }
+    },
+    "episode:A14_kant:seed0": {
+      "basin_frozen": "Divine",
+      "basin_closed": "Divine",
+      "ranks": {
+        " prolet": {
+          "logit": -0.13890418339674301,
+          "percentile": 21.24082217402551
+        },
+        " comrade": {
+          "logit": -0.3010437991894563,
+          "percentile": 4.299898521598982
+        },
+        " Divine": {
+          "logit": -0.22775974473611926,
+          "percentile": 9.588714009988658
+        }
+      }
+    },
+    "episode:A08_linguistics:seed0": {
+      "basin_frozen": "Divine",
+      "basin_closed": "Divine",
+      "ranks": {
+        " prolet": {
+          "logit": -0.13782889607780763,
+          "percentile": 21.177149451817655
+        },
+        " comrade": {
+          "logit": -0.3804858519917686,
+          "percentile": 1.579879419782319
+        },
+        " Divine": {
+          "logit": -0.2843097015168564,
+          "percentile": 5.288815488389677
+        }
+      }
+    }
+  },
+  "null": {
+    " prolet": {
+      "median_percentile": 50.31338917961678,
+      "p05": 7.662614163201146,
+      "p95": 98.44399785104562
+    },
+    " comrade": {
+      "median_percentile": 59.66731002646397,
+      "p05": 7.1094573890204344,
+      "p95": 98.87179895337962
+    },
+    " Divine": {
+      "median_percentile": 57.30942953220447,
+      "p05": 16.471337326143622,
+      "p95": 88.34192251825617
+    }
+  }
+}

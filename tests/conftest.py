@@ -41,6 +41,20 @@ SITE = "transformer.h.6.mlp.c_proj"
 TL_SITE = "blocks.6.mlp"
 TL_LAYER = 6
 
+# Every matrix this suite can write to, per backend, as (path, attribute).
+# The MLP down-projection is the default site; the attention output projections
+# are where the per-head sites live -- block 11 because that is the block the
+# parent found carrying the period-2 oscillation, so it is the one head tests
+# reach for. `_target_weight_unchanged` snapshots these and nothing else.
+_HF_WRITABLE = (
+    ("transformer.h.6.mlp.c_proj", "weight"),
+    ("transformer.h.11.attn.c_proj", "weight"),
+)
+_TL_WRITABLE = (
+    ("blocks.6.mlp", "W_out"),
+    ("blocks.11.attn", "W_O"),
+)
+
 N_LAYER = 12
 D_MODEL = 768
 D_MLP = 4 * D_MODEL      # 3072
@@ -212,15 +226,38 @@ def _target_weight_unchanged(request):
     it means that test was corrupting every test that ran after it, and every
     result downstream of this file is suspect until it is fixed.
 
-    Guards only tests that actually asked for the model, so the ones needing
+    Guards only tests that actually asked for a model, so the ones needing
     nothing but the `transformers` package still run on a cold cache.
+
+    Watches more than the default site. Per-head sites made 144 more matrices
+    writable across both backends, and a guard on one MLP down-projection would
+    not see a test that left an attention output projection dirty -- so the
+    attention projections the head tests target are watched too, on whichever
+    model the test actually requested. Snapshotting every parameter would be
+    correct and far too slow at ~124M parameters per model per test; this is
+    the set the suite can currently write to.
     """
-    if "gpt2" not in request.fixturenames:
-        yield
-        return
-    model = request.getfixturevalue("gpt2")
-    target = request.getfixturevalue("site")
-    w = resolve(model, target).weight
-    before = w.detach().clone()
+    watched = []
+    for fixture, paths in (("gpt2", _HF_WRITABLE), ("tl_gpt2", _TL_WRITABLE)):
+        if fixture not in request.fixturenames:
+            continue
+        model = request.getfixturevalue(fixture)
+        for path, attr in paths:
+            # Keep the coordinates, not the tensor object. Holding the tensor
+            # would only catch in-place writes: a test that REBINDS the
+            # attribute to a fresh tensor or Parameter leaves the object we
+            # captured untouched, so the check would pass while the
+            # session-scoped model stayed contaminated.
+            watched.append((f"{fixture}:{path}.{attr}", model, path, attr,
+                            getattr(resolve(model, path), attr).detach().clone()))
+        # A guard that silently watches nothing passes everything. If a path
+        # above stops resolving -- a renamed attribute, a TransformerLens
+        # layout change -- the AttributeError from `resolve` should surface
+        # here as a loud failure rather than leave the suite unguarded.
+        assert watched, f"{fixture} requested but no weights were snapshotted"
+
     yield
-    assert torch.equal(w, before), f"{target} left modified for subsequent tests"
+
+    for name, model, path, attr, before in watched:
+        after = getattr(resolve(model, path), attr)
+        assert torch.equal(after, before), f"{name} left modified for subsequent tests"
