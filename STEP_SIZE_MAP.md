@@ -58,6 +58,65 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 - Ceiling audible / diverges at or above **9.81e-05**.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
+## What the map says
+
+### 1. Three of the four rules have a wide band, and nothing happens in it
+
+- `oja` at its largest ceiling-silent eta (9.81e-06, clip **0.0%**) moves the weights 2.92% of ‖W0‖_F and the loop does not move: basin `prolet` (frozen: `prolet`), lag-1 1.00000 (frozen 1.00000), cos(final, frozen) = 0.999222.
+- `anti_hebb` at its largest ceiling-silent eta (2.94e-05, clip **0.0%**) moves the weights 4.58% of ‖W0‖_F and the loop does not move: basin `prolet` (frozen: `prolet`), lag-1 1.00000 (frozen 1.00000), cos(final, frozen) = 0.995287.
+- Pushed all the way to the ceiling — `oja` at 0.000981, clip **100.0%**, the full 5.0% of drift the ceiling allows — the basin is still `prolet` and lag-1 is still 1.00000. There is no eta at which this rule moves this loop; the ceiling is reached first.
+
+This is saturation, and it is the outcome the prior work predicted: the reservoir result (Oja-family rules "seldom exceed even" the untouched network) and the Hebbian arm of Chaudhary 2025 (stable at depth, saturating in performance) both point here. It is a null result, and a null result with a measured band around it is a very different object from a null result at an unexamined step size.
+
+### 2. `hebb` is the exception, and it is the rule with no brake
+
+The basin changes at eta 7.07e-05 — `prolet` → `comrade` — at 1.12% relative weight change with the ceiling **silent** (0.0%), cos(final, frozen) = 0.995000. That is a real effect inside a clean band, not a ceiling artefact.
+
+The catch is what `hebb` is. It has no decay term, so its band is narrow (a factor of three between the first cell that moves the loop and the first cell that clips) and it is bounded above only by `max_delta_frac`. The rule that does something is the rule the ceiling is holding up.
+
+### 3. Direction matters, but not enough to rescue Oja
+
+`random` is norm-matched to what Oja would have applied, so it isolates whether the *direction* is doing work. Matched not by eta — the noise re-randomises every step and accumulates as a random walk rather than coherently — but by the relative weight change actually reached:
+
+| arm | eta | rel ΔW | clip | loop |
+|---|---|---|---|---|
+| `random` | 2.94e-05 | 1.84% | 0.0% | no |
+| `oja` | 9.81e-06 | 2.92% | 0.0% | cos(final,frozen)=0.999222 |
+| `anti_hebb` | 9.81e-06 | 2.71% | 0.0% | cos(final,frozen)=0.998670 |
+| `hebb` | 0.000118 | 2.20% | 0.0% | basin 'prolet'->'comrade'; cos(final,frozen)=0.982135 |
+
+Isotropic noise of the same size does nothing at all, so the rules are not merely "a perturbation of this magnitude". But Oja's structured direction does almost nothing either. The gap that matters is between `hebb` and everything else, not between structure and noise.
+
+### 4. The homeostat is not what is hiding the effect
+
+Issue #27 item 3's signature is a pre-rescale activation norm that moves while the loop's visible behaviour stays flat. That is not what these cells show.
+
+The frozen loop already runs at pre/post = 3.7098 — the rescaling divides by 3.71 on every step whether or not plasticity is on. Across all 35 cells the plasticity moves that ratio by at most 3.5%.
+
+- `oja` at 9.81e-06: pre-rescale ratio -0.34% against frozen, cos(final, frozen) = 0.999222. Both flat — the change is not reaching the activations at all, rather than reaching them and being absorbed.
+- `hebb` at 0.000118: pre-rescale ratio +2.05% against frozen, cos(final, frozen) = 0.982135. Both move, and together — the homeostat is passing the effect through, not eating it.
+
+### 5. No hollowing out anywhere in the sweep
+
+Effective rank starts at 642.6 (of 768) and over every cell in the map never falls below 640.5 (`hebb` at 0.0393, a 0.33% fall). Under `oja` and `anti_hebb` it *rises*, to 647.3 — the decay term flattens the spectrum, which is the opposite direction from rank-1 collapse. The largest singular value's energy share falls from 0.0323 to 0.0253, and max/mean |W| falls from 33.4 to 31.7. Nothing is running away.
+
+The ΔW columns do the distinguishing issue #27 item 11 asks for. Oja's accumulated update is near rank-1 (effective rank 2.2) exactly as #32 section 2 expects, while the noise arm's is isotropic (718.8). But Oja's mass is not concentrated in a handful of *entries*: its top 0.1% of entries hold 0.0263 of the total absolute mass against the noise arm's 0.0044 — a smooth outer product, not a runaway coupling. Low rank here is the rule working, not the pathology.
+
+### What this does and does not rule out
+
+| issue #27 | status |
+|---|---|
+| 2 — no interesting middle | **Ruled out as a confound, and answered.** Every mode has a band where the weights move with the ceiling silent. For `oja`/`anti_hebb`/`random` nothing happens inside it; for `hebb` something does. |
+| 3 — we measure the rescaling | **Ruled out here.** The pre-rescale norm is flat wherever the loop is flat, so the homeostat is not absorbing a hidden weight effect. |
+| 11 — norm ceiling and rescaling destroy each other | **Not observed.** Effective rank flat or rising on every cell, max entry falling, ΔW mass spread rather than concentrated. |
+| 1 — the rule moves the weights and nothing else happens | **Consistent with, not established.** That claim needs the offline arm (#26); this map only shows the loop-on side. |
+| 5 — collapse is already the default | Untouched. This prompt is a fixed point under the frozen loop and stays one. |
+| 7 — depth | Untouched. |
+
+### Caveats
+
+One prompt (`A01_physics`), one site (`blocks.6.mlp`), one seed, 120 steps, cadence 1, one ceiling (0.05). The recommended etas are calibrated for exactly that configuration; a different site has a different ‖W0‖_F and different activation scale, and the anchoring formula has to be re-measured rather than reused. `random` here is a within-cell control, not the full C2. The bands are located to grid resolution — roughly half a decade, and a factor of three for `hebb` after refinement — not to a sharp edge.
+
 ## Full table
 
 `clip` is the fraction of the 120 updates the norm ceiling scaled down; it is reported on every row because a number quoted without it is not usable. `erank` is the participation ratio of W's singular values (768 max). `pre/post` is the pre-rescale activation norm over the post-rescale one — the loop's homeostat is the denominator and holds it at ‖x₀‖ exactly.

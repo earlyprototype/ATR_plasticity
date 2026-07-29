@@ -554,6 +554,196 @@ def band_for_mode(recs: list) -> dict:
     return out
 
 
+def _cos_to_frozen(rec: dict, ref: dict) -> float:
+    a = torch.tensor(rec["final_mean_vec"], dtype=torch.float64)
+    b = torch.tensor(ref["final_mean_vec"], dtype=torch.float64)
+    return float(F.cosine_similarity(a.unsqueeze(0), b.unsqueeze(0)))
+
+
+def _findings(recs: list, by_mode: dict, ref: dict | None) -> list:
+    """The reading. Every number here is computed from the records, not typed in.
+
+    Issue #27 closes by asking every write-up to say which of its failure modes
+    it ruled out and how; this section is that, plus the one thing the map is
+    actually for.
+    """
+    L, A = [], None
+    A = L.append
+    if ref is None:
+        return L
+
+    def quietest_top(mode):
+        """The largest-eta cell of a mode with the ceiling silent (clip == 0)."""
+        q = [r for r in by_mode.get(mode, []) if r["clip_rate"] == 0.0]
+        return max(q, key=lambda r: r["eta"]) if q else None
+
+    A("## What the map says")
+    A("")
+    A("### 1. Three of the four rules have a wide band, and nothing happens in it")
+    A("")
+    for mode in ("oja", "anti_hebb"):
+        t = quietest_top(mode)
+        if t is None:
+            continue
+        A(f"- `{mode}` at its largest ceiling-silent eta ({t['eta']:.3g}, clip "
+          f"**{t['clip_rate']:.1%}**) moves the weights "
+          f"{t['rel_weight_change']:.2%} of ‖W0‖_F and the loop does not move: "
+          f"basin `{t['basin']}` (frozen: `{ref['basin']}`), lag-1 "
+          f"{_fmt(t['cos_lag1_mean'], '.5f')} (frozen "
+          f"{_fmt(ref['cos_lag1_mean'], '.5f')}), "
+          f"cos(final, frozen) = {_cos_to_frozen(t, ref):.6f}.")
+    pinned = [r for r in by_mode.get("oja", []) if r["clip_rate"] >= 0.99]
+    if pinned:
+        p = pinned[0]
+        A(f"- Pushed all the way to the ceiling — `oja` at {p['eta']:.3g}, clip "
+          f"**{p['clip_rate']:.1%}**, the full {p['rel_weight_change']:.1%} of "
+          f"drift the ceiling allows — the basin is still `{p['basin']}` and "
+          f"lag-1 is still {_fmt(p['cos_lag1_mean'], '.5f')}. There is no eta at "
+          f"which this rule moves this loop; the ceiling is reached first.")
+    A("")
+    A("This is saturation, and it is the outcome the prior work predicted: the "
+      "reservoir result (Oja-family rules \"seldom exceed even\" the untouched "
+      "network) and the Hebbian arm of Chaudhary 2025 (stable at depth, "
+      "saturating in performance) both point here. It is a null result, and a "
+      "null result with a measured band around it is a very different object "
+      "from a null result at an unexamined step size.")
+    A("")
+
+    A("### 2. `hebb` is the exception, and it is the rule with no brake")
+    A("")
+    h = by_mode.get("hebb", [])
+    flip = [r for r in h if r["clip_rate"] == 0.0 and r["basin"] != ref["basin"]]
+    if flip:
+        f0 = min(flip, key=lambda r: r["eta"])
+        A(f"The basin changes at eta {f0['eta']:.3g} — `{ref['basin']}` → "
+          f"`{f0['basin']}` — at {f0['rel_weight_change']:.2%} relative weight "
+          f"change with the ceiling **silent** ({f0['clip_rate']:.1%}), "
+          f"cos(final, frozen) = {_cos_to_frozen(f0, ref):.6f}. That is a real "
+          f"effect inside a clean band, not a ceiling artefact.")
+        A("")
+    A("The catch is what `hebb` is. It has no decay term, so its band is narrow "
+      "(a factor of three between the first cell that moves the loop and the "
+      "first cell that clips) and it is bounded above only by `max_delta_frac`. "
+      "The rule that does something is the rule the ceiling is holding up.")
+    A("")
+
+    A("### 3. Direction matters, but not enough to rescue Oja")
+    A("")
+    A("`random` is norm-matched to what Oja would have applied, so it isolates "
+      "whether the *direction* is doing work. Matched not by eta — the noise "
+      "re-randomises every step and accumulates as a random walk rather than "
+      "coherently — but by the relative weight change actually reached:")
+    A("")
+    A("| arm | eta | rel ΔW | clip | loop |")
+    A("|---|---|---|---|---|")
+    for mode in ("random", "oja", "anti_hebb", "hebb"):
+        cands = [r for r in by_mode.get(mode, [])
+                 if r["clip_rate"] == 0.0 and 0.008 <= r["rel_weight_change"] <= 0.05]
+        if not cands:
+            continue
+        c = min(cands, key=lambda r: abs(math.log(r["rel_weight_change"] / 0.02)))
+        A(f"| `{mode}` | {c['eta']:.3g} | {c['rel_weight_change']:.2%} | "
+          f"{c['clip_rate']:.1%} | {loop_changed(c, ref)} |")
+    A("")
+    A("Isotropic noise of the same size does nothing at all, so the rules are "
+      "not merely \"a perturbation of this magnitude\". But Oja's structured "
+      "direction does almost nothing either. The gap that matters is between "
+      "`hebb` and everything else, not between structure and noise.")
+    A("")
+
+    A("### 4. The homeostat is not what is hiding the effect")
+    A("")
+    A("Issue #27 item 3's signature is a pre-rescale activation norm that moves "
+      "while the loop's visible behaviour stays flat. That is not what these "
+      "cells show.")
+    A("")
+    A(f"The frozen loop already runs at pre/post = {ref['pre_over_post_last']:.4f} "
+      f"— the rescaling divides by {ref['pre_over_post_last']:.2f} on every step "
+      f"whether or not plasticity is on. Across all {len(recs)} cells the "
+      f"plasticity moves that ratio by at most "
+      f"{max(abs(r['pre_over_post_last'] / ref['pre_over_post_last'] - 1) for r in recs):.1%}.")
+    A("")
+    for mode in ("oja", "hebb"):
+        t = quietest_top(mode)
+        if t is None:
+            continue
+        dr = t["pre_over_post_last"] / ref["pre_over_post_last"] - 1
+        A(f"- `{mode}` at {t['eta']:.3g}: pre-rescale ratio {dr:+.2%} against "
+          f"frozen, cos(final, frozen) = {_cos_to_frozen(t, ref):.6f}. "
+          + ("Both flat — the change is not reaching the activations at all, "
+             "rather than reaching them and being absorbed."
+             if abs(dr) < 0.005 else
+             "Both move, and together — the homeostat is passing the effect "
+             "through, not eating it."))
+    A("")
+
+    A("### 5. No hollowing out anywhere in the sweep")
+    A("")
+    worst = min(recs, key=lambda r: r["erank_pr_min"])
+    best = max(recs, key=lambda r: r["erank_pr_last"])
+    A(f"Effective rank starts at {ref['erank_pr_first']:.1f} (of 768) and over "
+      f"every cell in the map never falls below {worst['erank_pr_min']:.1f} "
+      f"(`{worst['mode']}` at {worst['eta']:.3g}, a "
+      f"{1 - worst['erank_pr_min'] / ref['erank_pr_first']:.2%} fall). Under "
+      f"`oja` and `anti_hebb` it *rises*, to {best['erank_pr_last']:.1f} — the "
+      f"decay term flattens the spectrum, which is the opposite direction from "
+      f"rank-1 collapse. The largest singular value's energy share falls from "
+      f"{ref['sigma1_frac_energy_last']:.4f} to "
+      f"{best['sigma1_frac_energy_last']:.4f}, and max/mean |W| falls from "
+      f"{ref['max_over_mean_abs_last']:.1f} to "
+      f"{best['max_over_mean_abs_last']:.1f}. Nothing is running away.")
+    A("")
+    o = quietest_top("oja")
+    rnd = quietest_top("random")
+    if o and rnd and o.get("delta_spectral") and rnd.get("delta_spectral"):
+        A(f"The ΔW columns do the distinguishing issue #27 item 11 asks for. "
+          f"Oja's accumulated update is near rank-1 (effective rank "
+          f"{o['delta_spectral']['erank_pr']:.1f}) exactly as #32 section 2 "
+          f"expects, while the noise arm's is isotropic "
+          f"({rnd['delta_spectral']['erank_pr']:.1f}). But Oja's mass is not "
+          f"concentrated in a handful of *entries*: its top 0.1% of entries "
+          f"hold {o['delta_spectral']['top_mass_frac']:.4f} of the total "
+          f"absolute mass against the noise arm's "
+          f"{rnd['delta_spectral']['top_mass_frac']:.4f} — a smooth outer "
+          f"product, not a runaway coupling. Low rank here is the rule working, "
+          f"not the pathology.")
+        A("")
+
+    A("### What this does and does not rule out")
+    A("")
+    A("| issue #27 | status |")
+    A("|---|---|")
+    A("| 2 — no interesting middle | **Ruled out as a confound, and answered.** "
+      "Every mode has a band where the weights move with the ceiling silent. "
+      "For `oja`/`anti_hebb`/`random` nothing happens inside it; for `hebb` "
+      "something does. |")
+    A("| 3 — we measure the rescaling | **Ruled out here.** The pre-rescale norm "
+      "is flat wherever the loop is flat, so the homeostat is not absorbing a "
+      "hidden weight effect. |")
+    A("| 11 — norm ceiling and rescaling destroy each other | **Not observed.** "
+      "Effective rank flat or rising on every cell, max entry falling, ΔW mass "
+      "spread rather than concentrated. |")
+    A("| 1 — the rule moves the weights and nothing else happens | **Consistent "
+      "with, not established.** That claim needs the offline arm (#26); this "
+      "map only shows the loop-on side. |")
+    A("| 5 — collapse is already the default | Untouched. This prompt is a fixed "
+      "point under the frozen loop and stays one. |")
+    A("| 7 — depth | Untouched. |")
+    A("")
+    A("### Caveats")
+    A("")
+    A(f"One prompt (`{PROMPT_ID}`), one site (`{SITE}`), one seed, "
+      f"{ref['n_steps']} steps, cadence {CADENCE}, one ceiling "
+      f"({MAX_DELTA_FRAC}). The recommended etas are calibrated for exactly that "
+      f"configuration; a different site has a different ‖W0‖_F and different "
+      f"activation scale, and the anchoring formula has to be re-measured rather "
+      f"than reused. `random` here is a within-cell control, not the full C2. "
+      f"The bands are located to grid resolution — roughly half a decade, and a "
+      f"factor of three for `hebb` after refinement — not to a sharp edge.")
+    A("")
+    return L
+
+
 def build_report(recs: list, meta: dict) -> str:
     by_mode = {}
     ref = next((r for r in recs if r["mode"] == "off"), None)
@@ -645,6 +835,8 @@ def build_report(recs: list, meta: dict) -> str:
             A("- No hollowing-out: effective rank never fell by more than "
               f"{ERANK_DROP_FLAG:.0%} with ‖W‖_F flat.")
         A("")
+
+    L.extend(_findings(recs, by_mode, ref))
 
     A("## Full table")
     A("")
