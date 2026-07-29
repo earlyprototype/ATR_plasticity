@@ -104,7 +104,7 @@ def _unavailable(reason: str):
     Skipping is right on a laptop with no network: a red suite on a machine that
     was never going to have the model tells you nothing about the code. It is
     exactly wrong in CI. Every test here needs GPT-2, so a runner without it
-    skips the entire suite and exits 0 -- measured: 84 of 91 skipped, green.
+    skips the entire suite and exits 0 -- 227 tests, essentially all skipped, green.
     A check that cannot fail is worse than no check, which is the same argument
     this suite makes about the controls themselves.
 

@@ -6,17 +6,14 @@
 
 ---
 
-## 0. The two repos do not currently compose
+## 0. How the two repos compose
 
-This was checked, not assumed. On a TransformerLens `HookedTransformer`:
+They now compose, and CI keeps them composed. Verified on a TransformerLens
+`HookedTransformer`:
 
 ```
-candidate_sites(model)                      -> 0 sites
-candidate_sites(model, prefix="blocks")     -> 0 sites
-OjaPlasticity(m, site="transformer.h.6.mlp.c_proj")
-    -> AttributeError: 'HookedTransformer' object has no attribute 'transformer'
-OjaPlasticity(m, site="blocks.6.mlp.W_out")
-    -> TypeError: no 2-D .weight; not a supported target
+candidate_sites(model)                     -> ['blocks.0.mlp', ..., 'blocks.11.mlp']
+OjaPlasticity(model, site="blocks.6.mlp")  -> attaches, via _TransformerLensMLPSite
 ```
 
 `plasticity.py` was written against HuggingFace GPT-2 module naming — dotted paths
@@ -28,12 +25,14 @@ There is also no per-step entry point. `atr_engine.run_atr_loop(model, prompt, .
 runs the whole loop internally, with its own injection hook; `controls.py` expects
 `atr_step(model, r) -> r_next`.
 
-Both gaps must close before any number here means anything.
+Both gaps are now closed. EXP-000 below records how each half was built and what it
+was checked against — a record, not a to-do list.
 
-## EXP-000 — The bridge (do this first)
+## EXP-000 — The bridge (built, and CI-verified)
 
-**A. A TransformerLens site adapter.** The pre- and post-synaptic activity for
-`W_out` is exactly recoverable from two TL hook points, verified:
+**A. The TransformerLens site adapter — `_TransformerLensMLPSite` in `plasticity.py`.**
+The pre- and post-synaptic activity for `W_out` is exactly recoverable from two TL
+hook points, and the adapter reads it there — there is no module to forward-hook:
 
 | Quantity | Where | Shape |
 |:---|:---|:---|
@@ -45,16 +44,21 @@ Both gaps must close before any number here means anything.
 `(n_in, n_out)` convention the learning rules are written in**, so `_hebb_term` and
 `_oja_decay` carry over unchanged.
 
-**B. A per-step engine.** Factor `atr_step(model, r) -> r_next` out of
-`run_atr_loop` without changing its behaviour: inject at `blocks.0.hook_resid_pre`,
-read at `blocks.11.hook_resid_post`, rescale to the *initial* norm (`x · ‖x₀‖/‖x‖`),
-not to unit norm. Copy it; do not reimplement it. Acceptance test: the factored step,
-iterated, reproduces `run_atr_loop`'s trajectory bit-exactly for 20 iterations.
+**B. The per-step engine — `atr_bridge.make_atr_step`.** `atr_step(model, r) -> r_next`
+was factored out of `run_atr_loop` by copying its loop body verbatim — inject at
+`blocks.0.hook_resid_pre`, read at `blocks.11.hook_resid_post`, rescale to the
+*initial* norm (`x · ‖x₀‖/‖x‖`), not to unit norm — not reimplemented. The acceptance
+test `test_step_reproduces_run_atr_loop_bit_exactly` iterates it and requires bit-exact
+agreement with `run_atr_loop`; CI checks out the parent repo and runs it under
+`ATR_REQUIRE_PARENT=1`, so the guarantee holds on every push, not just the author's
+machine.
 
-**C. The controls, on that stack.** C0 must pass bit-exactly with the adapter
-installed at eta=0 before anything below is run. Note the known caveat: C0 has been
-seen to fail intermittently at ~1e-4 on CPU and could not be reproduced in 80
-repeats — reproduce against an unhooked control before suspecting the hooks.
+**C. The controls, on that stack.** With A and B in place, what remained was running
+the controls on the real stack — C0 bit-exact with the adapter installed at eta=0 is
+the gate. Those on-the-real-stack runs have since been exercised; see
+`EXP_001_RESULTS.md`. The known caveat still stands: C0 has been seen to fail
+intermittently at ~1e-4 on CPU and could not be reproduced in 80 repeats — reproduce
+against an unhooked control before suspecting the hooks.
 
 ---
 
@@ -140,18 +144,22 @@ about perturbation magnitude, not about Hebbian learning.
 2. **C1** revert — the cycle must return to `cos(A, f(f(A))) = 1.000000` after
    `revert()`, from the same saved state.
 3. **C2** norm-matched random direction at whatever eta first moves the cycle. Two known
-   subtleties, both of which must be handled before C2 is run:
+   subtleties — the first to handle when C2 is run, the second now handled in `controls.py`:
 
    - The norm match is per-update, and accumulated Oja steps are correlated where
      random ones are a walk, so cumulative drift diverges with iteration count
      (ratio ~1/√2 after two applies, measured). Compare at matched *cumulative*
      `delta_frac`, not just at matched eta.
-   - **`c2_random_direction` never plumbs `seed` through** — both arms construct
-     `OjaPlasticity` without it, so the random arm always draws with `seed=0`. As
-     it stands C2 is a single random sample, not a distribution. For a binary
-     outcome like "did the cycle break", one draw is not enough: run the random arm
-     over several seeds and report how many broke it. `OjaPlasticity` already takes
-     the parameter; the control just does not expose it. Fix before running C2.
+   - **`c2_random_direction` now runs the random arm over multiple seeds.** It takes
+     a `seeds` argument (default 0-9), constructs `OjaPlasticity(..., mode="random",
+     seed=seed)` once per seed, and reports the spread as a distribution —
+     `cos_per_seed`, with `cos_min`/`cos_max` and the mean `cos_oja_vs_random_final`;
+     `tests/test_controls.py::test_c2_random_arm_actually_varies_with_the_seed` pins
+     that the arm actually varies with the seed. One nuance carries over from
+     `EXP_001_RESULTS.md`: `seed` reaches `OjaPlasticity` only through its RNG, drawn
+     from in `mode="random"` and nowhere else — deterministic rules like `hebb` give
+     bit-identical runs across seeds, so a multi-seed spread is a control for the
+     random arm specifically, not for the rule arms.
 4. **The fixed-point control:** the same eta on `state_prolet.pt`. If plasticity
    breaks the cycle *and* destroys the fixed point, the result is "perturbing weights
    changes things". If the cycle breaks while the fixed point holds, the result is

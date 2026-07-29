@@ -110,6 +110,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from atr_bridge import initial_state, make_atr_step                  # noqa: E402
+from plasticity import _make_site                                    # noqa: E402
 from offline_control import (                                        # noqa: E402
     compare_states,
     compare_weights,
@@ -130,7 +131,14 @@ import baseline_basins as bb                                         # noqa: E40
 PARENT_DEFAULT = os.environ.get("ATR_PARENT_PATH", bb.PARENT_DEFAULT)
 
 MODEL_NAME = "gpt2-small"
+# `--site` overrides this at the command line (main() reassigns SITE from it) so
+# the single-site "separate" arm can target any site or head without editing the
+# file. DEFAULT_SITE is the fixed reference ETA below is anchored to: ETA was
+# derived from blocks.6.mlp's ||W0||_F and U_ref[hebb], so a non-default site
+# re-uses an anchor that is not its own (main() says so) and the default path is
+# bit-identical.
 SITE = "blocks.6.mlp"
+DEFAULT_SITE = "blocks.6.mlp"
 LAYER_START = 0
 LAYER_END = 11
 # The severed readout. Below the plastic site at layer 6, so the loop cannot
@@ -1369,6 +1377,12 @@ def read_all(out_dir: Path) -> list:
 
 
 def main(argv=None):
+    # SITE is a module global read by the cell runners, build_report() and the
+    # meta block; --site reassigns it below so the override threads through all
+    # of them. Declared here, before the `default=SITE` read, as `global` must
+    # precede any use of the name in the function.
+    global SITE
+
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--shard", type=int, default=0)
@@ -1381,7 +1395,17 @@ def main(argv=None):
                          "directions; needs the model but no loop runs")
     ap.add_argument("--out", type=str, default=str(OUT_DIR))
     ap.add_argument("--report", type=str, default=str(REPORT_PATH))
+    ap.add_argument("--site", type=str, default=SITE,
+                    help="target site for the single-site arm, e.g. blocks.8.mlp "
+                         "or blocks.11.attn.head.7. Default keeps the calibrated "
+                         "blocks.6.mlp. A non-default site re-uses the default's "
+                         "ETA anchor -- re-derive ETA for a clean run; the default "
+                         "path is unchanged.")
     args = ap.parse_args(argv)
+
+    # Reassign once from --site; with the default this is a no-op and the run is
+    # bit-identical.
+    SITE = args.site
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1485,6 +1509,11 @@ def main(argv=None):
     print(f"[config] {MODEL_NAME} site={SITE} mode={MODE} eta={ETA:.6g} "
           f"steps={N_STEPS} threads={args.threads} "
           f"shard={args.shard}/{args.nshards}", flush=True)
+    if SITE != DEFAULT_SITE:
+        print(f"[site] non-default --site {SITE!r}: ETA={ETA:.6g} was anchored to "
+              f"{DEFAULT_SITE!r}'s ||W0||_F=164.854 and U_ref[hebb]=350; re-derive "
+              "ETA for a clean run (see the module docstring's eta provenance).",
+              flush=True)
     print(f"[plan] {len(mine)} cells in this shard, {len(done)} recorded, "
           f"{len(todo)} to run -> {jsonl.name}", flush=True)
     if not todo:
@@ -1503,12 +1532,13 @@ def main(argv=None):
     # Every cell must start from the same W0. Every arm reverts in a finally
     # block, but a leak would look like a feedback effect, so it is checked
     # rather than assumed.
-    # Derived from SITE, not hardcoded: a literal blocks[6].mlp would keep
-    # comparing an untouched matrix if SITE ever moved, and the guard would
-    # pass while the real plastic site leaked between cells.
-    _site_layer = int(SITE.split(".")[1])
+    # Read through the adapter, not a literal blocks[L].mlp.W_out: that assumed an
+    # MLP site and would compare an untouched matrix for a per-head or attention
+    # --site while the real plastic site leaked between cells. `_make_site`
+    # resolves whatever SITE names, exactly as the rule does.
+    _guard = _make_site(model, SITE)
     def _live_w0():
-        return model.blocks[_site_layer].mlp.W_out
+        return _guard.weight
     w0_ref = _live_w0().detach().clone()
 
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

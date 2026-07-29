@@ -92,7 +92,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from atr_bridge import initial_state, make_atr_step            # noqa: E402
-from plasticity import OjaPlasticity                            # noqa: E402
+from plasticity import OjaPlasticity, _make_site               # noqa: E402
 import baseline_basins as bb                                    # noqa: E402  (helpers, reused)
 
 
@@ -113,7 +113,15 @@ LAYER_END = 11
 # TransformerLens, so this is the spelling that can actually be attached to.
 # ||W0||_F = 164.854 here against 164.862 quoted for the HuggingFace matrix; the
 # gap is TransformerLens's weight processing, not a different matrix.
+#
+# `--site` overrides this at the command line (main() reassigns SITE from it) so
+# the single-site "separate" sweep can target any site or head without editing the
+# file. DEFAULT_SITE is kept as the fixed reference the calibration below is
+# anchored to: `U_REF` and `W0_NORM_CALIBRATED` were measured on it, so a
+# non-default site re-uses an anchor that does not belong to it (main() says so
+# loudly) and the default path stays bit-identical.
 SITE = "blocks.6.mlp"
+DEFAULT_SITE = "blocks.6.mlp"
 
 # One prompt, fixed. A01_physics: first in the parent library's sweep order,
 # lands in `prolet` (the modal basin, 43.2% published) and converges to a fixed
@@ -770,7 +778,10 @@ def build_report(recs: list, meta: dict) -> str:
     A(f"| | |")
     A("|---|---|")
     A(f"| model | {MODEL_NAME}, frozen, CPU, float32 |")
-    A(f"| site | `{SITE}` (= `transformer.h.6.mlp.c_proj`), (3072, 768) |")
+    if SITE == DEFAULT_SITE:
+        A(f"| site | `{SITE}` (= `transformer.h.6.mlp.c_proj`), (3072, 768) |")
+    else:
+        A(f"| site | `{SITE}` |")
     A(f"| ‖W0‖_F | {_fmt(ref['W0_norm'], '.6f') if ref else '--'} (float64) |")
     A(f"| prompt | `{PROMPT_ID}` — {json.dumps(ref['prompt']) if ref else ''} |")
     n_steps = ref["n_steps"] if ref else meta.get("n_steps", N_STEPS)
@@ -997,6 +1008,12 @@ def read_all(out_dir: Path) -> list:
 
 
 def main(argv=None):
+    # SITE is a module global read by run_cell(), build_report() and the meta
+    # block; --site reassigns it below so the override threads through all of
+    # them. Declared here, before the `default=SITE` read, as `global` must
+    # precede any use of the name in the function.
+    global SITE
+
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--steps", type=int, default=N_STEPS)
@@ -1005,9 +1022,20 @@ def main(argv=None):
     ap.add_argument("--threads", type=int, default=TORCH_THREADS)
     ap.add_argument("--parent", type=str, default=PARENT_DEFAULT)
     ap.add_argument("--report-only", action="store_true")
+    ap.add_argument("--site", type=str, default=SITE,
+                    help="target site for the single-site 'separate' sweep, e.g. "
+                         "blocks.8.mlp or blocks.11.attn.head.7. Default keeps the "
+                         "calibrated blocks.6.mlp. A non-default site re-uses the "
+                         "default's eta anchor (U_REF, W0_NORM_CALIBRATED), which "
+                         "was measured on blocks.6.mlp -- re-measure them for a "
+                         "clean sweep; the default path is unchanged.")
     ap.add_argument("--out", type=str, default=str(OUT_DIR))
     ap.add_argument("--report", type=str, default=str(REPORT_PATH))
     args = ap.parse_args(argv)
+
+    # Reassign once from --site; with the default this is a no-op and the run is
+    # bit-identical.
+    SITE = args.site
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1088,10 +1116,19 @@ def main(argv=None):
     model.requires_grad_(False)
     print(f"[model] loaded in {time.time() - t_load:.1f}s", flush=True)
     assert model.cfg.n_layers - 1 == LAYER_END
-    w0_now = model.blocks[int(SITE.split(".")[1])].mlp.W_out.double().norm().item()
-    assert abs(w0_now - W0_NORM_CALIBRATED) < 1e-2, (
-        f"||W0||_F is {w0_now:.6f}, not the {W0_NORM_CALIBRATED} eta_for() was "
-        "calibrated against -- every D target and recommended eta would be stale")
+    # Read the live weight through the same adapter the rule uses, so a per-head
+    # or attention --site resolves to the right matrix instead of assuming an MLP
+    # W_out. For the default site this is exactly blocks[6].mlp.W_out.
+    w0_now = _make_site(model, SITE).weight.double().norm().item()
+    if SITE == DEFAULT_SITE:
+        assert abs(w0_now - W0_NORM_CALIBRATED) < 1e-2, (
+            f"||W0||_F is {w0_now:.6f}, not the {W0_NORM_CALIBRATED} eta_for() was "
+            "calibrated against -- every D target and recommended eta would be stale")
+    else:
+        print(f"[site] non-default --site {SITE!r}: ||W0||_F = {w0_now:.6f}. "
+              f"eta_for() anchors to W0_NORM_CALIBRATED={W0_NORM_CALIBRATED} and "
+              f"U_REF measured on {DEFAULT_SITE!r}; re-measure both for a clean "
+              "sweep (see Caveats).", flush=True)
 
     # Iteration 0 and the step closure are built ONCE, on the frozen weights,
     # and shared by every cell. Rebuilding `initial_state` inside a cell would
@@ -1106,13 +1143,16 @@ def main(argv=None):
 
     # Every cell must start from the same W0. `run_cell` reverts in a finally
     # block, but a leak would show up as a slow drift across cells that looked
-    # like a step-size effect, so it is asserted rather than assumed.
-    w0_ref = model.blocks[6].mlp.W_out.detach().clone()
+    # like a step-size effect, so it is asserted rather than assumed. Read through
+    # the adapter, not a literal blocks[6].mlp.W_out, so the guard watches whatever
+    # SITE names rather than an untouched matrix while the real site leaks.
+    _guard = _make_site(model, SITE)
+    w0_ref = _guard.weight.detach().clone()
 
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     t0 = time.time()
     for k, c in enumerate(todo, 1):
-        if not torch.equal(model.blocks[6].mlp.W_out, w0_ref):
+        if not torch.equal(_guard.weight, w0_ref):
             raise RuntimeError(
                 f"the live weight at {SITE} is not W0 at the start of cell "
                 f"{c['mode']}@{c['eta']:.6g}; a previous cell's revert() did not "
