@@ -189,7 +189,7 @@
     },
     "episode:A14_kant:seed0": {
       "basin_frozen": "Divine",
-      "basin_closed": null,
+      "basin_closed": "Divine",
       "ranks": {
         " prolet": {
           "logit": -0.13890418339674301,
@@ -207,7 +207,7 @@
     },
     "episode:A08_linguistics:seed0": {
       "basin_frozen": "Divine",
-      "basin_closed": null,
+      "basin_closed": "Divine",
       "ranks": {
         " prolet": {
           "logit": -0.13782889607780763,

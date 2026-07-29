@@ -163,7 +163,7 @@ The reference is iterated in **lockstep**, not held fixed at the episode's last 
 
 Gap curve, lockstep: 4.747e-03 at iteration 1 → 1.322e-12 at 225. Fixed-target: 4.781e-03 → 3.189e-05.
 
-**The contraction measured here is faster than the ~0.968 the horizon was justified against**: 0.9521 per iteration on this trajectory, about 47 iterations per decade of displacement rather than 71. The 1000-iteration horizon was not needed in the end — but it was chosen before the run, and at the 0.968 figure it was the right choice.
+**The contraction measured here is faster than the ~0.968 the horizon was justified against**: 0.9521 per iteration on this trajectory, about 47 iterations per decade of displacement rather than 71. The 1000-iteration horizon was not needed in the end -- but it was chosen before the run, and at the 0.968 figure it was the right choice.
 
 ## 7. What this does and does not establish
 
@@ -210,8 +210,13 @@ Gap curve, lockstep: 4.747e-03 at iteration 1 → 1.322e-12 at 225. Fixed-target
     "A02_medical",
     "A04_climate"
   ],
+  "provenance_warning": "cells in this report were produced under more than one repo revision; see repo_revs",
   "python_version": "3.11.15",
   "repo_rev": "af8082dbcb18c4e856d4d432e5ae703848eced45",
+  "repo_revs": [
+    "af8082dbcb18c4e856d4d432e5ae703848eced45",
+    "bf2719cf2c33e68438e8cbe70fcb1ae6ac59a2eb"
+  ],
   "revert_horizon": 1000,
   "seeds": [
     0,
@@ -224,7 +229,12 @@ Gap curve, lockstep: 4.747e-03 at iteration 1 → 1.322e-12 at 225. Fixed-target
   "torch_threads": 1,
   "torch_version": "2.13.0+cpu",
   "transformer_lens_version": "3.5.1",
-  "wall_clock_seconds": 282.9,
+  "wall_clock_seconds": 3181.7000000000003,
+  "wall_clock_seconds_per_meta": [
+    282.9,
+    1779.4,
+    1119.4
+  ],
   "y_sources": [
     "recorded",
     "recomputed"
