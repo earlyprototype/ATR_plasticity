@@ -15,7 +15,7 @@ closed loop:
 4. Write it back in at the first block, `blocks.0.hook_resid_pre`.
 5. Repeat, for hundreds of iterations.
 
-The weights never change. This is inference, run in a circle.
+The weights never change; only the residual-stream state carried between iterations does.
 
 Run normally, a transformer is a single pass — you put a prompt in, you get logits out,
 nothing persists. Iterated, the same weights define a map from a residual-stream state to
@@ -24,8 +24,8 @@ cycles and basins are properties of that map. They are determined by the weights
 ordinary inference never brings them into view because ordinary inference applies the map
 once.
 
-The parent project measured them: 125 prompts settle into a small number of attractors,
-one of which is a two-step cycle rather than a fixed point.
+The parent project ran this loop over 125 prompts: the trajectories converge to a small
+number of end states, one of which is a two-step cycle rather than a fixed point.
 
 ## Why add plasticity
 
@@ -51,7 +51,7 @@ it.
 
 The module knows nothing about the ATR loop. It installs hooks, accumulates an update,
 and applies it when told. The loop is imported from the parent, unchanged, so the only
-new and untested thing is the plasticity layer.
+new code in this repo is the plasticity layer.
 
 ### Four rules
 
@@ -68,12 +68,11 @@ random     norm-matched noise
 brake: it opposes growth and keeps the weight bounded. Hebb has no brake.
 
 Anti-Hebbian negates the reinforcement term **only**. Negating the learning rate instead
-would flip the brake as well, turning it into an accelerator — a different rule with a
-different fate, not the same rule run backwards.
+would flip the brake as well, turning it into an accelerator.
 
 `random` is the control arm: an update of the same magnitude with no structure. If a
-result appears under `random` too, it is a consequence of perturbing the matrix, not of
-the rule.
+result appears under `random` too, that indicates the result follows from perturbing the
+matrix rather than from the rule's structure.
 
 ### A step size and a cadence
 
@@ -159,8 +158,8 @@ non-finite count, largest entry, and effective rank.
 
 Effective rank is there for a specific failure: one entry runs away, the normaliser
 rescales, and the rest of the matrix is flattened — while the norm stays constant and the
-clipping rate stays low. Every conventional reading looks healthy. Effective rank is
-tracked so that this failure mode is visible when norm and clipping rate are not.
+clipping rate stays low. It is tracked so that this failure mode is visible when norm and
+clipping rate are not.
 
 ## Reading order
 

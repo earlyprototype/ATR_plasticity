@@ -22,13 +22,13 @@ Only `mode` and `eta` vary between cells. Prompt, site, step count, seed, ceilin
 
 Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), effective rank 642.64, pre-rescale ‖x‖ 4782.7781 against post-rescale 1289.2263.
 
-`off` accumulates the statistics and applies nothing, so this row is both the baseline every other cell is read against and the C0 identity check on the instrument.
+`off` accumulates the statistics and applies nothing. Other cells are compared against this row, which is the C0 identity check on the instrument.
 
 ## Verdicts
 
 ### `hebb`
 
-**Recommended eta: 6.8e-05** — the geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 7.07e-05.
+Geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)): **6.8e-05**. Nearest measured cell: 7.07e-05.
 
 - Nothing happens at or below **3.93e-06** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **0.00022**.
@@ -36,7 +36,7 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### `oja`
 
-**Recommended eta: 3.1e-06** — the geometric middle of the usable band 9.81e-07 … 9.81e-06 (3 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 2.94e-06.
+Geometric middle of the usable band 9.81e-07 … 9.81e-06 (3 cell(s)): **3.1e-06**. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **2.94e-05**.
@@ -44,7 +44,7 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### `anti_hebb`
 
-**Recommended eta: 5.37e-06** — the geometric middle of the usable band 9.81e-07 … 2.94e-05 (4 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 2.94e-06.
+Geometric middle of the usable band 9.81e-07 … 2.94e-05 (4 cell(s)): **5.37e-06**. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **9.81e-05**.
@@ -52,7 +52,7 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### `random`
 
-**Recommended eta: 9.31e-06** — the geometric middle of the usable band 2.94e-06 … 2.94e-05 (3 cell(s)), where the ceiling is quiet and the weights are actually moving. Nearest measured cell: 9.81e-06.
+Geometric middle of the usable band 2.94e-06 … 2.94e-05 (3 cell(s)): **9.31e-06**. Nearest measured cell: 9.81e-06.
 
 - Nothing happens at or below **9.81e-07** (relative weight change < 0.001).
 - Ceiling audible / diverges at or above **9.81e-05**.
@@ -68,13 +68,13 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 ### 2. `hebb`: basin change inside the ceiling-silent band
 
-The basin changes at eta 7.07e-05 — `prolet` → `comrade` — at 1.12% relative weight change with the ceiling **silent** (0.0%), cos(final, frozen) = 0.995000. The clip rate at this cell is 0.0%, so the basin change occurred with the norm ceiling never engaging.
+The basin changes at eta 7.07e-05 — `prolet` → `comrade` — at 1.12% relative weight change with the ceiling **silent** (0.0%), cos(final, frozen) = 0.995000.
 
-It has no decay term, so its band is narrow (a factor of three between the first cell that moves the loop and the first cell that clips) and it is bounded above only by `max_delta_frac`.
+`hebb` has no decay term. Its band spans a factor of three between the first cell that changes the loop and the first cell that clips, and it is bounded above only by `max_delta_frac`.
 
 ### 3. Norm-matched noise control
 
-`random` is norm-matched to what Oja would have applied, so it isolates whether the *direction* is doing work. Matched not by eta — the noise re-randomises every step and accumulates as a random walk rather than coherently — but by the relative weight change actually reached:
+`random` is norm-matched to what Oja would have applied. Matched not by eta — the noise re-randomises every step and accumulates as a random walk rather than coherently — but by the relative weight change actually reached:
 
 | arm | eta | rel ΔW | clip | loop |
 |---|---|---|---|---|
@@ -83,28 +83,28 @@ It has no decay term, so its band is narrow (a factor of three between the first
 | `anti_hebb` | 9.81e-06 | 2.71% | 0.0% | cos(final,frozen)=0.998670 |
 | `hebb` | 0.000118 | 2.20% | 0.0% | basin 'prolet'->'comrade'; cos(final,frozen)=0.982135 |
 
-At eta 2.94e-05 `random` reaches 1.84% relative weight change with no change in basin, lag-1 or cos(final, frozen), against `oja` 2.92% and `hebb` 2.20% at their own band cells. But Oja's structured direction does almost nothing either.
+At eta 2.94e-05 `random` reaches 1.84% relative weight change with no change in basin, lag-1 or cos(final, frozen), against `oja` 2.92% and `hebb` 2.20% at their own band cells. At `oja`'s 9.81e-06 cell the basin and lag-1 are unchanged and cos(final, frozen) = 0.999222.
 
-### 4. The homeostat is not what is hiding the effect
+### 4. Pre-rescale activation norm across the sweep
 
 Issue #27 item 3's signature is a pre-rescale activation norm that moves while the loop's visible behaviour stays flat. That is not what these cells show.
 
 The frozen loop already runs at pre/post = 3.7098 — the rescaling divides by 3.71 on every step whether or not plasticity is on. Across all 35 cells the plasticity moves that ratio by at most 3.5%.
 
-- `oja` at 9.81e-06: pre-rescale ratio -0.34% against frozen, cos(final, frozen) = 0.999222. Both flat — the change is not reaching the activations at all, rather than reaching them and being absorbed.
-- `hebb` at 0.000118: pre-rescale ratio +2.05% against frozen, cos(final, frozen) = 0.982135. Both move, and together — the homeostat is passing the effect through, not eating it.
+- `oja` at 9.81e-06: pre-rescale ratio -0.34% against frozen, cos(final, frozen) = 0.999222. Both flat.
+- `hebb` at 0.000118: pre-rescale ratio +2.05% against frozen, cos(final, frozen) = 0.982135. Both move.
 
 ### 5. No hollowing out anywhere in the sweep
 
-Effective rank starts at 642.6 (of 768) and over every cell in the map never falls below 640.5 (`hebb` at 0.0393, a 0.33% fall). Under `oja` and `anti_hebb` it *rises*, to 647.3 — the decay term flattens the spectrum, which is the opposite direction from rank-1 collapse. The largest singular value's energy share falls from 0.0323 to 0.0253, and max/mean |W| falls from 33.4 to 31.7. Nothing is running away.
+Effective rank starts at 642.6 (of 768) and over every cell in the map never falls below 640.5 (`hebb` at 0.0393, a 0.33% fall). Under `oja` and `anti_hebb` it *rises*, to 647.3 — the decay term flattens the spectrum, which is the opposite direction from rank-1 collapse. The largest singular value's energy share falls from 0.0323 to 0.0253, and max/mean |W| falls from 33.4 to 31.7.
 
-The ΔW columns do the distinguishing issue #27 item 11 asks for. Oja's accumulated update is near rank-1 (effective rank 2.2), while the noise arm's is isotropic (718.8). But Oja's mass is not concentrated in a handful of *entries*: its top 0.1% of entries hold 0.0263 of the total absolute mass against the noise arm's 0.0044.
+The ΔW effective-rank and top-0.1%-mass columns are reported for issue #27 item 11. Oja's accumulated update is near rank-1 (effective rank 2.2), while the noise arm's is isotropic (718.8). But Oja's mass is not concentrated in a handful of *entries*: its top 0.1% of entries hold 0.0263 of the total absolute mass against the noise arm's 0.0044.
 
 ### What this does and does not rule out
 
 | issue #27 | status |
 |---|---|
-| 2 — no interesting middle | **Ruled out as a confound, and answered.** Every mode has a band where the weights move with the ceiling silent. For `oja`/`anti_hebb`/`random` nothing happens inside it; for `hebb` something does. |
+| 2 — no interesting middle | **Ruled out as a confound.** Every mode has a band where the weights move with the ceiling silent. For `oja`/`anti_hebb`/`random` nothing happens inside it; for `hebb` something does. |
 | 3 — we measure the rescaling | **Ruled out here.** The pre-rescale norm is flat wherever the loop is flat, so the homeostat is not absorbing a hidden weight effect. |
 | 11 — norm ceiling and rescaling destroy each other | **Not observed.** Effective rank flat or rising on every cell, max entry falling, ΔW mass spread rather than concentrated. |
 | 1 — the rule moves the weights and nothing else happens | **Consistent with, not established.** That claim needs the offline arm (#26); this map only shows the loop-on side. |
@@ -113,7 +113,7 @@ The ΔW columns do the distinguishing issue #27 item 11 asks for. Oja's accumula
 
 ### Caveats
 
-One prompt (`A01_physics`), one site (`blocks.6.mlp`), one seed, 120 steps, cadence 1, one ceiling (0.05). The recommended etas are calibrated for exactly that configuration; a different site has a different ‖W0‖_F and different activation scale, and the anchoring formula has to be re-measured rather than reused. `random` here is a within-cell control, not the full C2. The bands are located to grid resolution — roughly half a decade, and a factor of three for `hebb` after refinement — not to a sharp edge.
+One prompt (`A01_physics`), one site (`blocks.6.mlp`), one seed, 120 steps, cadence 1, one ceiling (0.05). The etas quoted above are calibrated for exactly that configuration; a different site has a different ‖W0‖_F and different activation scale, and the anchoring formula has to be re-measured rather than reused. `random` here is a within-cell control, not the full C2. The bands are located to grid resolution — roughly half a decade, and a factor of three for `hebb` after refinement — not to a sharp edge.
 
 ## Full table
 
@@ -200,7 +200,7 @@ Against the frozen `off` cell. `cos(final,frozen)` is between the position-mean 
 
 ## The homeostat
 
-The ATR loop rescales the state to ‖x₀‖ before every injection, so the post-rescale norm is a constant 1289.2263 on every cell by construction. The pre-rescale norm is what the forward pass actually produced. If the pre-rescale norm moves while the loop's visible behaviour does not, the rescaling absorbed the rule's effect (issue #27 item 3).
+The ATR loop rescales the state to ‖x₀‖ before every injection, so the post-rescale norm is a constant 1289.2263 on every cell by construction. The pre-rescale norm is what the forward pass actually produced. A pre-rescale norm that moves while the loop's visible behaviour does not is the signature issue #27 item 3 describes.
 
 | mode | eta | pre-rescale (first → last) | max | pre/post at end | loop changed |
 |---|---|---|---|---|---|
@@ -242,9 +242,9 @@ The ATR loop rescales the state to ‖x₀‖ before every injection, so the pos
 
 ## Hollowing out (issue #27 item 11)
 
-The failure where one entry runs away, the normaliser rescales, and the rest of the matrix is annihilated. ‖W‖_F stays flat and the clipping rate stays low throughout, so every conventional dial reads healthy. **Effective rank falling while ‖W‖_F is flat is the signature this section tests for.** `top 0.1% mass` is the column that separates it from Oja simply producing a near-rank-1 update: Oja's is a smooth outer product spread over every entry, the pathology is a handful of entries dominating.
+The failure where one entry runs away, the normaliser rescales, and the rest of the matrix is annihilated. ‖W‖_F stays flat and the clipping rate stays low throughout, so neither of those registers it. **Effective rank falling while ‖W‖_F is flat is the signature this section tests for.** `top 0.1% mass` is reported alongside ΔW effective rank so a near-rank-1 update can be distinguished from a handful of entries dominating.
 
-Note what the ceiling does to the first column. With `max_delta_frac` = 0.05, ‖delta‖_F cannot exceed 5% of ‖W0‖_F, so ‖W‖_F **structurally cannot run away** — its flatness is guaranteed by the same mechanism that would be doing the damage, and it therefore carries no information about whether the damage happened. The flatness threshold here is set at 6% (just above what the ceiling already promises), and effective rank, not ‖W‖_F, is the instrument.
+With `max_delta_frac` = 0.05, ‖delta‖_F cannot exceed 5% of ‖W0‖_F, so ‖W‖_F **structurally cannot run away** — its flatness is guaranteed by the same mechanism that would be doing the damage, and it therefore carries no information about whether the damage happened. The flatness threshold here is set at 6% (just above what the ceiling already promises), and effective rank, not ‖W‖_F, is the instrument.
 
 | mode | eta | ‖W‖_F range | erank first → last | min erank | σ₁ energy | max/mean |W| | top 0.1% mass | ΔW erank | ΔW top 0.1% mass |
 |---|---|---|---|---|---|---|---|---|---|

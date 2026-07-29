@@ -2,11 +2,11 @@
 
 **Status:** proposed, not run. Blocked on EXP-000 below.
 **Model:** GPT-2 Small, TransformerLens, layers 0→11.
-**Cost:** hours on a laptop CPU, not days.
+**Cost:** estimated single-digit hours on a laptop CPU.
 
 ---
 
-## 0. Read this first: the two repos do not currently compose
+## 0. The two repos do not currently compose
 
 This was checked, not assumed. On a TransformerLens `HookedTransformer`:
 
@@ -28,7 +28,7 @@ There is also no per-step entry point. `atr_engine.run_atr_loop(model, prompt, .
 runs the whole loop internally, with its own injection hook; `controls.py` expects
 `atr_step(model, r) -> r_next`.
 
-Both must close before any number here means anything.
+Both gaps must close before any number here means anything.
 
 ## EXP-000 — The bridge (do this first)
 
@@ -43,7 +43,7 @@ Both must close before any number here means anything.
 
 `y == x @ W_out + b_out` holds to 3.8e-06 (float32). **`W_out` is already in the
 `(n_in, n_out)` convention the learning rules are written in**, so `_hebb_term` and
-`_oja_decay` carry over unchanged — the adapter is plumbing, not maths.
+`_oja_decay` carry over unchanged.
 
 **B. A per-step engine.** Factor `atr_step(model, r) -> r_next` out of
 `run_atr_loop` without changing its behaviour: inject at `blocks.0.hook_resid_pre`,
@@ -98,24 +98,24 @@ destroys it.**
 - **Start:** the saved iteration-1000 state, not a fresh prompt run.
 - **eta ladder:** 0 (C0), then 1e-6, 3e-6, 1e-5, 3e-5, 1e-4. Half-orders.
 - **Horizon:** 200 iterations per eta. The cycle is locked in from ~250 and stable to
-  1000, so 200 is ample to see it break or hold.
+  1000; 200 iterations is the pre-registered horizon, and a break not visible within 200
+  is recorded as "no break at this horizon".
 - **Cadence: `k=1`. Apply every iteration. Do not sweep it.**
 - **Log per iteration:** cos at **lag 1 and lag 2**, L2(A,B), p(top1) and entropy in
   both phases, and `delta_norm` / `delta_frac` / `clipped` / `nonfinite`.
 
 ### Why cadence is fixed at 1
 
-There is a real aliasing trap here — the same one that hid F9 for months, one level
-up. Applying the update every `k=2` iterations on a period-2 cycle drives every update
-from phase A's activations and never phase B's: not plasticity on the cycle, but
-plasticity on half of it, biased along whatever direction separates the phases.
+There is a real aliasing trap here. Applying the update every `k=2` iterations on a
+period-2 cycle drives every update from phase A's activations and never phase B's:
+not plasticity on the cycle, but plasticity on half of it, biased along whatever
+direction separates the phases.
 
 The answer is not to reason carefully about which `k` is safe. It is to not create the
 problem: **`k=1` cannot alias against anything**, and it is also the tightest coupling
 of the two loops, which is the regime this experiment is about. Cadence is a free
-parameter with a real biological reading (the ratio of fast to slow dynamics) and it
-deserves a sweep — but not here, and not before a single-cadence result exists to
-compare a sweep against.
+parameter. A sweep is deferred — not here, and not before a single-cadence result
+exists to compare a sweep against.
 
 If cadence is ever swept, `k=2` on a period-2 cycle is the one value that must be read
 as a phase-locked special case rather than a point on a curve.
@@ -132,8 +132,7 @@ as a phase-locked special case rather than a point on a curve.
 **Kill conditions.** The experiment is void, not interesting, if: C0 fails on the real
 stack; `clipped` fires before the cycle changes; or the norm-matched random control
 (C2) breaks the cycle the same way Oja does — that last one would mean the finding is
-about perturbation magnitude, not about Hebbian learning, and the branch as framed is
-dead.
+about perturbation magnitude, not about Hebbian learning.
 
 ## 5. Controls, in order
 
@@ -141,7 +140,7 @@ dead.
 2. **C1** revert — the cycle must return to `cos(A, f(f(A))) = 1.000000` after
    `revert()`, from the same saved state.
 3. **C2** norm-matched random direction at whatever eta first moves the cycle. Two known
-   subtleties, both of which have to be handled or C2's verdict is not worth much:
+   subtleties, both of which must be handled before C2 is run:
 
    - The norm match is per-update, and accumulated Oja steps are correlated where
      random ones are a walk, so cumulative drift diverges with iteration count
@@ -161,18 +160,18 @@ dead.
 ## 6. What this does not ask
 
 Nothing here touches basin counts, the 125-prompt library, or the collapse question.
-Those need the full sweep and are the natural EXP-002. Chosen because it has an exact
-answer and an existing baseline measured to six decimal places.
+Those need the full sweep and are the natural EXP-002. This question was chosen because
+it has an exact answer and an existing baseline measured to six decimal places.
 
 ---
 
-## 7. The offline arm — a required arm, not an optional control
+## 7. The offline arm (required at every eta)
 
 **Added after the prior-art check.** `PRIOR_ART.md`, "The finding that changes our
 experiment": Oja's rule converges to the dominant eigenvector of the second-moment
 matrix of whatever activations pass through it, **and it does that with no feedback at
-all.** The weight matrix will move and the cycle will be perturbed regardless. So every
-outcome in §4 — cycle survives, cycle damps, period lengthens, trajectory diverges — is
+all.** Under Oja at eta>0 the weight matrix changes whether or not feedback is present.
+Every outcome in §4 — cycle survives, cycle damps, period lengthens, trajectory diverges — is
 consistent with the rule simply doing its job on a fixed activation distribution, and
 none of them is on its own evidence about the coupling this project is about.
 
@@ -183,8 +182,8 @@ EXP-001 therefore runs **two arms at every eta on the ladder**, not one.
 | Closed loop | Run the loop; every `k=1` iterations apply the rule to the activations flowing through right now. The changed `W_out` shapes the next iterate, which shapes the next update. |
 | Offline | Run the same loop **frozen**, recording those activations. Replay the recording through the same rule with no feedback. Install the resulting matrix. Re-run the loop frozen. |
 
-**The result is the difference between the arms.** A closed-loop number reported without
-its offline partner is not a finding and should not be written down.
+**The result is the difference between the arms.** A closed-loop number must be reported
+together with its offline partner.
 
 ### Implementation
 
@@ -242,8 +241,6 @@ round-trip error, but a replay carrying rounding the live arm never saw is not m
 memory escape hatch that keeps the arms matched is fewer steps, not lower precision.
 
 **On a mismatch, `run_matched_arms` raises `ArmsMismatchError` and reports no comparison.**
-That is deliberate. A mismatched number with a caveat attached is how the caveat gets
-lost on the way into a write-up.
 
 Two axes are worth reading the small print on:
 
@@ -253,11 +250,11 @@ Two axes are worth reading the small print on:
   raises `MemoryError` when a recording exceeds its budget instead of thinning it.
 - **`centring` currently reads `absent` in both arms**, because `plasticity.py` offers no
   centring option — neither `x` nor `y` is ever mean-subtracted. The axis passes by shared
-  absence, which is the honest state of that check and is written into the recorded string
-  rather than hidden behind a `True`. It is read off the object, so the day a `centre`
-  flag is added, an arm with it and an arm without stop matching automatically. **If
-  centring is ever added it must be added to both arms in the same commit** — PRIOR_ART is
-  explicit that applying it to one arm alone moves the fixed point by itself.
+  absence, recorded as the literal string `absent` rather than as `True`. It is read off
+  the object, so the day a `centre` flag is added, an arm with it and an arm without
+  stop matching automatically. **If centring is ever added it must be added to both arms
+  in the same commit** — PRIOR_ART is explicit that applying it to one arm alone moves
+  the fixed point by itself.
 
 ### Two paths, and which one "no feedback" means
 
@@ -277,7 +274,7 @@ only. `run_matched_arms` measures both by default; they answer different questio
 gap between them is the floor below which a `recorded`-mode divergence is not about
 feedback.
 
-### The detection limit — read this before believing any difference
+### The detection limit
 
 `tests/test_offline_control.py::test_a_site_the_loop_does_not_route_through` measures the
 floor directly. It reads the loop out at `blocks.3.hook_resid_post`, below the site, so
@@ -304,9 +301,9 @@ cannot resolve feedback here; they are not exact enough to subtract.
 is exactly zero.** Report `weight` alongside it, because it is the literal PRIOR_ART
 protocol, but report it next to its floor and not on its own.
 
-The zero floor is a defended property, not luck. It holds only because
-`offline_control._recompute_y` reproduces the site's **fused `torch.addmm`** bit for bit
-rather than merely mathematically — TransformerLens's `batch_addmm` flattens to 2-D and
+The zero floor holds only because `offline_control._recompute_y` reproduces the site's
+**fused `torch.addmm`** bit for bit rather than merely mathematically — TransformerLens's
+`batch_addmm` flattens to 2-D and
 calls `torch.addmm`, written that way to match HuggingFace's `Conv1D`. The obvious
 `x @ W + b` differs in the last bits (max|Δ| 1.9e-06 on `y` at this site), propagates into
 every offline update, and compounds: it put a floor of roughly **5e-09 relative Frobenius**
@@ -314,7 +311,8 @@ under the entire comparison. That floor was hardware-dependent — 2.9e-09 on on
 4.8e-09 on a GitHub Actions runner, same commit and same seed — which is the same class of
 trap as `initial_norm` reading 1468.48828125 on CI against 1468.4886474609375 locally.
 
-**Never assert a value for a floating-point floor; assert a bound.** The test does, and
+**Floating-point floors in this suite are asserted as bounds, not values, because the
+measured floor is hardware-dependent.** The test does so, and
 `test_recompute_y_reproduces_the_sites_own_forward_bit_exactly` pins the root cause
 separately so a regression names itself.
 
@@ -366,7 +364,7 @@ Add a row to §4:
 
 | Outcome | Reading |
 |:---|:---|
-| The arms agree (difference at or below the no-route floor) | **Feedback contributes nothing detectable at this eta.** It is not a failed run, and nothing may be tuned to make the number larger. |
+| The arms agree (difference at or below the no-route floor) | **Feedback contributes nothing detectable at this eta.** Nothing may be tuned to make the number larger. |
 
 `diff_over_drift ≈ 0` at every eta on the ladder would say the closed-loop result is Oja
 finding the dominant direction of the frozen loop's activations.

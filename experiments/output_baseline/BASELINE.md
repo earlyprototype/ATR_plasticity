@@ -30,7 +30,7 @@ Gate (the parent's, verbatim): `cos(mean_t, mean_t-lag) > 0.999` for 3 consecuti
 | -- of which still unsettled at the horizon | 0 | 0.0% |
 | Non-finite at any iteration | 0 | 0.0% |
 
-Classification key: `fixed-point` = passes the lag-1 gate. `period-2` = late-window lag-1 cosine at or below threshold with lag-2 cosine above it -- a state the lag-1 gate cannot pass by construction, not a state that failed to settle. `unsettled` = neither.
+Classification key: `fixed-point` = passes the lag-1 gate. `period-2` = late-window lag-1 cosine at or below threshold with lag-2 cosine above it -- a state the lag-1 gate cannot pass by construction. `unsettled` = neither.
 
 | Dynamical class | Count | Share |
 |:---|---:|---:|
@@ -165,9 +165,9 @@ Before trusting any period-2 verdict below, the detector was pointed at a state 
 | 7 | 0.684912 | 0.684912 | fail |
 | 8 | 1.000000 | 1.000000 | pass |
 
-Lag-1 reproduces the published 0.684912 to 3.3e-07; lag-2 is 1.000000 exactly. The odd-fails / even-passes stripe is the signature of an exact period-2 orbit, and this file's classifier labels the state `period-2`: **True**. Overall: **PASS**.
+Lag-1 reproduces the published 0.684912 to 3.3e-07; lag-2 is 1.000000 exactly. Odd lags fail the 0.999 gate and even lags pass it, the pattern expected of a period-2 orbit, and this file's classifier labels the state `period-2`: **True**. Overall: **PASS**.
 
-This also settles one candidate explanation for any basin discrepancy further down: a state saved by the parent's own run, continued under this torch / TransformerLens build, lands on the same cycle to six decimals.
+This bears on one candidate explanation for the basin discrepancy below: a state saved by the parent's own run, continued under this torch / TransformerLens build, lands on the same cycle to six decimals.
 
 ### Exactness probe: bitwise equality and residual trend
 
@@ -192,17 +192,17 @@ For scale, the same quantities on the lag-1 pair `(A, f(A))` -- a comparison tha
 | Relative L2 deviation | 0.7750 |
 | Cosine in float64 | `0.684911683824360` |
 
-**Shrinking or stationary?** The relative L2 residual averages 2.108e-07 over the first third of the probe and 1.962e-07 over the last third -- a ratio of 0.93 across 40 iterations. It sits at 1.65 x float32 epsilon (1.192e-07) and stays there.
+**Shrinking or stationary?** The relative L2 residual averages 2.108e-07 over the first third of the probe and 1.962e-07 over the last third -- a ratio of 0.93 across 40 iterations. It sits at 1.65 x float32 epsilon (1.192e-07).
 
-**Statement of the result, at the strength the numbers support.** The `Divine` orbit recurs at period 2 to within float32 arithmetic and is not bitwise-periodic. `f o f` is not the identity on `A`: it moves 88% of the entries and lands about 1.6 float32 ulps away in relative L2. But it does not move *further* with iteration, and it does not move *closer*: no trend in the residual was detected over the 40-iteration window. A `1.000000` printout could not have distinguished these; `1 - cos = 1.49e-14` in float64 does.
+**Result.** The `Divine` orbit recurs at period 2 to within float32 arithmetic and is not bitwise-periodic. `f o f` is not the identity on `A`: it moves 88% of the entries and lands about 1.6 float32 ulps away in relative L2. No trend in the residual was detected over the 40-iteration window. A `1.000000` printout could not have distinguished these; `1 - cos = 1.49e-14` in float64 does.
 
-On this state, `torch.equal` returned False while `1 - cos` in float64 was 1.49e-14. `torch.equal` returns False on states that are the same point of the dynamics.
+On this state, `torch.equal` returned False while `1 - cos` in float64 was 1.49e-14.
 
-Note on what the trend test does and does not say. The per-probe residual itself ranges 1.446e-07 to 3.172e-07 -- a factor of 2.19 -- so a first-third/last-third ratio of 0.93 sits well inside the sample's own scatter. The honest phrasing is **no trend detected over this window**, not a demonstration that the residual is constant. The criterion behind the flag (`ratio_last_over_first < 0.5`) is recorded in `instrument_validation.json` alongside the result, so "no trend detected" is distinguishable from "a trend that failed a strict cutoff".
+Note on what the trend test does and does not say. The per-probe residual ranges 1.446e-07 to 3.172e-07 (factor 2.19); the 0.93 first/last-third ratio lies inside that scatter. Recorded as: **no trend detected over this window**. The criterion behind the flag (`ratio_last_over_first < 0.5`) is recorded in `instrument_validation.json` alongside the result, so "no trend detected" is distinguishable from "a trend that failed a strict cutoff".
 
 ### Perturbation test
 
-The exactness probe above establishes that the orbit **recurs**. It does not establish that the orbit **attracts**: it watches one trajectory's own residual stay flat, which is a property of that single trajectory. Attraction is a property of a neighbourhood -- whether a state knocked off the cycle comes back. A cycle can recur exactly and attract nothing (a centre, in the linear picture), and nothing measured above distinguishes the two. So: perturb the settled state with Gaussian noise at relative L2 magnitudes spanning well below to well above the round-off floor, iterate, and watch.
+The exactness probe above establishes that the orbit **recurs**. It does not establish that the orbit **attracts**: it watches one trajectory's own residual stay within its own scatter, which is a property of that single trajectory. Attraction is a property of a neighbourhood -- whether a state knocked off the cycle comes back. A cycle can recur exactly and attract nothing (a centre, in the linear picture), and nothing measured above distinguishes the two. So: perturb the settled state with Gaussian noise at relative L2 magnitudes spanning well below to well above the round-off floor, iterate, and watch.
 
 Return criterion, fixed before running: the lag-2 relative L2 residual falls to within 2.0x the unperturbed floor (1.918e-07) and stays there for 4 consecutive iterations. Horizon 1000 iterations, seed 20260728. "Same orbit" means `1 - cos` against the *original* settled state (phase-aware) below 1e-9.
 
@@ -216,7 +216,7 @@ Return criterion, fixed before running: the lag-2 relative L2 residual falls to 
 
 5 of 5 perturbations returned to the residual floor, 5 of 5 to the *same* orbit, and the basin label survived every one.
 
-Recovery time grows with perturbation size roughly linearly in the logarithm: 1e-07 -> 2, 1e-05 -> 10, 1e-03 -> 146, 1e-01 -> 395, 1e+00 -> 496. That is about 71 iterations per decade of displacement, implying a per-iteration contraction factor near 0.9679 -- slow, steady, linear convergence rather than a snap-back. It also explains why a 200-iteration probe was not enough to settle this: the largest perturbations need 496 iterations, and a short horizon would have reported them as failures to return.
+Recovery time grows with perturbation size roughly linearly in the logarithm: 1e-07 -> 2, 1e-05 -> 10, 1e-03 -> 146, 1e-01 -> 395, 1e+00 -> 496. That is about 71 iterations per decade of displacement, implying a per-iteration contraction factor near 0.9679. It also explains why a 200-iteration probe was not enough to settle this: the largest perturbations need 496 iterations, and a short horizon would have reported them as failures to return.
 
 At the largest perturbation: noise of relative L2 1 -- a displacement as large as the state itself -- still returns, to the same orbit, in 496 iterations.
 
@@ -232,25 +232,25 @@ Published (parent `README.md`, GPT-2 small, shares at convergence): `prolet` 43.
 | `Anarch` | 17 (13.6%) | 17 (13.6%) | 16 (12.8%) | -1 | 26 (20.8%) | 26 (20.8%) |
 | `solidarity` | 1 (0.8%) | 1 (0.8%) | 1 (0.8%) | +0 | 2 (1.6%) | 2 (1.6%) |
 
-### Verdict
+### Comparison outcomes
 
 - Final-iteration table vs published @lock-in: **DIFFERS**.
 - This run's @120 table vs published @lock-in: **exact match**.
 - This run's @100 table vs published @100: **exact match**.
 - Converged under the lag-1 gate: 91 here vs 91 published (match).
 
-**Discrepancies, stated as found. Nothing here was tuned to close them.**
+**Discrepancies. No parameter was adjusted to reduce them.**
 
 - `prolet`: 55 here, 54 published (+1).
 - `Anarch`: 16 here, 17 published (-1).
 
-Candidate causes, in the order worth checking:
+Candidate causes:
 
-1. **Stopping time.** The published shares are read at lock-in (iteration 120 for every converged prompt; iteration 1000 for the 34 holdouts). This run reads at iteration 300. The `@120` column above isolates this: if that column matches and the final column does not, the difference is late drift, not method.
+1. **Stopping time.** The published shares are read at lock-in (iteration 120 for every converged prompt; iteration 1000 for the 34 holdouts). This run reads at iteration 300. The `@120` column above isolates stopping time from method.
 2. **Parity.** A period-2 state has two phases. Both decode to the same token in the parent's `Divine` cycle, but a basin read at an odd iteration on a period-2 orbit is not in general the same read as at an even one. This run's horizon and the published 1000 are both even.
 3. **TransformerLens weight processing.** `from_pretrained` folds LayerNorm, centres the writing weights and centres the unembedding by default. Different TransformerLens versions have changed these defaults; the version used here is recorded below (3.5.1). The parent's published run predates it.
 4. **Prompt library revision.** The parent's `prompt_library.py` is a provenance-flagged reconstruction (all 125 entries flagged `original`, recovered from git blob 2931d42 and cross-checked against `dissolution_sentences.md`), restored *after* the published sweep was run. If any entry differs by a character from what the April run used, its basin can move. The file's own provenance block asserts byte-for-byte agreement.
-5. **Numerics.** float32 CPU matmul on a different thread count / BLAS build than the original run. This moves cosines in the seventh decimal; it moves a basin label only for a prompt sitting on a separatrix, which the per-prompt margins above would show as a near-zero top1-top2 logit margin.
+5. **Numerics.** float32 CPU matmul on a different thread count / BLAS build than the original run. This moves cosines in the seventh decimal; its effect on basin labels would appear as near-zero top1-top2 logit margins, which the per-prompt margins above report.
 
 ## Readout confidence at the final iteration
 
@@ -268,7 +268,7 @@ Position uniformity = mean off-diagonal cosine between token positions. Values n
 
 Saved: **125 / 125** prompts, as `experiments/output_baseline/states/<prompt_id>.npy` -- the full `(seq_len, 768)` float32 residual tensor at the final iteration. A second file `<prompt_id>__prev.npy` holds the iterate immediately before it: on a period-2 orbit the settled state is one of two, and a spread analysis that mixed phases across prompts would be measuring the cycle rather than the basin. The JSONL row for each prompt carries `state_file`, `state_prev_file` and `state_shape`.
 
-These files exist so within-basin spread can be measured with no further model time: if prompts sharing a basin land on bit-identical tensors the attractor is a label and the prompt's content is gone; if they land nearby but distinct, it compresses rather than erases.
+These files exist so within-basin spread can be measured with no further model time: if prompts sharing a basin land on bit-identical tensors, the settled state carries no more information than the label; if they land nearby but distinct, the difference is measurable.
 
 ### Position uniformity at the final iteration
 
@@ -286,7 +286,7 @@ Fully position-uniform (every pair of positions above cosine 0.999): **125 / 125
 
 ## Within-basin spread
 
-**What this can and cannot bound.** Five basins bound the information in the *basin label* at log2(5) = 2.32 bits. They bound nothing about the settled *state*. If the states within a basin are indistinguishable at the round-off scale, the settled state carries no information beyond the label. If they differ systematically, the attractor compressed the prompt rather than erasing it, and the residue is measurable. Both are legitimate outcomes; the numbers below decide which, and no similarity threshold was chosen after seeing them -- the one threshold used is the float32 round-off scale measured in the instrument check above, fixed before this sweep finished.
+**What this can and cannot bound.** Five basins bound the information in the *basin label* at log2(5) = 2.32 bits. They bound nothing about the settled *state*. If the states within a basin are indistinguishable at the round-off scale, the settled state carries no information beyond the label. If they differ systematically, the difference is measurable. The tables below report the measured spread. No similarity threshold was chosen after seeing them -- the one threshold used is the float32 round-off scale measured in the instrument check above, fixed before this sweep finished.
 
 All comparisons use the position-mean of the settled tensor, `(768,)`, which is the vector the convergence gate itself uses and is comparable across prompts of different length. Phase-aware throughout: on a period-2 orbit two prompts can sit on the same cycle in opposite phases, so each pair is scored at the better of (final, final) and (final, previous iterate).
 
@@ -328,7 +328,7 @@ A ratio near 1 would mean the basins are not separated at all; a ratio near 0 me
 
 Against the *nearest* basin pair rather than the mean: within-basin spread 3.319e-03 versus nearest-basin gap 2.874e-03, a ratio of **1.16** if the gap is nonzero. A ratio near or above 1 means the two nearest basins are no further apart than the prompts inside one of them.
 
-For reference, the float32 round-off floor measured on the parent's committed cycle is `1 - cos` around 1.5e-14. The within-basin spread above is 2.2e+11 times that floor, so it is a real geometric spread and not arithmetic noise.
+For reference, the float32 round-off floor measured on the parent's committed cycle is `1 - cos` around 1.5e-14. The within-basin spread above is 2.2e+11 times that floor.
 
 ### Effective dimensionality within each basin
 
@@ -368,7 +368,7 @@ Raw states are in `states/` for any sharper analysis.
 
 ## Anomalies
 
-- **Knife-edge readouts: 69.** top1-top2 logit margin below 0.5 at the final iteration; these basin labels are the least robust to numerics.
+- **Knife-edge readouts: 69.** top1-top2 logit margin below 0.5 at the final iteration.
   - `A03_neuro` `Anarch` vs `prolet`, margin 0.000
   - `A05_evolution` `Anarch` vs `prolet`, margin 0.002
   - `B09_sports` `prolet` vs `Anarch`, margin 0.002
@@ -390,7 +390,7 @@ Raw states are in `states/` for any sharper analysis.
 
 ## Operational notes for the next sweep
 
-### Do not give this job all the cores
+### Thread count vs throughput
 
 Measured on this 4-vCPU box, GPT-2 small at `seq_len` 10, one ATR iteration (`run_with_cache` forward plus the readout decode):
 
@@ -401,13 +401,13 @@ Measured on this 4-vCPU box, GPT-2 small at `seq_len` 10, one ATR iteration (`ru
 | 3 | 1105 | 3.85x |
 | 4 | 2137 | 7.45x |
 
-Setting the thread count equal to the core count made the job **7.45x slower**, not faster. The slowdown is consistent with OpenMP barrier overhead at this matmul size, though no thread-level profiling was run: GPT-2 small's per-layer matmuls at `seq_len` ~10 are far too small to amortise a barrier across 4 threads, so the worker threads spend their time busy-waiting, and they contend with every other process on the box. It reproduced in both directions of a 4,3,2,1,2,4 sweep.
+Setting the thread count equal to the core count made the job **7.45x slower**, not faster. The slowdown is consistent with OpenMP barrier overhead at this matmul size, though no thread-level profiling was run: GPT-2 small's per-layer matmuls at `seq_len` ~10 are far too small to amortise a barrier across 4 threads. It reproduced in both directions of a 4,3,2,1,2,4 sweep.
 
-The fix that actually gives parallelism is process-level: **N single-threaded processes**, each on its own slice of the prompt list. Two such shards measured 296 ms/iteration each -- a 3% penalty against running alone, i.e. near-linear scaling. Three shards measured ~650 ms each, which is where memory bandwidth starts to bind; on this box two is the sweet spot and it leaves half the machine for whoever else is working.
+The fix that actually gives parallelism is process-level: **N single-threaded processes**, each on its own slice of the prompt list. Two such shards measured 296 ms/iteration each -- a 3% penalty against running alone, i.e. near-linear scaling. Three shards measured ~650 ms each.
 
 Practical numbers for planning: **~0.29 s per iteration per prompt**, near-flat in sequence length between `seq_len` 2 and 25 (219 ms at 2, 287 at 10, 289 at 25 -- the map is overhead-bound, not FLOP-bound, at this size). A 125-prompt x 300-iteration sweep is therefore about 3.0 CPU-hours, or about 1.6 hours wall on two shards.
 
-Single-threaded is also the reproducible choice, independently of speed: float32 reduction order stops depending on how BLAS happened to split the work, so a re-run is bit-comparable with this one.
+Single-threaded is also the reproducible choice, independently of speed: float32 reduction order stops depending on how BLAS happened to split the work.
 
 ## Exact configuration
 
@@ -424,7 +424,7 @@ Single-threaded is also the reproducible choice, independently of speed: float32
 | Lag scan | lags 1..8 over the final 25 iterates (mean vector and last vector) |
 | Plasticity | **none** -- no hooks, no weight updates, model frozen and in eval mode |
 | Seeds | `torch.manual_seed(0)`; the loop itself is deterministic and draws no random numbers |
-| Torch threads | 1 per process (2 process(es) in parallel). Measured: 1 thread 287 ms/iter, 4 threads 2137 ms/iter on this 4-vCPU box -- OpenMP spin-wait collapse, so the sweep is single-threaded and parallelised across processes instead. |
+| Torch threads | 1 per process (2 process(es) in parallel). Measured: 1 thread 287 ms/iter, 4 threads 2137 ms/iter on this 4-vCPU box -- measured slowdown at higher thread counts, so the sweep is single-threaded and parallelised across processes instead. |
 | Prompt library | parent `prompt_library.py`, 125 prompts, provenance `{'original': 125, 'reconstructed-new': 0}` |
 | Parent repo revision | `49592a7365c77dc63ad7eda0738e04880eac4837` |
 | Prompt library sha256 | `daa3e4157da9cd61de19fd1a2b92a318ef6544cc6cd4daa12581f9b4128945db` |

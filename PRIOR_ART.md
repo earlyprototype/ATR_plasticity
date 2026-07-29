@@ -11,10 +11,10 @@ loss.** Each ingredient separately appears in work returned by this search; the
 combination did not.
 
 That is still a statement about a search, not about the literature. **It is not "nobody
-has done this."** It is now a considerably larger search: the forum gap and the
-citation-graph gap have been closed and turned up nothing, and every entry below has been
-verified against its source. The remaining coverage limits are recorded at the bottom and
-they are still real. Treat the claim as provisional, but less provisional than it was.
+has done this."** The forum gap and the citation-graph gap have been closed and turned up
+nothing, and every entry below has been verified against its source. The remaining
+coverage limits are recorded at the bottom and they are still real. The claim is
+provisional.
 
 ## How the search was done
 
@@ -72,8 +72,8 @@ Read carefully, that sentence splits in two:
 
 - **Divergence at 8 layers, and deepest-layers-drift-most: the gradient-plastic
   variant.** Not the Hebbian one.
-- **The Hebbian variant at 8 layers: stable, but it stops doing anything useful.** It
-  saturates.
+- **The Hebbian variant at 8 layers: stable, and saturating in performance at recall
+  0.729 ± 0.015.**
 - **"A practical regime around 4 layers" is explicitly qualified** — the very next clause
   says "deeper *gradient-plastic* stacks require additional regularization". It is not a
   general depth limit for plasticity.
@@ -91,8 +91,8 @@ means stable during training, not stable in a closed activation loop on a frozen
 pretrained network. This is a hint about which way to expect things to fail, not a
 prediction.
 
-The earlier note in this file — "if the depth figures hold, they matter" — was right that
-they matter. It was wrong about which way.
+The earlier note in this file — "if the depth figures hold, they matter" — attributed them
+to the wrong rule family.
 
 ---
 
@@ -105,21 +105,22 @@ autoencoders and in recent looped / latent-reasoning language-model work, and so
 that literature reports orbit-like trajectories. There is now a direct example:
 *Training-Free Looped Transformers* (arXiv:2605.23872, 2026) loops a contiguous block of
 layers of a **frozen pretrained checkpoint** at inference time with no fine-tuning at
-all, across seven model families. **Verified** — abstract fetched. It confirms the point
-squarely: iterating a frozen pretrained model is an active, published area. It also
-reports that naive re-application of a block usually makes things worse. The parent
-project's *specific* protocol and results may well be new; the general idea is not.
+all, across seven model families. **Verified** — abstract fetched. It confirms the point:
+iterating a frozen pretrained model is an active, published area. It also reports that
+naive re-application of a block usually makes things worse. This search did not look for
+the parent project's specific protocol; the general idea of iterating a frozen model is
+not new.
 
 **2. "Frozen weights is just self-training with the learning rate at zero" — false.**
 Gradient descent on a loss and a local correlation rule are different processes, not one
 process at two gains. Turning eta to zero recovers frozen weights, but there is no
-continuous path from Oja to backpropagation. The defensible framing is two separate axes
+continuous path from Oja to backpropagation. They can be described as two separate axes
 -- *what kind of rule* and *how strong* -- with no sweep of the local-rule axis found in
 this search.
 
 ---
 
-## The four closest pieces of work
+## The four nearest items this search returned
 
 ### Daydreaming Hopfield networks
 
@@ -185,10 +186,10 @@ external data rather than a closed loop.
 **Forward citations checked.** Exactly one paper cites it: *Where to Bind Matters:
 Hebbian Fast Weights in Vision Transformers for Few-Shot Character Recognition*
 (arXiv:2605.02920, 2026). **Verified** — abstract fetched. Vision transformers, Omniglot,
-a meta-learning loss. Its one transferable finding is that *where* you put the Hebbian
-module matters a lot, and that putting a separate Hebbian module at every stage caused
-training instability while a single module at the last stage did not. Same shape as
-Chaudhary's depth result, from a different direction.
+a meta-learning loss. It reports that placement of the Hebbian module affected results:
+putting a separate Hebbian module at every stage caused training instability while a
+single module at the last stage did not. Same shape as Chaudhary's depth result, from a
+different direction.
 
 ### Reshaping reservoirs with unsupervised Hebbian adaptation
 
@@ -219,7 +220,8 @@ reservoir **cannot establish anything** about what an Oja rule does to a pretrai
 transformer in a closed activation loop. Different units, different connectivity,
 different input regime, different rule sign.
 
-What it is good for is **motivating a null hypothesis**, not supplying evidence for one:
+It does not supply evidence for a null hypothesis in this substrate. The null hypothesis
+under test:
 
 > **H₀: the closed-loop arm is indistinguishable from the offline arm.** Local
 > unsupervised weight updates move the network somewhere, but the feedback coupling adds
@@ -227,8 +229,9 @@ What it is good for is **motivating a null hypothesis**, not supplying evidence 
 > activations.
 
 Cazalets & Dambre make that null *plausible* rather than *supported* — two independent
-lines of work (theirs, and Chaudhary's Hebbian-at-8-layers saturation) both found that
-local rules on their own tend to do less than expected. Neither is about our substrate.
+lines of work (theirs, and Chaudhary's Hebbian-at-8-layers saturation) both report local
+rules producing smaller effects than their comparison conditions. Neither is about our
+substrate.
 
 **What would test it.** The offline control specified later in this file, run as a
 **paired, pre-specified comparison**. An earlier revision of this file said "reject H₀ if
@@ -265,8 +268,8 @@ what counts as *no* effect. Replaced with:
    size"**. Never "the null was accepted", never "the arms are identical".
 
 This also fixes the direction of inference. The reservoir work does not tell us what we
-will find; it tells us to design for the possibility that the answer is small, and to be
-able to tell "nothing happened" apart from "we could not tell".
+will find; the design must be able to tell "nothing happened" apart from "we could not
+tell".
 
 **Forward citations checked.** One citing paper, on free-energy-principle / neural
 manifold theory (arXiv:2605.04200). Nothing near us.
@@ -316,8 +319,8 @@ defined by downstream task scores.
   change; local learning rule no gradient transformer; weights change at inference no
   backprop; feeding model output back into itself; online weight updates during
   inference; self-referential loop weights drift; and others.
-- **The single sharpest result:** the word **"Oja" appears in exactly two LessWrong posts
-  and one comment, in the entire site history.** The two posts are Nellessen & Jan's
+- **Result:** the word **"Oja" appears in exactly two LessWrong posts and one comment, in
+  the entire site history.** The two posts are Nellessen & Jan's
   *[Hebbian Natural Abstractions]* sequence (2022), which uses Oja-with-decay to argue
   that biological brains extract principal components — a theory argument about brains,
   with no transformer and no experiment. The third hit is an unrelated 2015 media-thread
@@ -343,9 +346,8 @@ attractor landscapes*, arXiv:2312.14896 (2023). **Verified** — title, authors 
 quoted claims confirmed against the abstract.
 
 They report that moving from Hebbian to anti-Hebbian learning produces "a pitchfork
-bifurcation that destroys convexity in the network attractor landscape", and --
-counterintuitively -- that "attractor landscapes are more sensitive to slower learning
-rates than faster ones."
+bifurcation that destroys convexity in the network attractor landscape", and that
+"attractor landscapes are more sensitive to slower learning rates than faster ones."
 
 Our eta sweep can test whether that trend **transfers to this substrate**. It cannot
 falsify their result: a different model, different metrics and different assumptions
@@ -356,7 +358,7 @@ or "does not reproduce under this setup", never as falsification.
 
 ---
 
-## The finding that changes our experiment
+## Oja's convergence preconditions, and whether they hold here
 
 An earlier version of this file said flatly that **Oja's rule converges to the dominant
 eigenvector of the second-moment matrix E[x xᵀ] of whatever activations flow through
@@ -366,14 +368,13 @@ preconditions break.
 
 ### Lead with the property we actually rely on
 
-Before any theory, here is the distinction the whole experiment rests on, and it needs no
-theorem at all:
+The distinction between the two arms:
 
 > **In the offline arm the input sequence is unaffected by the weight update. In the
 > closed loop it is not.**
 
 That is a structural fact about the two arms, it is true by how they are built, and it is
-the only property the comparison requires. Everything below is about what we may and may
+the property the comparison is defined on. Everything below is about what we may and may
 not additionally claim on top of it. **Neither arm gets a convergence guarantee.**
 
 ### What the theorem actually requires
@@ -449,8 +450,8 @@ deviation, and **85% of post-GELU entries are negative** — GELU's floor at −
 exactly as expected. So **Oja here targets the raw second moment, not the covariance**,
 unless centring is explicitly applied. Describe it that way.
 
-**Two things worth more than the headline number.** First, on ordinary text the mean term
-carries **79% of the second-moment matrix's Frobenius norm**. Centring is not a
+**Two further observations from the same measurement.** First, on ordinary text the mean
+term carries **79% of the second-moment matrix's Frobenius norm**. Centring is not a
 refinement; it changes most of the matrix.
 
 Second, and this one is operational: **on the `Divine` state the covariance is
@@ -474,8 +475,7 @@ convergence result either.
 
 What the offline arm is, precisely, is an **empirical fixed-input replay baseline**: the
 arm in which the activation sequence driving the update does not respond to the update.
-That is a much weaker claim than convergence, and it is the only claim the comparison
-needs.
+That is a much weaker claim than convergence.
 
 **To earn any convergence language for this arm we would have to add assumptions and
 measure them**: treat the recording as a sample from some notional stationary source,
@@ -509,7 +509,7 @@ empirically** — and the demonstration has to allow for periodic orbits, not ju
 points (see below). A single run that stops changing is not a demonstration of
 convergence.
 
-### Why this makes the offline control essential rather than optional
+### What the offline control is for
 
 The point that survives unchanged is this: **the weight matrix will move and the
 attractors will shift with no feedback whatsoever.** That is simply what the rule does to
@@ -518,9 +518,9 @@ about the *coupling*, weights changing while the thing they are changing feeds b
 them.
 
 The two arms are cleanly separated by one property and one only: whether the input
-sequence responds to the update. Neither arm comes with a predicted endpoint. **The
-difference between the two arms is the only place our claim can live**, and it has to be
-established by measurement rather than inherited from theory.
+sequence responds to the update. Neither arm comes with a predicted endpoint. **The claim
+is defined on the difference between the two arms**, and it has to be established by
+measurement rather than inherited from theory.
 
 ### Convergence checks must allow for periodic orbits
 
@@ -593,7 +593,7 @@ four would be misreported as "did not converge".
 
 ---
 
-## Two framings we inherit whether we like them or not
+## Two adjacent literatures
 
 **Linear attention is already an outer-product Hebbian update.** Schlag, Irie &
 Schmidhuber, *Linear Transformers Are Secretly Fast Weight Programmers*, ICML 2021
@@ -603,13 +603,14 @@ an attention matrix we are formally running a fast-weight programmer whose keys 
 values are self-generated. That literature's analysis and its known interference failure
 modes come with it, and we would have to say why ours differs.
 
-**The model-collapse literature is our high-gain neighbour.** Shumailov, Shumaylov, Zhao,
-Papernot, Anderson & Gal, *AI models collapse when trained on recursively generated
-data*, Nature 631:755-759 (2024). **Verified** — volume and page range confirmed; note
-there is also a 2025 author correction on record. Models retrained on their own output
-degrade in a documented way: early collapse where distributional errors accumulate and
-the model drifts from the true distribution, late collapse where low-frequency events
-disappear permanently and the distribution narrows toward a point.
+**The model-collapse literature shares the self-consumption shape at a different
+timescale.** Shumailov, Shumaylov, Zhao, Papernot, Anderson & Gal, *AI models collapse
+when trained on recursively generated data*, Nature 631:755-759 (2024). **Verified** —
+volume and page range confirmed; note there is also a 2025 author correction on record.
+Models retrained on their own output degrade in a documented way: early collapse where
+distributional errors accumulate and the model drifts from the true distribution, late
+collapse where low-frequency events disappear permanently and the distribution narrows
+toward a point.
 
 Ours is the same *shape* -- a system consuming its own output -- at the activation level,
 on a timescale of seconds instead of generations. But **their measurements do not
@@ -656,10 +657,10 @@ Nobody in the surveyed work got away with a single mechanism.
     exists to stop one runaway entry from wiping out the rest.
   - Load enters separately: with J_max in place, they had to change *how* they normalise
     so that the norm of J does not depend on the load α.
-  - **Directly relevant to us.** We have both mechanisms in the ATR loop — a norm ceiling
-    and a rescaling — and this is a documented case of the two interacting badly. Worth
-    checking whether a small number of entries in our drifted matrix are absorbing the
-    ceiling and flattening everything else.
+  - **Both mechanisms are present in the ATR loop** — a norm ceiling and a rescaling —
+    and this is a documented case of the two interacting badly. Worth checking whether a
+    small number of entries in our drifted matrix are absorbing the ceiling and
+    flattening everything else.
 - **The reservoir work (Cazalets & Dambre): verified from the paper.** Mean-HAG holds a
   target mean firing rate with a permissible deviation band. Variance-HAG holds a target
   standard deviation *and* adds an explicit safeguard: if any neuron's state exceeds a
@@ -708,7 +709,8 @@ The closest published number is Cazalets & Dambre's Anti-Oja learning rate, η_o
 they sweep as a hyperparameter for an echo state network. Even that is not usable
 directly: the numeric grid lives in their Appendix B.1, which is in supplementary
 material we could not retrieve, and it is a reservoir of tanh units, not a post-GELU
-site inside a 12-layer pretrained transformer. It would not transfer.
+site inside a 12-layer pretrained transformer. The differences in substrate make direct
+transfer unsupported.
 
 No published step size was found in this search to anchor the sweep.
 
@@ -727,8 +729,8 @@ than it was.
 - ~~No citation-graph sweep.~~ **Closed.** Forward citations traced through Semantic
   Scholar for all four closest entries plus Gong et al. Daydreaming has 16 citations, all
   in statistical physics; Chaudhary has 1, in vision transformers; Cazalets & Dambre has
-  1, in theoretical neuroscience; Lee et al. has 0. No citing paper is closer to us than
-  the paper it cites.
+  1, in theoretical neuroscience; Lee et al. has 0. None of the citing papers matched
+  more inclusion criteria than the paper it cites.
 - ~~Most entries unverified.~~ **Closed.** Every entry now carries a status, and all are
   verified against the source.
 - ~~The Chaudhary depth figures.~~ **Closed, and they say something different from what
@@ -756,8 +758,8 @@ than it was.
 - **Neither arm has a convergence guarantee, and neither has been shown to converge.**
   The closed loop breaks stationarity by construction, and the offline arm — despite
   replaying a fixed recording — is a single finite sample path under constant eta, which
-  does not satisfy the theorem either. Both are empirical questions. See "The finding that
-  changes our experiment".
+  does not satisfy the theorem either. Both are empirical questions. See "Oja's
+  convergence preconditions, and whether they hold here".
 - **The simple-dominant-eigenvalue precondition is checked only once, on ordinary text.**
   spectral ratio λ₂/λ₁ = 0.342 on the raw second moment (comfortable) and 0.639 centred (weak) -- the ratio, not the absolute gap. Unchecked
   inside the closed loop, where the matrix moves and the gap can close mid-run. Track it
