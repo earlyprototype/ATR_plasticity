@@ -3,13 +3,20 @@
 *What happens to a model's attractor landscape when the weights are allowed to
 change under the loop?*
 
-> **Status: scaffold, now exercised against real GPT-2 small — but not yet
-> against the ATR loop.** `pytest` runs 91 tests on real weights. What has *not*
-> happened is a single iteration of the actual experiment: the plasticity layer
-> does not yet attach to the parent project's model at all, because that runs
-> TransformerLens and this was written against HuggingFace naming. See
-> [EXP_001_SPEC.md](EXP_001_SPEC.md), which specifies the bridge and the first
-> experiment to run over it.
+> **Status: the plasticity scaffold now composes with the parent ATR engine, and
+> the first experiment has been run.** A TransformerLens site adapter
+> (`_TransformerLensMLPSite` in [plasticity.py](plasticity.py)) attaches the rule
+> to the parent's bare `W_out` parameter, and a per-step bridge
+> ([atr_bridge.py](atr_bridge.py)) hands `controls.py` the `atr_step(model, r)` it
+> expects by extracting one iteration of the parent loop verbatim. CI checks out
+> the parent repo and runs the bridge's acceptance test under `ATR_REQUIRE_PARENT=1`
+> ([.github/workflows/tests.yml](.github/workflows/tests.yml)), so the extracted
+> step is held to reproducing `run_atr_loop` bit-exactly rather than merely
+> importing. The first experiment has since been run: results in
+> [EXP_001_RESULTS.md](EXP_001_RESULTS.md), the frozen baseline in
+> [BASELINE.md](experiments/output_baseline/BASELINE.md), the step-size map in
+> [STEP_SIZE_MAP.md](STEP_SIZE_MAP.md). Arriving cold? Read
+> [ORIENTATION.md](ORIENTATION.md) first, then [EXP_001_SPEC.md](EXP_001_SPEC.md).
 >
 > The suite found three defects, all since fixed and each now held by a test that
 > fails if it returns:
@@ -25,7 +32,7 @@ change under the loop?*
 >    remove the hook and revert the weights on the way out.
 >
 > A green suite is not C0 passing. Control C0 must still pass bit-exactly
-> against real weights before anything here produces a result worth recording.
+> against real weights for anything here to count as a result worth recording.
 
 ## The question
 
@@ -183,7 +190,7 @@ code that runs them. **Every test runs against real GPT-2 small.**
 python3 -m venv .venv
 .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest                 # 91 tests, ~15s; downloads gpt2 (~500MB) once
+.venv/bin/pytest                 # 227 tests (4 skip without the parent repo), ~2-3 min on CPU; downloads gpt2 (~500MB) once
 ```
 
 A Claude Code session does this for you: `.claude/hooks/session-start.sh` builds
@@ -209,7 +216,7 @@ exercises `transposed=True`.
 
 CI runs the whole suite on every push, with the checkpoint cached. It sets
 `ATR_REQUIRE_MODEL=1`, which turns "GPT-2 unavailable" from a skip into a
-failure — without it a runner missing the model skips all 91 tests and exits 0,
+failure — without it a runner missing the model skips all 227 tests and exits 0,
 and a check that cannot fail is worse than no check.
 
 **Hebb and Oja invert between the toy and the real model.** At the real weight
