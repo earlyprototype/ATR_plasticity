@@ -175,7 +175,7 @@ Gap curve, lockstep: 4.747e-03 at iteration 1 → 1.322e-12 at 225. Fixed-target
 - **The `recorded`-mode numbers are reported but not claimed from.** Their floor is a frozen-`y` artefact that has been measured larger than the routed signal.
 - **No task, no loss, no target.** The design contains none of the three.
 - **The offline arm flips too.** Section 3 reports a difference between the two arms' final weight matrices that is above the severed floor.
-- **The severed control sets the floor for section 3.** In `recorded` mode the same protocol reports a larger measured difference with the feedback path severed. Only the `recomputed` path has a floor of literal zero.
+- **The severed control sets the floor in `recomputed` mode.** In `recorded` mode the same protocol reports a larger measured difference with the feedback path severed. Only the `recomputed` path has a floor of literal zero.
 
 ## Provenance
 
