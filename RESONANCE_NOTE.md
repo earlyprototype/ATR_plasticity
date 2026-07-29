@@ -45,21 +45,38 @@ also shows no clear trend over the probe — it averages 2.11e-07 over the first
 1.96e-07 over the last third, a ratio of 0.93, against a per-probe spread of 1.45e-07 to
 3.17e-07. A 7% drift inside that much scatter is not a trend one way or the other.
 
-**What this supports, stated precisely: near period-2 recurrence, with the residual
-sitting at about 1.65 times float32 epsilon and no detected trend over 40 iterations.**
+On its own that supports near period-2 recurrence, and no more. **Attraction is a separate
+claim** — it is about what happens to *nearby* states, not about one orbit's own residual —
+so I had no basis for the word until it was tested. It has now been tested.
 
-**What it does NOT support, and I had this wrong:** that the cycle is *attracting*. I
-wrote that, and it does not follow from this measurement. Attraction is a claim about what
-happens to *nearby* states — perturb one off the cycle and see whether it comes back. We
-measured a single orbit's own residual. That tells us the orbit is stable *in the sense of
-persisting*, not that it pulls anything toward it. I also asserted that a bitwise-exact
-cycle would be "a knife-edge"; that was invented. Bitwise exactness and attraction are
-independent properties and neither implies anything about the other.
+Perturb the settled state by Gaussian noise at five magnitudes, iterate, and see whether it
+comes back. Criterion fixed before running: returned means the residual sits within 2× the
+floor for four consecutive iterations; same orbit means 1−cos < 1e-9 against the original
+settled state, compared phase-aware.
 
-The perturbation test is the missing measurement and it is cheap: take the settled state,
-add noise at several magnitudes, iterate, and record whether the residual returns to the
-1.65-epsilon floor and how fast. Until that is run, the honest word is **recurrent**, not
-attracting. It is queued.
+| Perturbation (rel L2) | Returned | Iterations | 1−cos to original orbit | Basin |
+|---|---|---|---|---|
+| 1e-07 | yes | 2 | 7.7e-14 | Divine |
+| 1e-05 | yes | 10 | 7.6e-14 | Divine |
+| 1e-03 | yes | 146 | 2.9e-12 | Divine |
+| 1e-01 | yes | 395 | 3.2e-12 | Divine |
+| 1e+00 | yes | 496 | 2.0e-11 | Divine |
+
+**Five out of five return, all to the same orbit, and the basin label survives every time.**
+So the word **attracting** is earned, and the three possibilities are cleanly separated: it
+returns, it does not fall into a different attractor, and it does not wander.
+
+Two details worth more than the verdict. Recovery takes about **71 iterations per decade of
+displacement**, a per-iteration contraction factor near 0.968 — slow, steady linear
+convergence rather than a snap-back. And the largest case is a displacement *as large as the
+state itself*, and it still comes home: the basin is not a narrow neighbourhood around the
+cycle.
+
+A caution that survives all this: the first run of this test used a 200-iteration horizon
+and reported the largest perturbation as a failure to return. It was a horizon artifact. At
+these contraction rates, **any convergence test in this repo needs a horizon justified
+against the contraction factor**, or it will report false negatives at exactly the
+displacements that matter most.
 
 One practical consequence does follow from what was measured: **any state-equality test in
 this repo has to be a tolerance test at float32 round-off.** `torch.equal` returns False on

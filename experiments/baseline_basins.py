@@ -1158,11 +1158,98 @@ def _validation_section(meta):
           "not have distinguished these; `1 - cos = "
           f"{c2['one_minus_cos']:.2e}` in float64 does.")
         A("")
-        A("Two consequences worth carrying forward. First, any equality test on ATR states has to "
-          "be a tolerance test at the float32 round-off scale -- `torch.equal` will return False "
-          "on states that are the same point of the dynamics. Second, the cycle being attracting "
-          "rather than exact is what makes it robust: it is reached from a neighbourhood and "
-          "survives perturbation, which a knife-edge bitwise cycle would not.")
+        A("One consequence worth carrying forward immediately: any equality test on ATR states has "
+          "to be a tolerance test at the float32 round-off scale. `torch.equal` returns False on "
+          "states that are the same point of the dynamics.")
+        A("")
+        A("Note on what the trend test does and does not say. The per-probe residual itself ranges "
+          f"{tr['l2_rel_min']:.3e} to {tr['l2_rel_max']:.3e} -- a factor of "
+          f"{tr['l2_rel_max'] / tr['l2_rel_min']:.2f} -- so a first-third/last-third ratio of "
+          f"{tr['ratio_last_over_first']:.2f} sits well inside the sample's own scatter. The "
+          "honest phrasing is **no trend detected over this window**, not a demonstration that "
+          "the residual is constant. The criterion behind the flag "
+          f"(`{tr['shrink_criterion']}`) is recorded in `instrument_validation.json` alongside "
+          "the result, so \"no trend detected\" is distinguishable from \"a trend that failed a "
+          "strict cutoff\".")
+        A("")
+
+    L.extend(_perturbation_subsection(v.get("perturbation")))
+    return L
+
+
+def _perturbation_subsection(pt):
+    """Recurrence is not attraction. This is the measurement that separates them."""
+    L = []
+    A = L.append
+    if not pt:
+        A("### Is the cycle attracting?")
+        A("")
+        A("Not tested. Note that the exactness probe above does **not** answer this: it watches "
+          "one orbit's own residual, which is a statement about a single trajectory. Attraction "
+          "is a statement about a neighbourhood -- whether states knocked off the cycle return to "
+          "it. A cycle can recur perfectly without attracting anything. Until this is run the "
+          "correct word is *recurrent*, not *attracting*.")
+        A("")
+        return L
+
+    A("### Is the cycle attracting? Yes -- perturbation test")
+    A("")
+    A("The exactness probe above establishes that the orbit **recurs**. It does not establish "
+      "that the orbit **attracts**: it watches one trajectory's own residual stay flat, which is "
+      "a property of that single trajectory. Attraction is a property of a neighbourhood -- "
+      "whether a state knocked off the cycle comes back. A cycle can recur exactly and attract "
+      "nothing (a centre, in the linear picture), and nothing measured above distinguishes the "
+      "two. So: perturb the settled state with Gaussian noise at relative L2 magnitudes spanning "
+      "well below to well above the round-off floor, iterate, and watch.")
+    A("")
+    A(f"Return criterion, fixed before running: the lag-2 relative L2 residual falls to within "
+      f"{pt['return_factor']}x the unperturbed floor ({pt['floor']:.3e}) and stays there for "
+      f"{pt['return_patience']} consecutive iterations. Horizon {pt['max_iter']} iterations, "
+      f"seed {pt['seed']}. \"Same orbit\" means `1 - cos` against the *original* settled state "
+      "(phase-aware) below 1e-9.")
+    A("")
+    rows = []
+    for r in pt["results"]:
+        rows.append([
+            f"{r['magnitude_requested']:.0e}",
+            "yes" if r["returned_to_floor"] else f"no ({r['iterations_run']} iters)",
+            r["return_iteration"] if r["return_iteration"] else "--",
+            f"{r['final_residual']:.3e}",
+            f"{r['final_residual_over_floor']:.2f}x",
+            f"{r['one_minus_cos_to_original_orbit']:.2e}",
+            "same" if r["same_orbit"] else "different",
+            f"`{r['basin_label']}`" + ("" if r["basin_label_survived"] else " (CHANGED)"),
+        ])
+    L.extend(_table(rows, ["Perturbation (rel L2)", "Returned to floor", "Return iteration",
+                           "Final residual", "vs floor", "1 - cos to original orbit",
+                           "Orbit", "Basin label"]))
+    A("")
+    A(f"**Verdict: {pt['verdict']}.** {pt['n_returned']} of {pt['n_tested']} perturbations "
+      f"returned to the residual floor, {pt['n_same_orbit']} of {pt['n_tested']} to the *same* "
+      "orbit, and the basin label survived every one. This is the measurement that licenses the "
+      "word *attracting*; before it, the supportable word was only *recurrent*.")
+    A("")
+    ret = [r for r in pt["results"] if r["return_iteration"]]
+    if len(ret) >= 2:
+        lo, hi = ret[0], ret[-1]
+        decades = math.log10(hi["magnitude_applied"] / lo["magnitude_applied"])
+        per_dec = (hi["return_iteration"] - lo["return_iteration"]) / decades if decades else 0
+        A(f"Recovery time grows with perturbation size roughly linearly in the logarithm: "
+          + ", ".join(f"{r['magnitude_requested']:.0e} -> {r['return_iteration']}"
+                      for r in ret)
+          + f". That is about {per_dec:.0f} iterations per decade of displacement, implying a "
+            f"per-iteration contraction factor near {10 ** (-1 / per_dec):.4f} -- slow, steady, "
+            "linear convergence rather than a snap-back. It also explains why a 200-iteration "
+            "probe was not enough to settle this: the largest perturbations need "
+            f"{hi['return_iteration']} iterations, and a short horizon would have reported them "
+            "as failures to return.")
+        A("")
+    biggest = max(pt["results"], key=lambda r: r["magnitude_applied"])
+    if biggest["same_orbit"]:
+        A(f"The strongest single result is the largest perturbation: noise of relative L2 "
+          f"{biggest['magnitude_applied']:.2g} -- a displacement as large as the state itself -- "
+          f"still returns, to the same orbit, in {biggest['return_iteration']} iterations. The "
+          "basin of attraction is not a narrow neighbourhood.")
         A("")
     return L
 
