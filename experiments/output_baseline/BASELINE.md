@@ -167,7 +167,7 @@ Before trusting any period-2 verdict below, the detector was pointed at a state 
 
 Lag-1 reproduces the published 0.684912 to 3.3e-07; lag-2 is 1.000000 exactly. The odd-fails / even-passes stripe is the signature of an exact period-2 orbit, and this file's classifier labels the state `period-2`: **True**. Overall: **PASS**.
 
-This also settles one candidate explanation for any basin discrepancy further down: a state saved by the parent's own run, continued under this torch / TransformerLens build, lands on the same cycle to seven decimals.
+This also settles one candidate explanation for any basin discrepancy further down: a state saved by the parent's own run, continued under this torch / TransformerLens build, lands on the same cycle to six decimals.
 
 ### Exactness probe: bitwise equality and residual trend
 

@@ -64,9 +64,7 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 
 - `oja` at its largest ceiling-silent eta (9.81e-06, clip **0.0%**) moves the weights 2.92% of ‖W0‖_F and the loop does not move: basin `prolet` (frozen: `prolet`), lag-1 1.00000 (frozen 1.00000), cos(final, frozen) = 0.999222.
 - `anti_hebb` at its largest ceiling-silent eta (2.94e-05, clip **0.0%**) moves the weights 4.58% of ‖W0‖_F and the loop does not move: basin `prolet` (frozen: `prolet`), lag-1 1.00000 (frozen 1.00000), cos(final, frozen) = 0.995287.
-- Pushed all the way to the ceiling — `oja` at 0.000981, clip **100.0%**, the full 5.0% of drift the ceiling allows — the basin is still `prolet` and lag-1 is still 1.00000. At every `oja` eta tested, up to 9.81e-4 (clip 100.0%, the full 5.0% of drift the ceiling allows), the basin is `prolet` and lag-1 is 1.00000.
-
-Related prior reports: the reservoir result (Oja-family rules "seldom exceed even" the untouched network) and Chaudhary 2025 (stable at depth, saturating in performance).
+- Pushed all the way to the ceiling — `oja` at 0.000981, clip **100.0%**, the full 5.0% of drift the ceiling allows — the basin is still `prolet` and lag-1 is still 1.00000. That holds at every `oja` eta tested.
 
 ### 2. `hebb`: basin change inside the ceiling-silent band
 

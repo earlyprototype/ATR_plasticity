@@ -695,8 +695,7 @@ Nobody in the surveyed work got away with a single mechanism.
 
 **Where we stand:** the activation rescaling in the ATR loop is already a fast homeostat,
 but it acts on activations, not weights. Oja's decay term is a weight-side one. Whether
-those two suffice is open; every entry in the surveyed work used more than one
-mechanism.
+those two suffice is open.
 
 ---
 
