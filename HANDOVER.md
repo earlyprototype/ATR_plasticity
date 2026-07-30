@@ -27,9 +27,9 @@ the system does afterwards.
 
 ## 2. Current state
 
-**Everything below is on `main`.** Suite: **252 tests collected**; 248 pass locally
+**Everything below is on `main`.** Suite: **295 tests collected**; 291 pass locally
 and 4 skip (the parent-repo bridge tests, which need the parent checked out). CI
-checks out the parent and runs all 252 under `ATR_REQUIRE_MODEL=1` and
+checks out the parent and runs all 295 under `ATR_REQUIRE_MODEL=1` and
 `ATR_REQUIRE_PARENT=1`, so a missing model or parent is a failure, not a silent skip.
 
 ```bash
@@ -104,12 +104,17 @@ Three facts worth carrying forward:
 
 **How the rules relate**, from `ORIENTATION.md` and the `plasticity.py` header:
 
-```
+```text
 hebb       dW =   E[x yᵀ]                 no brake
 oja        dW =   E[x yᵀ] − W E[y yᵀ]     the second term is the brake
 anti_hebb  dW = − E[x yᵀ] − W E[y yᵀ]     reinforcement flipped, brake kept
 random     norm-matched noise             the magnitude control
 ```
+
+These five `mode` strings are fixed combinations. A site can also be given
+`terms=[TermSpec(...), ...]` — an ordered sum of signed, optionally-projected
+terms over the same two primitives — which is what makes the Hebbian /
+anti-Hebbian **balance** of #24 step 2 expressible at one site. See §4.
 
 `anti_hebb` exists to erode what the loop has settled into; issue #25 calls it the
 active ingredient in EXP-002, and it has a bounded fixed point at
@@ -193,12 +198,36 @@ Three things fall out:
 
 | File | What it gives you |
 |---|---|
-| `plasticity.py` | `OjaPlasticity` — one site, modes `off`/`hebb`/`oja`/`anti_hebb`/`random`, ceiling, bit-exact `revert()`, `report()`. Site adapters for HuggingFace `Conv1D`, TransformerLens `W_out`, and **per-head stripes** on both. `subspace_projector()` for aiming drift. `candidate_sites()` |
+| `plasticity.py` | `OjaPlasticity` — one site, modes `off`/`hebb`/`oja`/`anti_hebb`/`random`, ceiling, bit-exact `revert()`, `report()`. **`TermSpec` / `terms=`** for composed rules (see below). Site adapters for HuggingFace `Conv1D`, TransformerLens `W_out`, and **per-head stripes** on both. `subspace_projector()` for aiming drift. `candidate_sites()` |
 | `multi_site.py` | **`MultiSitePlasticity`** — N sites at once (whole matrices and head stripes mixed, heterogeneous mode/eta/ceiling/projector per site). Rejects overlapping footprints at construction, keyed on live parameter identity |
 | `atr_bridge.py` | `make_atr_step(model, prompt) -> step(model, r)` — one iteration of the parent loop, **extracted verbatim**, bit-exactness CI-enforced. `initial_state`, `load_state` |
 | `controls.py` | C0 (eta=0 identity gate), C1 (revert), C2 (norm-matched random, multi-seed distribution), C3 (Hebb diverges / Oja does not) |
 | `offline_control.py` | Matched closed-vs-offline arms, a **17-axis** mechanical match verifier, and the severed-path control |
 | `experiments/` | `baseline_basins.py` (the census + the canonical basin readout), `step_size_map.py`, `exp001_hebb.py`, `basin_bifurcation.py` — the last three take `--site` |
+
+**Composed terms — the #24/#25 balance.** A site's update can be an ordered sum of
+signed, optionally-projected terms over the two primitives, instead of one `mode`
+string. This is what makes "reinforce inside the target subspace, erode outside it"
+(#25) expressible at a single site, and it is what EXP-002 step 2 needs:
+
+```python
+P = subspace_projector(basis)                    # (n_out, n_out)
+OjaPlasticity(model, site, eta=1e-6, terms=[
+    TermSpec("hebb",  +1, P),                    # reinforce inside the direction
+    TermSpec("hebb",  -1, torch.eye(768) - P),   # erode around it
+    TermSpec("decay", -1),                       # one brake over both
+])
+```
+
+`terms=None` runs the original `mode` path unchanged; the three closed-form modes are
+reproduced bit-exactly by their term spellings. `report()["mode"]` reads `"terms"` on
+this path — the schema is unchanged, but anything grouping runs by `mode` will see it.
+Covered by `tests/test_terms.py`.
+
+**Reading a composed update — one trap.** At `blocks.6.mlp` the brake is ~110× the
+reinforcement term (‖W⟨yyᵀ⟩‖ ≈ 110 × ‖⟨xyᵀ⟩‖), so a sign taken on the *total* update
+reads "eroding" in **both** subspaces even when the balance is reinforcing correctly
+inside P. Difference against a brake-only arm before concluding the balance is broken.
 
 **Multi-site usage:**
 

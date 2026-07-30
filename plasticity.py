@@ -152,6 +152,14 @@ def _as_projector(
     every number in report() stayed plausible. Held to float32 precision, the
     dtype the product is formed in.
     """
+    if not torch.is_tensor(project):
+        # Before `.dim()`, or a list or ndarray -- which `TermSpec.coerce`
+        # accepts from a dict without inspecting -- raises AttributeError
+        # instead of the named ValueError every other path here gives.
+        raise ValueError(
+            f"{what} must be a torch.Tensor, got {type(project).__name__}; "
+            "build it with subspace_projector()"
+        )
     if project.dim() != 2 or project.shape != (n_out, n_out):
         raise ValueError(
             f"{what} must be ({n_out}, {n_out}) -- the update's output "
@@ -239,6 +247,12 @@ class TermSpec:
                 f"sign must be exactly +1 or -1, got {self.sign!r}; a coefficient "
                 "belongs in scale="
             )
+        # Store the coerced value back, not just validate it. `"1"` floats to a
+        # valid sign, so validating a local and discarding it would accept the
+        # spec here and then fail in `_composed_update`'s `t.sign * t.scale`
+        # with a TypeError, hours into a sweep -- the failure this class
+        # validates eagerly to prevent.
+        object.__setattr__(self, "sign", sign)
         try:
             scale = float(self.scale)
         except (TypeError, ValueError):
@@ -248,6 +262,7 @@ class TermSpec:
                 f"scale must be a finite positive number, got {self.scale!r}; "
                 "the direction of a term is sign=, not a negative scale"
             )
+        object.__setattr__(self, "scale", scale)
 
     @classmethod
     def coerce(cls, term: Union["TermSpec", dict]) -> "TermSpec":

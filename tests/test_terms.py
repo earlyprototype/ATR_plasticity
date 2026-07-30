@@ -566,6 +566,34 @@ class TestGuards:
     cell rather than an hour into the run.
     """
 
+    def test_a_validated_sign_is_stored_back_not_just_checked(self):
+        """
+        `"1"` floats to a valid sign, so a `__post_init__` that validated a
+        local and discarded it would accept the spec and then fail in
+        `_composed_update`'s `t.sign * t.scale` with `can't multiply sequence`
+        -- at apply() time, hours into a sweep, from a spec that was already
+        checked. Validation here has to normalise, not merely permit.
+        """
+        t = TermSpec.coerce({"primitive": "hebb", "sign": "1", "scale": "2"})
+        assert isinstance(t.sign, float) and t.sign == 1.0
+        assert isinstance(t.scale, float) and t.scale == 2.0
+        # The arithmetic the update path does, on the stored fields.
+        assert t.sign * t.scale == 2.0
+
+        t_neg = TermSpec("decay", "-1")
+        assert isinstance(t_neg.sign, float) and t_neg.sign == -1.0
+
+    def test_a_non_tensor_projector_is_refused_by_name(self, gpt2, site):
+        """
+        `TermSpec.coerce` takes dict values without inspecting them, so a list
+        or an ndarray reaches `_as_projector`. Before the type check it hit
+        `.dim()` and raised AttributeError -- which names neither the argument
+        nor the term, and reads like a bug in the layer rather than a bad spec.
+        """
+        with pytest.raises(ValueError, match="must be a torch.Tensor"):
+            OjaPlasticity(gpt2, site=site,
+                          terms=[TermSpec("hebb", +1, [[1.0, 0.0], [0.0, 1.0]])])
+
     def test_a_wrongly_shaped_per_term_projector_is_refused(self, gpt2, site):
         """The input axis, not the output one -- conformable at this site only
         by accident of the widths, and silently a different experiment."""
