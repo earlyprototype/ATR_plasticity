@@ -39,3 +39,8 @@ experiments/**/exp001.shard*.jsonl
 .DS_Store
 .idea/
 .vscode/
+
+# T1.4 run metadata: written only when the sweep completes. Kept untracked
+# while a run is in flight so a partial or smoke-test meta.json can never be
+# read as a finished result. Commit it explicitly when the run is done.
+experiments/output_rank1_random/meta.json
