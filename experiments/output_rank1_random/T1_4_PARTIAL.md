@@ -1,5 +1,14 @@
 # T1.4 — rank-1 random control, partial results
 
+> **Superseded.** The sweep is complete: see `T1_4_RESULTS.md` (10/10 both arms).
+> This file is kept as the mid-run record. One correction, marked rather than
+> silently applied: the "Seed 1001's probe sequence" table below quotes probes at
+> scales 85.150 and 357.968 that appear in **no committed version of
+> `rank1_random.jsonl`** — they are from the discarded run 1. The committed
+> seed-1001 record's probes are listed in `T1_4_RESULTS.md`; the
+> distinct-scales-same-displacement observation survives via the committed
+> seed-1007 record.
+
 **Status: incomplete.** 10/10 Arm A seeds, 5/10 Arm B seeds. Run stopped at session
 end. Resume with:
 
