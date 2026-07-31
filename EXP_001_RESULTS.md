@@ -2,6 +2,19 @@
 
 Issues #26, #30, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120 steps, cadence 1, `max_delta_frac` = 0.05.
 
+> **Review notice — `ALIGNMENT_REVIEW.md` supersedes two statements in this file.** Where they
+> disagree, `CLAIMS.md` is the authority.
+>
+> - **"The only cell in the whole sweep"** (next paragraph) is wrong: there are **two**
+>   ceiling-silent cells that flip the basin — `hebb`@7.07e-05 (1.12% drift) and
+>   `hebb`@1.18e-04 (2.20%), both 0.0% clip, both `comrade`. See **C-21**. (Not an independent
+>   replication — both share prompt, seed, site and cadence.)
+> - **§3's perpendicular/parallel figures (0.1153 / 0.0346, ratio 3.33)** are arithmetically
+>   correct, but the prose labels them fractions of `‖ΔW_closed‖`; `exp001_hebb.py:1163-1173`
+>   normalises by `‖ΔW_offline‖`. **The label is wrong, not the numbers.** Do not restate the
+>   ratio against the other reference — report the **6.81° rotation** and **2.8% shortening**
+>   instead. See **C-32**, `provisional`.
+
 The step-size map found `hebb` at this eta to be the only cell in the whole sweep that moves the loop inside a clean band: basin `prolet` → `comrade` at 1.12% relative weight change with the norm ceiling silent. `oja`, `anti_hebb` and `random` all have wide usable bands in which no basin change was recorded. Every offline-control number previously recorded in this repo was taken at `oja`, eta 1e-5 — inside the dead zone. This is the first time the control has been run where the loop actually moves.
 
 ## 1. Does the offline arm flip the basin too?

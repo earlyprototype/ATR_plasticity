@@ -24,6 +24,14 @@ Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 > - **§5.4, "issue #31 not yet started."** It was run. The measurement is in
 >   `experiments/output_baseline/BASELINE.md` and the answer is compression, one-dimensional,
 >   position-uniform across all basins. See C-04 – C-07.
+> - **"Three facts worth carrying forward" (below), both of its first two claims.**
+>   *"The only cell in the whole sweep"* — there are **two**: `hebb`@7.07e-05 (1.12% drift) and
+>   `hebb`@1.18e-04 (2.20%), both ceiling-silent, both `comrade`. See C-21. And *"the basin
+>   change is specific to the update's **direction**, not its magnitude"* — **withdrawn**. The
+>   α-sweep holds this exact ΔW's direction fixed and produces three basins by scaling alone
+>   (`prolet` → `comrade` → `Divine`, α\* = 0.75), and `hebb`@3.925e-05 is the same direction at
+>   a quarter the magnitude and does not flip. The supported claim is that **both magnitude and
+>   sign are required**. See C-22, now `provisional`.
 >
 > Also: §3.2's "the only cell that moves the loop" undercounts — there are **two** clean
 > cells (C-21); and the Chaudhary reading in §5.4 is the superseded one, which predicts the
