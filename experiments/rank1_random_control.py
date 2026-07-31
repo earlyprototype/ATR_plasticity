@@ -347,8 +347,12 @@ def main() -> int:
     else:
         jsonl_path.write_text("")
 
+    # Gate on the loaded content, not the flag: `--resume` against a missing or
+    # emptied output file would otherwise skip the reference rows entirely, and
+    # the final rewrite would persist a record set with no `off`/`hebb` anchor.
+    have_refs = any(r.get("arm") in ("off", "hebb") for r in records)
     for r in (rec_off, rec_hebb):
-        if not args.resume:
+        if not have_refs:
             emit(r)
 
     # -- Arm A: matched operator norm -----------------------------------------
@@ -459,8 +463,24 @@ def main() -> int:
             # Saturation: distinct scales giving the same displacement means
             # the target may be unreachable for this direction, which is a
             # finding about the map, not a search failure to be hidden.
-            ds = sorted({round(p["disp_1mcos"], 9) for p in probes})
-            saturated = len(ds) < len([p for p in probes if p["scale"] > hebb_sigma1])
+            #
+            # "Same displacement" is a relative-tolerance comparison at well-
+            # separated scales, not exact equality after rounding. The first
+            # version rounded to 9 decimals, which misses the real plateaus:
+            # seed 1007's probes at scales 86.266/102.588 give displacements
+            # agreeing to 2e-05 relative -- flat by any reading -- yet differ
+            # long before the 9th decimal, so its committed record says
+            # saturation_suspected=false under the old rule. The scale-ratio
+            # floor keeps ordinary bisection convergence (tiny scale steps,
+            # necessarily similar displacements) from counting as a plateau.
+            def _plateau(p, q):
+                hi, lo = max(p["scale"], q["scale"]), min(p["scale"], q["scale"])
+                d = abs(p["disp_1mcos"] - q["disp_1mcos"])
+                ref = max(abs(p["disp_1mcos"]), abs(q["disp_1mcos"]), 1e-30)
+                return hi / lo >= 1.05 and d <= 1e-3 * ref
+            big = [p for p in probes if p["scale"] > hebb_sigma1]
+            saturated = any(_plateau(p, q)
+                            for i, p in enumerate(big) for q in big[i + 1:])
             rec.update({"arm": ARM_B, "seed": seed, "n_evals": len(probes),
                         "bracketed": hi_c is not None,
                         "saturation_suspected": bool(saturated),

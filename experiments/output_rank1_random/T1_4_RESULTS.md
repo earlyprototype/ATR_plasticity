@@ -112,6 +112,14 @@ records: seed 1007's probes at scales 86.266, 102.588, 145.081 give 1−cos =
 2.4719e-01, 2.4720e-01, 2.4739e-01 — a 1.7× scale range with the displacement
 flat to three figures.
 
+One field caveat: the per-record `saturation_suspected` flag reads `false` on
+seed 1007 despite that plateau. The heuristic that wrote it compared
+displacements by exact equality after rounding to 9 decimals, which the
+plateau's 2e-05 relative agreement does not trigger. The flag was rewritten to
+a relative-tolerance comparison after the sweep (flagged by review); the
+committed records were produced by, and keep, the old rule's output. The probe
+lists themselves are the evidence — read those, not the flag.
+
 ### Correction to `T1_4_PARTIAL.md`
 
 The partial file's "Seed 1001's probe sequence" table quoted probes at scales

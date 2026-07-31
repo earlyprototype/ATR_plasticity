@@ -865,7 +865,7 @@ it is cheap.** (F4)
 
 > *Update:* run to completion after this review was written — 10/10 seeds both
 > arms, `experiments/output_rank1_random/T1_4_RESULTS.md`. What it changes in
-> the register is decided in the C-22 amendment PR, not here.
+> the register is decided in the C-22 amendment PR (#42), not here.
 
 **T1.5 — Fix `_recompute_y` at head sites, and add a head-site test to
 `test_offline_control.py`.** **Blocks T3.1 and T3.2.** No published result is affected, but
@@ -934,7 +934,9 @@ realises, and is not claiming it:
 > of **94%** the same loop-state magnitude, in the opposite sign on the same axis, does not
 > reproduce it; neither does the same-sign update at a quarter the magnitude. In one case the
 > edit changes the *dynamical class* of the trajectory, turning a fixed point into a period-2
-> cycle.
+> cycle. Measured at one site (`blocks.6.mlp`) of one model (gpt2-small): the basin flip on
+> 3 prompts (C-20), the opposite-sign and quarter-magnitude controls on one prompt
+> (`A01_physics`), the dynamical-class change on one prompt (`A04_climate`, n = 1).
 
 **"Near-rank-1", not "rank-1".** F4 measures 95.8% of `‖ΔW‖²_F` in the leading component at
 `routed:A01_physics` and 100.0% in the severed cells, but only **81–84%** in the two episode
@@ -958,10 +960,11 @@ Scope it to the measured prompt and site — **one prompt (`A01_physics`), one s
 (`blocks.6.mlp`)**. Running T1.4 before any write-up is what would let the clause stand
 unqualified.
 
-> *Update:* T1.4 has since run to completion (`T1_4_RESULTS.md`): 4/6
-> displacement-matched random rank-1 directions flip the basin; 0/10 reach
-> `comrade`; 4/10 could not be matched. The paragraph above is left as written;
-> what the register now says is the C-22 amendment PR's decision.
+> *Update:* T1.4 has since run to completion (`T1_4_RESULTS.md`) — C-50 is no
+> longer open: 4/6 displacement-matched random rank-1 directions flip the basin;
+> 0/10 reach `comrade`; 4/10 could not be matched. The paragraph above is left
+> as written; what the register says next is decided in PR #42, which proposes
+> C-22 → `retired` with the surviving claim entered as C-55.
 
 **Not "direction-specific, not magnitude-specific"** — an earlier draft said that and F2's own
 α-sweep refutes it, since scaling this exact ΔW at fixed direction produces three different
