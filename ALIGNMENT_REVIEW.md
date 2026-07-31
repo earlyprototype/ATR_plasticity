@@ -993,6 +993,13 @@ experiment, and both currently hold:
 | Behavioural consequence | *is* the claim | **none** — both arms flip the same basin (C-33) |
 | Falsified by | **T1.4 falsifies only the "structured, not generic" clause** — it cannot touch the measured Hebbian flip or the `A04` dynamical-class change, which are observations, not inferences | T2.1 finding no growth into outcome change |
 
+> *Update, post-T1.4:* the falsification named in the last row happened — the "structured, not
+> generic" clause is gone (C-22 `retired`), exactly as bounded above: the measured Hebbian flip
+> and the `A04` dynamical-class change are untouched. The editability claim's surviving form is
+> C-55's — an arbitrary rank-1 direction at the same loop displacement usually moves the basin,
+> never to `hebb`'s destination, at 66×–172× the weight cost. The Status cells above are left
+> as written for the record.
+
 **The dependency runs one way, and that is the whole argument for the ordering.** If
 editability fails, coupling is worthless — feedback steering a weight change that changes
 nothing is not a result. If coupling fails, editability is untouched. **Editability is
