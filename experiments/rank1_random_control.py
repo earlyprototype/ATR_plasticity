@@ -262,21 +262,36 @@ def main() -> int:
                 lo, hi = hi, hi * 2.0
                 probe = eval_scale(1000 + s, hi)
                 n_eval += 1
+            # Keep the probe CLOSEST to the target, not the last one evaluated.
+            # Bisection's final probe can sit further from the target than an
+            # earlier one, which would report an unmatched point as "matched".
+            def err(p):
+                return abs(p["disp_1mcos"] - hebb_disp) / hebb_disp
+
             best = probe
+            all_probes = [probe]
             for _ in range(MAX_BISECT):
-                if abs(best["disp_1mcos"] - hebb_disp) / hebb_disp <= DISP_TOL:
+                if err(best) <= DISP_TOL:
                     break
                 mid = 0.5 * (lo + hi)
                 probe = eval_scale(1000 + s, mid)
                 n_eval += 1
+                all_probes.append(probe)
                 if probe["disp_1mcos"] < hebb_disp:
                     lo = mid
                 else:
                     hi = mid
-                best = probe
+                best = min(all_probes, key=err)
             best.update({"arm": "rank1_random_matched_disp", "seed": 1000 + s,
                          "n_evals": n_eval,
-                         "flipped": best["basin"] != off_b["basin"]})
+                         "disp_rel_err": err(best),
+                         "matched": err(best) <= DISP_TOL,
+                         "flipped": best["basin"] != off_b["basin"],
+                         # every probe for this seed, so a flip seen at ANY
+                         # scale during the search is not silently discarded
+                         "probes": [{"scale": p["scale"], "basin": p["basin"],
+                                     "disp_1mcos": p["disp_1mcos"]}
+                                    for p in all_probes]})
             records.append(best)
             print(f"[armB] seed={1000+s} scale={best['scale']:.4f} "
                   f"basin={best['basin']!r:<14} "
