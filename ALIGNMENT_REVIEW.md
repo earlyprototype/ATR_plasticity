@@ -27,12 +27,13 @@ What has gone wrong is entirely above the numbers. Three drifts:
 | | Finding |
 |---|---|
 | **Under-claimed** | The coupling result. The top-level summary tells the next reader feedback did nothing; the evidence says it steers the update, against a null of exactly zero. **F1** |
-| **Over-claimed** | The bifurcation. `BASIN_BIFURCATION.md` reports a created attractor; the α-sweep shows one fixed point moving smoothly while an argmax relabels, and D1 cannot discriminate step 4 from step 2. **F2** |
+| **Over-claimed** | The bifurcation. `BASIN_BIFURCATION.md` reports a created attractor; the α-sweep shows the observed settled branch moving smoothly while an argmax relabels, and D1 cannot discriminate step 4 from step 2. **F2** |
 | **Unknown to itself** | Issue #31 — "the cheapest measurement in the project", listed as unrun in three places — was run, and is committed in `BASELINE.md`. Its answer changes how every basin result reads. **F3** |
 
-F3 is the one that explains the other two. **No artifact in this repository maps a claim
-to its evidence**, so a measurement can be made and lost, and a correction can land in one
-file while three others keep the superseded version. §4 proposes the fix; it costs one file.
+F3 is the one that explains the other two. **In the audited state, no artifact in this
+repository mapped a claim to its evidence**, so a measurement could be made and lost, and a
+correction could land in one file while three others kept the superseded version. `CLAIMS.md`,
+added by this review, now provides that mapping; §4 sets out the rules it runs under.
 
 Separately, a full code audit found the whole-matrix path defended to the last bit and **one
 high-severity latent defect on the per-head path** — invisible to all 17 matched axes, though
@@ -123,7 +124,7 @@ it by **2.8%** (`‖ΔW_closed‖ / ‖ΔW_offline‖` = 0.97225).
 > this cosine, perpendicular dominance is automatic for any norm ratio in **[0.900, 1.144]** —
 > at *equal* norms the ratio would be 16.8, so the measured value is **less** direction-dominated
 > than equal norms would give. Report the rotation and the shortening.
-
+>
 > *Correction to `EXP_001_RESULTS.md:133`.* The published figures 0.1153 / 0.0346 are
 > arithmetically correct, but the prose labels them fractions of `‖ΔW_closed‖`;
 > `exp001_hebb.py:1163-1173` normalises by `‖ΔW_offline‖`. **The label is wrong, not the
@@ -144,7 +145,9 @@ And the comment on issue #32:
 
 Both are wrong the same way. Issue #26 pre-registered the rubric "near 1 → nothing but
 scale" *before the severed control existed to calibrate what "near 1" means*. Once the null
-is known to be exactly 1, a cosine of 0.993 is not near 1 — it is 1.8 × 10¹⁰ floors away.
+is known to be **exactly 1** — bit-identical arms, `rel_fro_diff` exactly `0.0` — a cosine of
+0.993 is not near 1: it is strictly positive against a null of exactly zero. (No ratio can be
+quoted here, and an earlier draft wrongly quoted one: the denominator is zero.)
 The rubric was applied as written instead of re-read against the control that had since
 been built.
 
@@ -195,16 +198,18 @@ It should not. Three independent arguments, in increasing order of severity.
 | ‖state‖ | 4782.8 | 4794.4 | 4807.3 | 4821.6 | 4836.9 | 4851.8 | 4917.7 |
 | Δ‖state‖ | — | +11.6 | +12.9 | +14.3 | +15.3 | +14.9 | **+65.9** |
 
-Across α = 0 → 1.25 there is one fixed point and it moves smoothly: lag-1 pinned at 1.0,
+Across α = 0 → 1.25 the **observed settled branch** remains a fixed point and moves smoothly:
+lag-1 pinned at 1.0,
 state norm advancing in near-equal increments, no discontinuity anywhere near α\* = 0.75.
 What changes discretely at α\* is the **argmax of the readout** — and an argmax always
 changes discretely, including under perfectly smooth motion. The document says this and
 treats it as corroboration: *"The argmax (the basin) is discrete; the logit it is the argmax
 **of** is not. Smooth logits, discrete attractor — the signature the result turns on."*
 That is the signature of a **relabelled, continuously-moving fixed point** — ladder step 2.
-The crossing is driven mainly by `prolet`'s logit *falling* (16.95 → 16.07) rather than
-`comrade`'s rising (16.29 → 16.25): suppression of the incumbent, which is a steering-vector
-signature, not a new attractor.
+The crossing is driven entirely by `prolet`'s logit *falling* (16.95 → 16.07, −0.88).
+**`comrade`'s logit does not rise — it also falls** (16.29 → 16.25, −0.02), monotonically at
+every α. The argmax changes because the incumbent is suppressed, not because a competitor
+grows: a steering-vector signature, not a new attractor.
 
 **(b) D1 does not discriminate what it claims to.** For any ΔW ≠ 0 the perturbed map's fixed
 point is generically not a fixed point of the unperturbed map. D1 correctly falsifies "the
@@ -271,13 +276,15 @@ whichever way it is read. **The argument against step 4 rests on (a) and (b), no
 > a different and more interesting failure than the one this caveat was written to guard against.
 > **C-26 is held at `not-established` because T1.1 is unrun, not because of a measurement doubt.**
 
-**(d) The file never mentions the offline arm.** `grep -i "offline\|coupling\|feedback"` on
-`BASIN_BIFURCATION.md` returns **zero hits**. But the offline arm — no feedback path at all
-— flips the same basin, and the commit that produced EXP-001 is titled *"the basin flip is
-the rule, not the coupling."* `BASIN_BIFURCATION.md` speaks throughout of what "the episode"
-did. Read alone — and it will be, it is the newest result — it supports the conclusion that
-the closed loop created an attractor. The repo's own control says the loop was not required.
-One sentence fixes this and it must be added.
+**(d) In the audited state, the file never mentioned the offline arm.**
+`grep -i "offline\|coupling\|feedback"` on `BASIN_BIFURCATION.md` at `ea4f0c1` returned **zero
+hits**. But the offline arm — no feedback path at all — flips the same basin, and the commit
+that produced EXP-001 is titled *"the basin flip is the rule, not the coupling."* The file
+speaks throughout of what "the episode" did. Read alone — and it would be, being the newest
+result — it supported the conclusion that the closed loop created an attractor, while the
+repo's own control says the loop was not required. **This review adds that sentence**, so the
+gap is now closed in the file itself; it is recorded here because the omission is what let the
+reading spread.
 
 **The decisive test was not run, and it is cheap.** Under `W0 + ΔW`, seed the *original
 frozen* `prolet` state and iterate. Stays `prolet` → two attractors coexist → step 4 stands.
@@ -293,9 +300,11 @@ dynamical class. But `Divine` is a **pre-existing** attractor (34 of 125 baselin
 so this is ladder **step 3**, a boundary move, and it sits at 1.5× the ΔW the episode
 produced.
 
-**Net effect on the ladder.** The project has a solid **step 3** — `A04_climate` crossing
-into the pre-existing `Divine` cycle at α = 1, with a dynamical-class change no readout
-artifact can explain. Issue #25 calls step 3 *"the measurable one, and the first real
+**Net effect on the ladder.** The project has a solid **step 3** — `A04_climate` crossing into
+the pre-existing `Divine` cycle under the **full applied ΔW**, with a dynamical-class change no
+readout artifact can explain. (Not to be confused with the α-sweep above, which is on
+`A01_physics`: there `Divine` appears only at α = 1.50, past the 0→1.25 range the smoothness
+argument covers, and the `comrade` transition sits at α\* = 0.75.) Issue #25 calls step 3 *"the measurable one, and the first real
 result."* It is being under-sold in favour of a step-4 claim the data do not carry.
 **Swap the emphasis.**
 
@@ -439,7 +448,7 @@ attention and the position-wise MLP exactly — C is effectively rank-1 and
 > **ΔW ≈ η·N· x̄ ȳᵀ: a rank-1 weight edit whose input-side factor is the site's dominant
 > activation mode, and whose output-side factor is the site's mean output ȳ = Wᵀx̄ + b_out —
 > not Wᵀx̄.**
-
+>
 > **An earlier draft of this review stated the identity as `ΔW = C·W` "exactly", dropping the
 > bias.** The repo's own artifact refutes that form by three to four orders of magnitude:
 > `u_right_sign_ref_cos` gives **cos(v₁, ȳ) = 0.999999** in the severed cells (where ΔW is
@@ -898,12 +907,24 @@ Meanwhile the project has proved something else, cleanly, under better control t
 realises, and is not claiming it:
 
 > **A frozen transformer's iterated-dynamics attractor landscape is editable by a rank-1
-> weight perturbation of ~1% derived from the model's own activation statistics, with no
-> target and no loss — and the edit is structured, not generic.** A ceiling-silent update of
-> **94%** the same loop-state magnitude, in the opposite sign on the same axis, does not
-> reproduce it; neither does the same-sign update at a quarter the magnitude; and an isotropic
-> edit of matched Frobenius norm never comes close. In one case the edit changes the
-> *dynamical class* of the trajectory, turning a fixed point into a period-2 cycle.
+> weight perturbation of ~1% derived from the model's own activation statistics, with no target
+> and no externally specified objective.** A ceiling-silent update of **94%** the same
+> loop-state magnitude, in the opposite sign on the same axis, does not reproduce it; neither
+> does the same-sign update at a quarter the magnitude; and an isotropic edit of matched
+> Frobenius norm never comes close. In one case the edit changes the *dynamical class* of the
+> trajectory, turning a fixed point into a period-2 cycle.
+
+**Say "no externally specified objective", not "no loss"** — C-11 establishes that plain Hebb
+*is* gradient ascent on ½E‖y‖², so there is an implicit objective and the stronger phrase is
+false.
+
+**And the "structured, not generic" clause is `provisional`, not established.** C-22 is
+`provisional` and **C-50 / T1.4 is open**: an unrun rank-1 random edit at matched σ₁ *and*
+matched loop displacement can still falsify it. Until that runs, the licensed form is
+*"current evidence indicates a structured edit; the generic-direction question is open."*
+Scope it to the measured prompt and site — **one prompt (`A01_physics`), one seed, one site
+(`blocks.6.mlp`)**. Running T1.4 before any write-up is what would let the clause stand
+unqualified.
 
 **Not "direction-specific, not magnitude-specific"** — an earlier draft said that and F2's own
 α-sweep refutes it, since scaling this exact ΔW at fixed direction produces three different
