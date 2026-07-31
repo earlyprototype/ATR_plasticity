@@ -113,6 +113,8 @@ N_EPISODE = 120
 # tolerance of hebb's, or after this many bisection steps.
 DISP_TOL = 0.02
 MAX_BISECT = 8
+MAX_BRACKET = 8          # doublings allowed while establishing the bracket
+MAX_SCALE_MULT = 200.0   # hard ceiling on scale, in units of hebb's sigma1
 
 
 def basin_of(model, state: torch.Tensor) -> dict:
@@ -282,6 +284,18 @@ def main() -> int:
             f"hebb={hebb_b['basin']!r} (expected 'comrade'). "
             f"No control records written.")
 
+    def position_spread(state: torch.Tensor) -> float:
+        """Min cosine between any two token positions of a settled state.
+
+        C-06 records 125/125 frozen states as fully position-uniform (all pairs
+        above cos 0.999), which is what licenses collapsing the sequence axis to
+        a position-mean. Nothing establishes that under an edit of 70%+ of the
+        weight norm, so it is measured rather than assumed: if this drops, the
+        position-mean is a lossy summary and `disp_1mcos` is not comparable
+        across arms."""
+        v = torch.nn.functional.normalize(state.double(), dim=-1)
+        return float((v @ v.T).min())
+
     def eval_scale(g_seed: int, scale: float) -> dict:
         """Install W0 + rank-1 random at this scale, run frozen, measure."""
         g = torch.Generator(device="cpu").manual_seed(g_seed)
@@ -292,10 +306,18 @@ def main() -> int:
         finally:
             plast._site.write(W0)
         b = basin_of(model, st)
+        pm = posmean(st)
+        # Angular vs radial: disp_1mcos is angular only and discards the norm
+        # change. Recorded separately so "perturbs the loop less" can be stated
+        # in full rather than as an unqualified scalar.
+        n_new, n_off = float(pm.double().norm()), float(off_pm.double().norm())
         return {
             "scale": scale, "basin": b["basin"], "top5": b["top5"],
             "margin": b["margin"],
-            "disp_1mcos": one_minus_cos(posmean(st), off_pm),
+            "disp_1mcos": one_minus_cos(pm, off_pm),
+            "posmean_norm": n_new,
+            "norm_ratio_vs_off": n_new / n_off if n_off else float("nan"),
+            "position_spread_min_cos": position_spread(st),
             "sigma1": scale, "fro": scale,
         }
 
@@ -379,27 +401,53 @@ def main() -> int:
                 base = eval_scale(seed, hebb_sigma1)
             probes = [base]
 
-            # Quadratic first guess, then log-log secant refinement.
-            c = hebb_sigma1 * (hebb_disp / max(base["disp_1mcos"], 1e-30)) ** 0.5
-            for _ in range(MAX_BISECT):
-                c = float(min(max(c, 1e-6), 500.0 * hebb_sigma1))
-                probes.append(eval_scale(seed, c))
-                best = min(probes, key=err)
-                if err(best) <= DISP_TOL:
+            # Safeguarded bracket-then-refine.
+            #
+            # An earlier revision used an unsafeguarded log-log secant. It
+            # assumed displacement is a monotone power of scale. It is not:
+            # displacement SATURATES. On seed 1001 scale 85 and scale 358 both
+            # give 1-cos = 0.2580 to four figures, so the local slope is ~0, the
+            # secant proposed the same point eight times, and the search
+            # returned its own starting probe as "best". Speed is worthless if
+            # the answer can be the input.
+            #
+            # So: establish a genuine bracket first, then bisect inside it in
+            # log-scale. The quadratic guess is kept, but only to jump-start
+            # the bracket -- never as an unchecked step.
+            lo_c, lo_d = hebb_sigma1, base["disp_1mcos"]
+            hi_c = hi_d = None
+            guess = hebb_sigma1 * (hebb_disp / max(lo_d, 1e-30)) ** 0.5
+            c = float(min(guess, 40.0 * hebb_sigma1))
+            for _ in range(MAX_BRACKET):
+                p_ = eval_scale(seed, c)
+                probes.append(p_)
+                if p_["disp_1mcos"] >= hebb_disp:
+                    hi_c, hi_d = c, p_["disp_1mcos"]
                     break
-                # Secant on log(disp) vs log(scale) through the two probes
-                # nearest the target; falls back to the quadratic step if the
-                # two are degenerate.
-                near = sorted(probes, key=err)[:2]
-                (c1, d1), (c2, d2) = ((p["scale"], p["disp_1mcos"]) for p in near)
-                if c1 == c2 or d1 <= 0 or d2 <= 0 or d1 == d2:
-                    c = c1 * (hebb_disp / max(d1, 1e-30)) ** 0.5
-                else:
-                    slope = (math.log(d2) - math.log(d1)) / (math.log(c2) - math.log(c1))
-                    if abs(slope) < 1e-9:
+                lo_c, lo_d = c, p_["disp_1mcos"]
+                c = min(c * 2.0, MAX_SCALE_MULT * hebb_sigma1)
+                if c >= MAX_SCALE_MULT * hebb_sigma1:
+                    p_ = eval_scale(seed, c)
+                    probes.append(p_)
+                    if p_["disp_1mcos"] >= hebb_disp:
+                        hi_c, hi_d = c, p_["disp_1mcos"]
+                    break
+
+            if hi_c is not None:
+                # Bisect in log-scale: displacement is roughly a power law
+                # inside the bracket, so log-midpoints converge faster than
+                # linear ones, and bisection cannot leave the bracket however
+                # badly behaved the function is.
+                for _ in range(MAX_BISECT):
+                    if err(min(probes, key=err)) <= DISP_TOL:
                         break
-                    c = math.exp(math.log(c1)
-                                 + (math.log(hebb_disp) - math.log(d1)) / slope)
+                    mid = math.exp(0.5 * (math.log(lo_c) + math.log(hi_c)))
+                    p_ = eval_scale(seed, mid)
+                    probes.append(p_)
+                    if p_["disp_1mcos"] < hebb_disp:
+                        lo_c, lo_d = mid, p_["disp_1mcos"]
+                    else:
+                        hi_c, hi_d = mid, p_["disp_1mcos"]
 
             best = min(probes, key=err)
             flips_seen = sorted(
@@ -408,7 +456,14 @@ def main() -> int:
                  for p in probes if p["basin"] != off_b["basin"]),
                 key=lambda q: q["scale"])
             rec = dict(best)
+            # Saturation: distinct scales giving the same displacement means
+            # the target may be unreachable for this direction, which is a
+            # finding about the map, not a search failure to be hidden.
+            ds = sorted({round(p["disp_1mcos"], 9) for p in probes})
+            saturated = len(ds) < len([p for p in probes if p["scale"] > hebb_sigma1])
             rec.update({"arm": ARM_B, "seed": seed, "n_evals": len(probes),
+                        "bracketed": hi_c is not None,
+                        "saturation_suspected": bool(saturated),
                         "seconds": time.time() - t,
                         "disp_rel_err": err(best),
                         "matched": err(best) <= DISP_TOL,
