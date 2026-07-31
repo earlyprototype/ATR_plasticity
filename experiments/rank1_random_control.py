@@ -166,8 +166,14 @@ def main() -> int:
                           max_delta_frac=MAX_DELTA_FRAC, seed=SEED)
     W0 = plast.W0.clone()
     n_in, n_out = W0.shape
+    # float64. A float32 .norm() over 2.36M elements accumulates ~4.7e-05
+    # relative error here (164.8464 against the true 164.854073) -- enough to
+    # look like a version discrepancy against the repo's canonical constant when
+    # it is only the reduction's own round-off. Every derived quantity in this
+    # file is computed in float64 for the same reason.
+    w0n = float(W0.double().norm())
     print(f"[setup] site {SITE} W0 {tuple(W0.shape)} "
-          f"||W0||_F {W0.norm().item():.4f}", flush=True)
+          f"||W0||_F {w0n:.6f} (float64; canonical 164.854073)", flush=True)
 
     # -- Reference 0: the frozen loop under W0 --------------------------------
     t = time.time()
