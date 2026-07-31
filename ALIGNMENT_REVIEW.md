@@ -184,7 +184,10 @@ signature, not a new attractor.
 **(b) D1 does not discriminate what it claims to.** For any ΔW ≠ 0 the perturbed map's fixed
 point is generically not a fixed point of the unperturbed map. D1 correctly falsifies "the
 episode walked into a pre-existing `comrade` basin of W₀" (step 3) — but step 4 is then the
-*residual by elimination*, and a norm-matched random edit would pass D1 identically. D1's own
+*residual by elimination* — and D1 returns that same verdict for **any** ΔW that displaces the
+fixed point at all, a norm-matched random edit included. (Equal operator norm does not imply
+equal trajectories, so a random arm would not reproduce D1's *numbers*; the point is that it
+would reach the same *conclusion*, which is what makes D1 non-discriminating.) D1's own
 trace argues for step 2: released under W₀ the state relaxes back to `prolet` smoothly and
 monotonically, lag-1 above 0.99992 at every sampled iteration.
 
@@ -208,6 +211,17 @@ together.
 This does not make the result worthless. It **calibrates** it: the basin taxonomy has a
 resolution of order `1 − cos` ≈ 3e-3, and the `comrade` displacement is the same order.
 A claim of a *created attractor* needs to clear that resolution and does not.
+
+> **Comparability, stated so the argument is checkable — this is the load-bearing assumption.**
+> The two figures come from different runs and are not obviously the same measurement. The
+> `comrade` number is a D1 relaxation trace (`cos_to_comrade0`, transformer_lens 3.6.0); the
+> scatter numbers are phase-aware pairwise cosines over the **position-mean** `(768,)` vector
+> across 55 prompts (3.5.1). What licenses the comparison is **C-06**: all 125 settled states
+> are fully position-uniform, so a position-mean cosine and a whole-tensor cosine coincide.
+> The version gap contributes a ~0.1%-class norm drift, an order below the 4.39e-03 signal.
+> **If that licensing fails, this specific comparison must be withdrawn** — but (a) and (b)
+> above are independent of it, so the step-2 reading survives either way. C-26 is held at
+> `not-established` rather than `retired` for exactly this reason.
 
 **(d) The file never mentions the offline arm.** `grep -i "offline\|coupling\|feedback"` on
 `BASIN_BIFURCATION.md` returns **zero hits**. But the offline arm — no feedback path at all
@@ -309,8 +323,19 @@ its magnitude"* — is not established by that comparison.
 | `anti_hebb` | 2.944e-06 | 0.0116 | 1.9131 | **1.8745** | 0.0% | `prolet` |
 
 Three near-rank-1 updates at the same site, matched on Frobenius norm *and* operator norm
-*and* drift, all ceiling-silent, differing **only in direction**. One flips the basin; two do
-not. And `oja` at 2.9% drift reaches σ₁ = 4.68 — **2.6× `hebb`'s** — and still does not flip.
+*and* drift, all ceiling-silent. One flips the basin; two do not. And `oja` at 2.9% drift
+reaches σ₁ = 4.68 — **2.6× `hebb`'s** — and still does not flip.
+
+**Stated precisely, because "differing only in direction" would overstate it.** The arms sit at
+different etas (7.065e-05 against 2.944e-06, a 24× gap) and their σ₁ agree only to within 6%;
+the match was *found* on a log-spaced grid, not constructed. So the clean statement is: across
+these arms, operator norm does not predict whether the basin moves — and the `oja` cell at 2.6×
+`hebb`'s σ₁ makes magnitude run the *wrong way*, which is the stronger half of the argument.
+Two gaps remain before this is more than provisional: whether σ₁-matching across modes at
+different etas is fair rather than a grid coincidence, and whether `oja`'s update — dominated by
+the brake, so pointing roughly back along `W` as a shrinkage — is treated differently by the
+loop's L2 renormalisation than `hebb`'s growth along the activation mode. If so,
+"direction-specific" holds for a duller reason than it appears. **T1.4 is the deciding test.**
 
 **That is the direction-specificity result, properly controlled, already measured, and
 requiring no new compute.** It is strictly stronger than the C2 comparison the README leans
@@ -363,9 +388,11 @@ contradicts inside the usable band.
 This is not a reason to abandon Oja. It is a reason to make **Oja's inertness a stated
 finding with a mechanism**. The explanation is already in the repo: at this site the decay
 term is ~110× the reinforcement term (`HANDOVER.md` §4), so Oja's update is almost entirely
-brake. A rule that is 99% brake tracks the dominant activation direction and goes nowhere
-else. That is a publishable observation about Oja inside a pretrained transformer, and it
-agrees with the prior-art expectation of saturation.
+brake, and a rule that is almost all brake would track the dominant activation direction and
+go nowhere else. **That is a hypothesis, not an explanation** — the ratio has been measured at
+`blocks.6.mlp` and never tested as a cause. `CLAIMS.md` C-14 holds it at `not-established`
+and T2.4 is the test. If it survives, it is a publishable observation about Oja inside a
+pretrained transformer, and it would agree with the prior-art expectation of saturation.
 
 ---
 
@@ -386,7 +413,7 @@ each **n = 1**.
 
 | # | Location | Says | Actually |
 |---|---|---|---|
-| E1 | `EXP_001_RESULTS.md` intro, `HANDOVER.md:96` | `hebb`@7.07e-05 is "the **only** cell in the whole sweep that moves the loop inside a clean band" | **Two** clean flipping cells: `hebb`@7.07e-05 (1.12% drift) *and* `hebb`@1.18e-04 (2.20% drift), both 0.0% clip, both `comrade`. This is good news — an independent replication — and it is being suppressed by an error |
+| E1 | `EXP_001_RESULTS.md` intro, `HANDOVER.md:96` | `hebb`@7.07e-05 is "the **only** cell in the whole sweep that moves the loop inside a clean band" | **Two** clean flipping cells: `hebb`@7.07e-05 (1.12% drift) *and* `hebb`@1.18e-04 (2.20% drift), both 0.0% clip, both `comrade`. Good news — robustness of the flip across a 1.7× change in eta — and it is being suppressed by an error. Not an independent replication: both cells share prompt, seed, site and cadence |
 | E2 | `EXP_001_RESULTS.md` §4 | ΔW effective rank "1.8–3.8 for `oja`" | `oja`'s range is **1.0–2.9**. The 3.8 is `anti_hebb`@9.81e-05, a cell at **60.8% clip** — which by the repo's own rule should not be cited at all |
 | E3 | `EXP_001_RESULTS.md:133` | perp/parallel decomposed against `ΔW_closed` | Decomposed against `ΔW_offline`. Against the stated reference: 0.1220 / 0.0213, ratio **5.73** (see F1) |
 
@@ -414,7 +441,7 @@ Errors of fact currently live on `main`, beyond those in F6:
 
 | Location | Says | Actually |
 |---|---|---|
-| `README.md` (×3) | "227 tests" | **295** collected (verified) |
+| `README.md` (×2) and `tests/conftest.py` `_unavailable()` | "227 tests" | **295** collected (verified) |
 | `README.md` "Why Oja rather than Hebb" | Hebb diverges immediately, unbounded growth | 0% clip, 0 non-finite, ‖W‖_F +0.03% (F5) |
 | `README.md:65` | "Rung 1 is the ε→0 limit of rung 4" | Formally **retracted** in `PRIOR_ART.md`; still asserted in README |
 | `README.md:165` | "Collapse is the likely default" | Contradicted by the repo's data: effective rank flat at ~642/768 and *rising* |
@@ -525,14 +552,22 @@ remove "hand-written rule" → Chaudhary, Miconi, Najarro & Risi. **"No loss" is
 load-bearing axis, and per F4 it is softer than claimed.**
 
 **Also flag for human verification:** the Chaudhary quote (arXiv:2510.21908 §4.8) is
-agent-fetched and no human has opened the PDF. It is suspicious in shape — one paragraph
-that reproduces all three previously-unverified figures verbatim, reassigns every one to the
-rule family the project does *not* use, and hands the project's own family a benign outcome
-that happens to agree with the other cited work. It also recommends "a practical regime
-around 4 layers" while describing experiments at only 2 and 8. That is the shape of a
-confabulated reconciliation. **Fortunately nothing depends on it**: the project has run at
-12 layers and observed both branches directly — `oja` saturated, `hebb` did not diverge.
-Demote the citation to corroboration and mark the quote `UNVERIFIED — agent-fetched`.
+agent-fetched, and no human has opened the PDF. **Nothing here alleges the paper or the quote
+is wrong** — only that the repo currently treats an unchecked passage as settled. Mark it
+`UNVERIFIED — agent-fetched, not human-checked` and resolve these three questions against the
+actual PDF:
+
+1. Does §4.8 contain the passage as quoted, verbatim?
+2. Does the paper attribute divergence to the gradient-plastic variant and stability-with-
+   saturation to the Hebbian one, as the repo's reading requires?
+3. The quoted passage describes experiments at 2 and 8 layers and then recommends "a practical
+   regime… around 4 layers." Is a 4-layer result reported elsewhere in the paper, or is that
+   an interpolation?
+
+Question 3 is a normal thing for a paper to do and is flagged only because it is checkable.
+**Fortunately nothing downstream depends on the answer**: the project has run at 12 layers and
+observed both branches directly — `oja` saturated, `hebb` did not diverge. Demote the citation
+from expectation-setting to corroboration, and the repo is insulated either way.
 
 ---
 
@@ -569,9 +604,18 @@ dropped entirely.
 as supported — **the head the parent project found carrying the period-2 cycle**, i.e. the
 single most scientifically interesting site in the repo — and calls `run_matched_arms(...,
 also_recomputed_y=True)`, the arm the file itself says "is the path the claim is made from".
-Running that command produces a large, arms-matched, verifier-blessed, severed-control-passing
-"feedback effect" that is **entirely an artifact of reconstructing `y` from one head**.
-No test covers `offline_control` at a head site.
+Running that command produces a large, arms-matched, verifier-blessed "feedback effect" that is
+**entirely an artifact of reconstructing `y` from one head**. No test covers `offline_control`
+at a head site.
+
+**The severed-path control does catch it — which is the good news.** The defect is invisible to
+all 17 matched axes, because `y_source` is deliberately not an axis. But the head-site severed
+floor comes out at 3.87e-04 against the documented 0.000e+00, four orders above the 1e-8
+detection limit the suite asserts. **That is a control failure, and it is the correct
+diagnostic**: anyone who runs the severed arm at a head site sees a non-zero floor and knows
+something is wrong before trusting the routed number. The danger is only to someone who runs
+the routed arm alone. This is the repo's own methodology working — and an argument for making
+the severed arm mandatory rather than optional at any new site.
 
 **No published result is affected — verified.** Every `site` field in every committed
 artifact is `blocks.6.mlp`, and no head-site string appears anywhere in `experiments/output_*`.
@@ -653,7 +697,7 @@ result at ladder step 2 pending T1.1, add the `prolet`-basin-scatter comparison,
 sentence noting the offline arm flips the same basin. Correct `HANDOVER.md` §5.3. (F2)
 
 **T0.4 — Fix the errors of fact** in F6 and F7. Two matter beyond hygiene: the "only cell"
-error is suppressing an independent replication at `hebb`@1.18e-04, and the Chaudhary
+error is suppressing a second clean flipping cell at `hebb`@1.18e-04, and the Chaudhary
 contradiction has two live documents predicting opposite failure modes.
 
 **T0.5 — Adopt margin discipline.** Every basin label gets its top1−top2 margin beside it,
@@ -681,7 +725,8 @@ conclusion collapses. **This can falsify the project's central result and it is 
 
 **T1.5 — Fix `_recompute_y` at head sites, and add a head-site test to
 `test_offline_control.py`.** **Blocks T3.1 and T3.2.** No published result is affected, but
-the defect is invisible to all 17 axes and to the severed-path control, and it sits on the
+the defect is invisible to all 17 axes — though the severed-path control *does* flag it, at a
+floor of 3.87e-04 against a documented 0.000e+00 — and it sits on the
 path to `blocks.11.attn.head.7` — the site the parent project makes most interesting. Fix
 before the site sweep, not after. (F11)
 
@@ -742,7 +787,7 @@ realises, and is not claiming it:
 > **A frozen transformer's iterated-dynamics attractor landscape is editable by a rank-1
 > weight perturbation of ~1% derived from the model's own activation statistics — and the
 > edit is direction-specific, not magnitude-specific.** Two other near-rank-1 updates at
-> matched Frobenius *and* operator norm do not reproduce it; one of them at 2.6× the operator
+> matched Frobenius and (to within 6%) operator norm do not reproduce it; one of them at 2.6× the operator
 > norm. In one case the edit changes the *dynamical class* of the trajectory, turning a fixed
 > point into a period-2 cycle.
 
@@ -792,6 +837,10 @@ require the loop to be useful for anything.
 
 ---
 
-*Prepared as a repository leadership review. Every number quoted is reproducible from
-`experiments/output_*`. Where this review and the code disagree, the code is right — check
-`git log` since `ea4f0c1`.*
+*Prepared as a repository leadership review. Every number quoted from the project's own runs is
+reproducible from `experiments/output_*`. **Two exceptions, both in F11**: the head-site
+magnitudes (relative error 0.838, `diff_over_drift` 6.02e-01, severed floor 3.87e-04) were
+measured against a Conv1D-shaped stand-in rather than real GPT-2 weights, and are provisional
+until reproduced — the structural finding they illustrate is read from source and does not
+depend on them. Where this review and the code disagree, the code is right — check `git log`
+since `ea4f0c1`.*

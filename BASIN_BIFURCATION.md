@@ -2,8 +2,11 @@
 
 > **Review notice — this file's headline is not established.** `ALIGNMENT_REVIEW.md` §F2
 > finds the "created attractor" reading refuted by evidence already in the repo. The
-> measurements below are sound and reproduce exactly; the *interpretation* placed on them
-> does not follow. Three points, all from committed artifacts:
+> measurements below are sound — the weight-space anchors reproduce EXP-001 to ~9 figures,
+> while the closed-loop state norm carries the ~0.1%-class drift this file already reports
+> (1.22e-03 relative, from regenerating rather than loading the state). It is the
+> *interpretation* placed on them that does not follow. Three points, all from committed
+> artifacts:
 >
 > 1. **The `comrade` state is inside the `prolet` basin's ordinary scatter.** It sits
 >    `1−cos` = 4.39e-03 from the `prolet` fixed point, against a worst within-`prolet` pair
@@ -16,13 +19,19 @@
 >    α = 1.25 and 1.50, where lag-1 collapses to 0.734 and the norm jumps +65.9 — and that
 >    lands in the **pre-existing** `Divine` basin, i.e. ladder step 3.
 > 3. **D1 does not discriminate step 3 or 4 from step 2.** For any ΔW ≠ 0 the perturbed map's
->    fixed point is generically not fixed under the unperturbed map, so a norm-matched random
->    edit would pass D1 identically. D1's own trace — smooth monotone relaxation back to
->    `prolet` — is the signature of a *displaced* fixed point.
+>    fixed point is generically not fixed under the unperturbed map — so **D1 alone cannot
+>    distinguish the alternatives**. It returns the same verdict for any ΔW that displaces the
+>    fixed point at all, a random edit included (which would not reproduce D1's *numbers* —
+>    equal norms do not imply equal trajectories — but would reach the same *conclusion*).
+>    D1's own trace — smooth monotone relaxation back to `prolet` — is the signature of a
+>    *displaced* fixed point.
 >
 > **Also missing:** this file never mentions the offline arm. The no-feedback arm flips the
-> same basin (`EXP_001_RESULTS.md` §1), so nothing here is attributable to the loop's
-> coupling. Read alone, this file implies otherwise.
+> **same basin** (`EXP_001_RESULTS.md` §1), so the flip is **not uniquely caused by feedback** —
+> the rule reproduces it from frozen activation statistics alone. That is not the same as
+> "feedback contributes nothing": the measured feedback component is 12% of total drift against
+> a severed-path null of exactly zero (`CLAIMS.md` C-31). What the offline arm rules out is
+> attributing *this basin flip* to the coupling. Read alone, this file implies otherwise.
 >
 > The decisive test is unrun and costs ~1 CPU-minute: under `W0 + ΔW`, seed the original
 > frozen `prolet` state and iterate. Stays → two attractors coexist → step 4 stands. Moves →
