@@ -78,6 +78,19 @@ Read carefully, that sentence splits in two:
   says "deeper *gradient-plastic* stacks require additional regularization". It is not a
   general depth limit for plasticity.
 
+**Independently re-checked** during the alignment review: §4.8 exists, is titled *Task-Dependent
+Behaviour and Depth Stress Test*, and the passage above matches the source word for word. Two
+details to add:
+
+- **No 4-layer result is reported anywhere in the paper.** The standard experimental models are
+  **2 layers** (Table 7); the depth stress test extends to **8**. "Around 4" is interpolated
+  between the two measured endpoints, not measured. Normal practice, recorded because it means
+  4 is not a boundary anyone has observed.
+- **Nothing in this literature tests 12 layers with any rule.** So the paper cannot set an
+  expectation either way for GPT-2 small. What it *can* do is corroborate the family split this
+  repo observes: Hebbian stable-but-saturating, which is exactly what `oja`'s inertness and
+  `hebb`'s non-divergence look like at 12 layers.
+
 **What this changes for us.** We run an Oja rule, which is in the Hebbian family, not the
 gradient family. The one depth stress test this search found says that at 8 layers the
 Hebbian side does *not* blow up — it goes quiet. So the expected failure mode this paper

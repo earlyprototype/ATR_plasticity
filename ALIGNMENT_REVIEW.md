@@ -665,23 +665,41 @@ Hopfield (and Ramsauer makes the substitution nearly free); remove "closed loop"
 remove "hand-written rule" → Chaudhary, Miconi, Najarro & Risi. **"No loss" is the only
 load-bearing axis, and per F4 it is softer than claimed.**
 
-**Also flag for human verification:** the Chaudhary quote (arXiv:2510.21908 §4.8) is
-agent-fetched, and no human has opened the PDF. **Nothing here alleges the paper or the quote
-is wrong** — only that the repo currently treats an unchecked passage as settled. Mark it
-`UNVERIFIED — agent-fetched, not human-checked` and resolve these three questions against the
-actual PDF:
+**The Chaudhary citation: checked independently, and `PRIOR_ART.md` was already right.**
 
-1. Does §4.8 contain the passage as quoted, verbatim?
-2. Does the paper attribute divergence to the gradient-plastic variant and stability-with-
-   saturation to the Hebbian one, as the repo's reading requires?
-3. The quoted passage describes experiments at 2 and 8 layers and then recommends "a practical
-   regime… around 4 layers." Is a 4-layer result reported elsewhere in the paper, or is that
-   an interpolation?
+An earlier draft of this review flagged the quote (arXiv:2510.21908 §4.8) as unverified and
+asked for a human to open the PDF. **That flag was wrong, and it contradicted this review's own
+drift table three sections above**, which correctly records `PRIOR_ART.md` as having verified
+the figures and identified the gradient-plastic/Hebbian split. The paper has now been fetched
+independently for this review. All three questions are resolved:
 
-Question 3 is a normal thing for a paper to do and is flagged only because it is checkable.
-**Fortunately nothing downstream depends on the answer**: the project has run at 12 layers and
-observed both branches directly — `oja` saturated, `hebb` did not diverge. Demote the citation
-from expectation-setting to corroboration, and the repo is insulated either way.
+1. **Does §4.8 contain the passage verbatim? Yes.** §4.8 exists and is titled *"Task-Dependent
+   Behaviour and Depth Stress Test"*. The passage `PRIOR_ART.md` quotes matches the source
+   word for word, including *"Gradient-plastic Transformers diverge after ∼3000 steps (plastic
+   norms >10²; recall below baseline), with the deepest layers showing the largest drift"* and
+   *"A practical regime therefore lies around 4 layers: deeper gradient-plastic stacks require
+   additional regularization… to prevent instability."*
+2. **Does it attribute divergence to the gradient-plastic variant? Yes** — explicitly, and the
+   same sentence reports *"Hebbian plasticity remains stable but saturates in performance
+   (recall 0.729 ± 0.015)."* `PRIOR_ART.md`'s reading is correct.
+3. **Is "around 4 layers" an interpolation? Yes.** The paper's standard experimental models are
+   **2 layers**; the depth stress test extends to **8**. No 4-layer result is reported —
+   4 is interpolated between the two measured endpoints. A normal thing for a paper to do,
+   recorded because it is checkable and because it means "4 layers" is not a measured boundary.
+
+**What this changes for the project — and it is favourable.** The 8-layer divergence belongs to
+a rule family this repo does not use. The family it *does* use is the one the paper reports as
+**stable at 8 layers**, and this repo's own 12-layer runs agree: `oja` saturated, `hebb` did not
+diverge. GPT-2 small is not "past the point where anyone has reported stability" for a Hebbian
+rule; it is simply deeper than anyone has tested with any rule. Keep the citation as
+corroboration, and add the one thing `PRIOR_ART.md` does not yet note: **nothing in this
+literature tests 12 layers**, so the paper cannot set expectations either way for this substrate.
+
+> **This is the third instance of the pattern this review documents, and the first that is the
+> review's own.** Issue #31 was recorded as unrun after being run; the coupling result was
+> recorded as null after being positive; and this review flagged as unverified a passage the
+> repo had already verified and correctly re-read. The failure is the same every time: a
+> conclusion reached in one file and not propagated to the file where it is quoted.
 
 ---
 
