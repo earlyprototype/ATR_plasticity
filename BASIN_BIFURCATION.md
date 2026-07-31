@@ -1,5 +1,34 @@
 # Basin bifurcation — `comrade` is a created attractor
 
+> **Review notice — this file's headline is not established.** `ALIGNMENT_REVIEW.md` §F2
+> finds the "created attractor" reading refuted by evidence already in the repo. The
+> measurements below are sound and reproduce exactly; the *interpretation* placed on them
+> does not follow. Three points, all from committed artifacts:
+>
+> 1. **The `comrade` state is inside the `prolet` basin's ordinary scatter.** It sits
+>    `1−cos` = 4.39e-03 from the `prolet` fixed point, against a worst within-`prolet` pair
+>    of 3.39e-02 (`BASELINE.md`) — 7.7× further. The basin taxonomy's own resolution is
+>    ~3e-03, comparable to the gap between `Anarch` and `prolet`.
+> 2. **D2 shows one fixed point moving smoothly, not a bifurcation.** lag-1 stays ≈1.0 across
+>    α = 0 → 1.25 and the state norm advances in near-equal increments (+11.6, +12.9, +14.3,
+>    +15.3, +14.9). Only the *argmax* changes discretely at α\* — and an argmax always does,
+>    including under perfectly smooth motion. The genuine qualitative transition is between
+>    α = 1.25 and 1.50, where lag-1 collapses to 0.734 and the norm jumps +65.9 — and that
+>    lands in the **pre-existing** `Divine` basin, i.e. ladder step 3.
+> 3. **D1 does not discriminate step 3 or 4 from step 2.** For any ΔW ≠ 0 the perturbed map's
+>    fixed point is generically not fixed under the unperturbed map, so a norm-matched random
+>    edit would pass D1 identically. D1's own trace — smooth monotone relaxation back to
+>    `prolet` — is the signature of a *displaced* fixed point.
+>
+> **Also missing:** this file never mentions the offline arm. The no-feedback arm flips the
+> same basin (`EXP_001_RESULTS.md` §1), so nothing here is attributable to the loop's
+> coupling. Read alone, this file implies otherwise.
+>
+> The decisive test is unrun and costs ~1 CPU-minute: under `W0 + ΔW`, seed the original
+> frozen `prolet` state and iterate. Stays → two attractors coexist → step 4 stands. Moves →
+> one displaced attractor → step 2. See `CLAIMS.md` C-26, C-27, C-28 and `ALIGNMENT_REVIEW.md`
+> T1.1 – T1.3.
+
 Issues #25, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120-step episode, cadence 1, `max_delta_frac` = 0.05, prompt `A01_physics`.
 
 EXP-001 (`EXP_001_RESULTS.md`) showed that one 120-step closed `hebb` episode at this eta takes the basin `prolet` → `comrade` with the norm ceiling silent — the one cell in the step-size map where the loop moves. This file asks what kind of move it is, on issue #25's ladder: **step 3**, the episode walked the state across a boundary into a `comrade` basin the original frozen map already had (a *latent* attractor), or **step 4**, the episode *created* the `comrade` attractor (a bifurcation). Two independent discriminators are run; they agree. The `alpha`-sweep also closes issue #32 section 5, which asked of the installable ΔW: *smooth bias or a threshold?*

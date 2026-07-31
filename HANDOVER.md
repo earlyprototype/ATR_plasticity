@@ -7,6 +7,26 @@ where something is interpretation it is marked as such.*
 Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 "where we are and what's next" layer on top of it.
 
+> **Review notice — read before quoting anything below.** `ALIGNMENT_REVIEW.md` found three
+> claims in this file superseded by evidence already in the repo. Until the Tier 0 work in
+> that review lands, `CLAIMS.md` is the authority where they disagree:
+>
+> - **§3.3, "The two agree… feedback did nothing."** Wrong. Against a severed-path null of
+>   *exactly zero*, the feedback-attributable component is 12% of drift and is direction-
+>   dominated 5.73:1. Feedback measurably steers ΔW; what it does **not** do at this
+>   operating point is change the outcome. See `CLAIMS.md` C-30 – C-34.
+> - **§5.3, "ladder step 4 — a created attractor."** Not established. The `comrade` state
+>   sits 7.7× *closer* to the `prolet` fixed point than `prolet`'s own two most distant
+>   members are to each other — inside that basin's ordinary scatter. The parsimonious
+>   reading is step 2. See C-26, C-07.
+> - **§5.4, "issue #31 not yet started."** It was run. The measurement is in
+>   `experiments/output_baseline/BASELINE.md` and the answer is compression, one-dimensional,
+>   position-uniform across all basins. See C-04 – C-07.
+>
+> Also: §3.2's "the only cell that moves the loop" undercounts — there are **two** clean
+> cells (C-21); and the Chaudhary reading in §5.4 is the superseded one, which predicts the
+> opposite failure mode to `PRIOR_ART.md` (C-44).
+
 ---
 
 ## 1. What the project is, in one paragraph
