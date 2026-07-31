@@ -1,0 +1,22 @@
+{
+  "experiment": "T1.4 rank-1 random control",
+  "model": "gpt2-small",
+  "site": "blocks.6.mlp",
+  "prompt_id": "A01_physics",
+  "n_episode": 120,
+  "seeds": 1,
+  "hebb": {
+    "eta": 7.065171428571429e-05,
+    "sigma1": 1.813517502131269,
+    "fro": 1.8528509717023924,
+    "disp_1mcos": 0.005000281547660079,
+    "basin": "comrade"
+  },
+  "off_basin": "prolet",
+  "harness_reproduces_published": true,
+  "flips_matched_sigma1": "0/1",
+  "flips_matched_disp": "not run",
+  "torch": "2.13.0+cpu",
+  "transformer_lens": "unknown",
+  "python": "3.11.15"
+}
