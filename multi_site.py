@@ -10,6 +10,7 @@ head has a looping training function") is this class pointed at every head of a
 block.
 
     from multi_site import MultiSitePlasticity, SiteSpec
+    from plasticity import TermSpec
 
     driver = MultiSitePlasticity(model, [
         SiteSpec("blocks.5.mlp",          mode="oja",       eta=1e-6),
@@ -36,7 +37,17 @@ own site, because each sub-instance IS an ordinary single-site run. Heterogeneou
 config per site is the point, not an afterthought: mode, eta and ceiling are
 per-`SiteSpec`, so a block can reinforce inside one head and erode in another in
 the same pass (issue #25's "sign, per subspace"), and a per-site `project`
-carries the subspace knob through unchanged.
+carries the subspace knob through unchanged. A per-site `terms` carries the
+composed rule through as well, which is the finer grain of the same idea: with
+`mode` a site is reinforcing or eroding, and the two can only be separated by
+naming two sites; with `terms` ONE site does both, split by subspace rather than
+by matrix.
+
+    SiteSpec("blocks.11.attn.head.7", eta=1e-8, terms=[
+        TermSpec("hebb",  +1, P),          # reinforce inside the direction
+        TermSpec("hebb",  -1, I - P),      # erode around it
+        TermSpec("decay", -1),             # one brake over both
+    ])
 
 WHY DISJOINT WRITES ARE CORRECT HERE -- the one property that makes a distributed
 head experiment interpretable (issue #25, and `test_head_sites.py`'s ISOLATION
@@ -70,7 +81,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -84,6 +95,7 @@ import torch.nn as nn
 # check alias-proof and layout-correct.
 from plasticity import (
     OjaPlasticity,
+    TermSpec,
     _HeadSliceSite,
     _TransformerLensHeadSite,
     _TransformerLensMLPSite,
@@ -111,6 +123,15 @@ class SiteSpec:
     #25's whole point is many small heterogeneous elements -- and `project`
     carries the per-site subspace knob (an (n_out, n_out) orthogonal projector
     from `subspace_projector`) through untouched.
+
+    `terms` carries the composed rule through the same way: a list of `TermSpec`
+    instead of a `mode`, so a site can reinforce inside a subspace and erode
+    outside it in one pass rather than needing two instances on the same rows
+    (which `_reject_overlap` refuses, and rightly). It is mutually exclusive
+    with a non-default `mode`, and `OjaPlasticity` is what enforces that -- the
+    spec passes both through and lets the site that is wrong be the one named in
+    the error. Pass it as a TUPLE if the spec is ever hashed: this dataclass is
+    frozen, so a list field would make `hash(spec)` raise where a tuple will not.
     """
 
     site: str
@@ -121,14 +142,16 @@ class SiteSpec:
     transposed: bool = False
     seed: Optional[int] = 0
     project: Optional[torch.Tensor] = None
+    terms: Optional[Sequence[Union[TermSpec, dict]]] = None
 
     def build(self, model: nn.Module) -> OjaPlasticity:
         """Construct the single-site instance this spec describes.
 
         Any bad field -- an unknown mode, an unattachable site, a `transposed`
-        head, a non-idempotent projector -- raises here exactly as it would for a
-        hand-built `OjaPlasticity`, so the driver fails loud at construction on
-        the offending site rather than silently dropping it.
+        head, a non-idempotent projector, a `mode` and `terms` that disagree --
+        raises here exactly as it would for a hand-built `OjaPlasticity`, so the
+        driver fails loud at construction on the offending site rather than
+        silently dropping it.
         """
         return OjaPlasticity(
             model,
@@ -140,6 +163,7 @@ class SiteSpec:
             transposed=self.transposed,
             seed=self.seed,
             project=self.project,
+            terms=self.terms,
         )
 
     @classmethod
