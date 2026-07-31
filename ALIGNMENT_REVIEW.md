@@ -205,7 +205,7 @@ What changes discretely at α\* is the **argmax of the readout** — and an argm
 changes discretely, including under perfectly smooth motion. The document says this and
 treats it as corroboration: *"The argmax (the basin) is discrete; the logit it is the argmax
 **of** is not. Smooth logits, discrete attractor — the signature the result turns on."*
-That is the signature of a **relabelled, continuously-moving fixed point** — ladder step 2.
+That is **consistent with a relabelled, continuously-moving fixed point** — ladder step 2 — though it does not exclude an unobserved coexisting attractor, which is what T1.2 tests.
 The crossing is driven entirely by `prolet`'s logit *falling* (16.95 → 16.07, −0.88).
 **`comrade`'s logit does not rise — it also falls** (16.29 → 16.25, −0.02), monotonically at
 every α. The argmax changes because the incumbent is suppressed, not because a competitor
@@ -924,13 +924,23 @@ carry a project until T2.1 shows the effect grows.
 Meanwhile the project has proved something else, cleanly, under better control than it
 realises, and is not claiming it:
 
-> **A frozen transformer's iterated-dynamics attractor landscape is editable by a rank-1
-> weight perturbation of ~1% derived from the model's own activation statistics, with no target
-> and no externally specified objective.** A ceiling-silent update of **94%** the same
-> loop-state magnitude, in the opposite sign on the same axis, does not reproduce it; neither
-> does the same-sign update at a quarter the magnitude; and an isotropic edit of matched
-> Frobenius norm never comes close. In one case the edit changes the *dynamical class* of the
-> trajectory, turning a fixed point into a period-2 cycle.
+> **A frozen transformer's iterated-dynamics attractor landscape is editable by a
+> **near-rank-1** weight perturbation of ~1% derived from the model's own activation
+> statistics, with no target and no externally specified objective.** A ceiling-silent update
+> of **94%** the same loop-state magnitude, in the opposite sign on the same axis, does not
+> reproduce it; neither does the same-sign update at a quarter the magnitude. In one case the
+> edit changes the *dynamical class* of the trajectory, turning a fixed point into a period-2
+> cycle.
+
+**"Near-rank-1", not "rank-1".** F4 measures 95.8% of `‖ΔW‖²_F` in the leading component at
+`routed:A01_physics` and 100.0% in the severed cells, but only **81–84%** in the two episode
+cells. "Rank-1" is a good description of the severed edit and an approximation of the routed
+one; it is not exact anywhere the episode actually ran.
+
+**Do not cite the isotropic arm here.** It is Frobenius-matched to **Oja**, not to `hebb`
+(`plasticity.py` subtracts the decay term for `"random"` as well as `"oja"` — the fix recorded
+in `README.md`). It did not flip, but per C-23 it cannot establish direction-specificity, so
+quoting it in the headline would re-import the defect C-23 retires.
 
 **Say "no externally specified objective", not "no loss"** — C-11 establishes that plain Hebb
 *is* gradient ascent on ½E‖y‖², so there is an implicit objective and the stronger phrase is
@@ -972,7 +982,7 @@ experiment, and both currently hold:
 | Core number | 1.1% rank-1 edit moves the basin; one case changes dynamical class | 6.81° rotation, 2.8% shortening, 12% of drift, against a null of exactly zero |
 | Status | flip measured; "structured, not generic" `provisional` (T1.4) | `supported`, conditional on `y_source="recomputed"` |
 | Behavioural consequence | *is* the claim | **none** — both arms flip the same basin (C-33) |
-| Falsified by | T1.4 | T2.1 finding no growth into outcome change |
+| Falsified by | **T1.4 falsifies only the "structured, not generic" clause** — it cannot touch the measured Hebbian flip or the `A04` dynamical-class change, which are observations, not inferences | T2.1 finding no growth into outcome change |
 
 **The dependency runs one way, and that is the whole argument for the ordering.** If
 editability fails, coupling is worthless — feedback steering a weight change that changes

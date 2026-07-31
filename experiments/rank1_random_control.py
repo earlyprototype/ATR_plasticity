@@ -30,19 +30,41 @@ matched to hebb on the two quantities that actually characterise the edit.
 
 READING THE RESULT
 ------------------
-  Any seed flips to `comrade`  ->  C-22 falsifiable claim is DEAD. The basin
-                                   change follows from a rank-1 edit of
-                                   sufficient magnitude in ANY direction, and
-                                   "structured, not generic" must be retired.
-  No seed flips, both arms      ->  C-22 survives this test. Direction (or at
-                                   least non-genericity) is doing real work.
-  Mixed                         ->  report the flip rate; it is a probability,
-                                   not a yes/no, and C-22 becomes a statement
-                                   about how much of the sphere flips.
+Two DIFFERENT questions, which the first revision of this file conflated:
 
-Fixed in advance, per the register's own rule: the verdict above is written
-before the run, and the flip criterion is the basin label at the end of the
-same 120-step episode hebb used. No threshold is chosen after seeing numbers.
+  Q1  Does a random rank-1 edit move the basin AT ALL?
+  Q2  Does it reproduce hebb's specific destination, `comrade`?
+
+  Q1 yes  ->  "an arbitrary rank-1 edit cannot move the basin" is dead. What
+              survives is at most a claim about WHICH basin you land in.
+  Q2 yes  ->  C-22 is dead outright: hebb's direction is doing no work the
+              magnitude was not already doing.
+  Both no ->  C-22 survives this test.
+  Mixed   ->  report both as rates over seeds. C-22 becomes a statement about
+              how much of the sphere does what, not a yes/no.
+
+PRE-REGISTRATION, AND AN AMENDMENT DECLARED AFTER SEEING DATA
+-------------------------------------------------------------
+The first revision fixed one criterion in advance: "any seed flips to
+`comrade` -> C-22 is dead." That is Q2 only, and it was written believing the
+interesting failure mode was reproducing hebb's destination.
+
+Run 1 (10 seeds, arm A; 2 seeds, arm B) produced seed 1001: a random rank-1
+direction that flipped the basin to **`Anarch`** -- not `comrade` -- at a
+displacement BELOW hebb's. Under the letter of the original criterion that is
+not a falsification. Under any honest reading it is a material result, because
+"an arbitrary edit of this size cannot move the basin" is what the isotropic
+control was always taken to show.
+
+So the criterion is split into Q1/Q2 above. **This amendment was made after
+seeing that data point and is declared here rather than applied silently.**
+Run 1's arm B is discarded for two code defects found afterwards (the
+bisection reported the last probe rather than the closest, and expansion
+probes were dropped from the record); its seed-1001 observation is what
+prompted this split and is re-derived from scratch here, same seeds.
+
+The flip criterion itself is unchanged: the basin label at the end of the same
+120-step episode hebb used. No threshold is chosen after seeing numbers.
 
 HARNESS
 -------
@@ -151,8 +173,22 @@ def main() -> int:
     records: list[dict] = []
 
     from transformer_lens import HookedTransformer
-    import transformer_lens
-    print(f"[setup] loading {MODEL_NAME} ...", flush=True)
+
+    # Resolve the installed distribution version from packaging metadata, not
+    # from `transformer_lens.__version__` (absent in some builds -- it raised
+    # AttributeError here, which an earlier revision silently recorded as
+    # "unknown"). An artifact whose provenance says "unknown" cannot support a
+    # reproducibility claim, so an unresolvable version is a hard failure.
+    from importlib.metadata import PackageNotFoundError, version as _pkg_version
+    try:
+        TL_VERSION = _pkg_version("transformer-lens")
+    except PackageNotFoundError as exc:
+        raise RuntimeError(
+            "transformer-lens distribution metadata unavailable; refusing to "
+            "write an artifact with unknown provenance") from exc
+
+    print(f"[setup] loading {MODEL_NAME} (transformer-lens {TL_VERSION}) ...",
+          flush=True)
     model = HookedTransformer.from_pretrained(MODEL_NAME, device="cpu")
     model.eval()
     for p in model.parameters():
@@ -217,6 +253,15 @@ def main() -> int:
     HARNESS_OK = hebb_b["basin"] == "comrade" and off_b["basin"] == "prolet"
     print(f"[chk ] harness reproduces published prolet->comrade: {HARNESS_OK}",
           flush=True)
+    if not HARNESS_OK:
+        # A harness that does not reproduce the reference transition is a
+        # defect, not a result. Producing random-control records under it would
+        # give a verdict about the wrong map -- fail loudly instead.
+        raise RuntimeError(
+            f"Harness did not reproduce the reference basin transition: "
+            f"off={off_b['basin']!r} (expected 'prolet'), "
+            f"hebb={hebb_b['basin']!r} (expected 'comrade'). "
+            f"No control records written.")
 
     def eval_scale(g_seed: int, scale: float) -> dict:
         """Install W0 + rank-1 random at this scale, run frozen, measure."""
@@ -255,21 +300,25 @@ def main() -> int:
               f"{args.seeds} seeds", flush=True)
         for s in range(args.seeds):
             lo, hi = hebb_sigma1, hebb_sigma1
-            # Expand upward until displacement brackets hebb's.
+            # Expand upward until displacement brackets hebb's. EVERY probe is
+            # kept: a basin flip seen during expansion is a real observation
+            # about this direction and must not be discarded just because the
+            # scale was not the one the search finally settled on.
             probe = eval_scale(1000 + s, hi)
             n_eval = 1
+            all_probes = [probe]
             while probe["disp_1mcos"] < hebb_disp and hi < 200 * hebb_sigma1:
                 lo, hi = hi, hi * 2.0
                 probe = eval_scale(1000 + s, hi)
                 n_eval += 1
+                all_probes.append(probe)
             # Keep the probe CLOSEST to the target, not the last one evaluated.
             # Bisection's final probe can sit further from the target than an
             # earlier one, which would report an unmatched point as "matched".
             def err(p):
                 return abs(p["disp_1mcos"] - hebb_disp) / hebb_disp
 
-            best = probe
-            all_probes = [probe]
+            best = min(all_probes, key=err)
             for _ in range(MAX_BISECT):
                 if err(best) <= DISP_TOL:
                     break
@@ -282,11 +331,19 @@ def main() -> int:
                 else:
                     hi = mid
                 best = min(all_probes, key=err)
+            # A flip anywhere in the search is reported, not only at `best`.
+            flips_seen = sorted(
+                ({"scale": p["scale"], "basin": p["basin"],
+                  "disp_1mcos": p["disp_1mcos"]}
+                 for p in all_probes if p["basin"] != off_b["basin"]),
+                key=lambda p: p["scale"])
             best.update({"arm": "rank1_random_matched_disp", "seed": 1000 + s,
                          "n_evals": n_eval,
                          "disp_rel_err": err(best),
                          "matched": err(best) <= DISP_TOL,
                          "flipped": best["basin"] != off_b["basin"],
+                         "flipped_anywhere": bool(flips_seen),
+                         "flips_seen": flips_seen,
                          # every probe for this seed, so a flip seen at ANY
                          # scale during the search is not silently discarded
                          "probes": [{"scale": p["scale"], "basin": p["basin"],
@@ -303,6 +360,11 @@ def main() -> int:
     armB = [r for r in records if r.get("arm") == "rank1_random_matched_disp"]
     flips_A = sum(1 for r in armA if r["flipped"])
     flips_B = sum(1 for r in armB if r["flipped"])
+    # Separate from flips_B on purpose: a direction that flips at SOME scale
+    # during the search but not at the matched point is a different fact from
+    # one that never flips at all, and C-22's wording depends on which it is.
+    flips_B_anywhere = sum(1 for r in armB if r.get("flipped_anywhere"))
+    matched_B = sum(1 for r in armB if r.get("matched"))
 
     meta = {
         "experiment": "T1.4 rank-1 random control",
@@ -314,8 +376,11 @@ def main() -> int:
         "harness_reproduces_published": HARNESS_OK,
         "flips_matched_sigma1": f"{flips_A}/{len(armA)}",
         "flips_matched_disp": f"{flips_B}/{len(armB)}" if armB else "not run",
+        "flips_any_scale_disp": f"{flips_B_anywhere}/{len(armB)}" if armB else "not run",
+        "matched_within_tol": f"{matched_B}/{len(armB)}" if armB else "not run",
+        "disp_tol": DISP_TOL,
         "torch": torch.__version__,
-        "transformer_lens": getattr(transformer_lens, "__version__", "unknown"),
+        "transformer_lens": TL_VERSION,
         "python": platform.python_version(),
     }
 
@@ -328,6 +393,8 @@ def main() -> int:
     print(f"matched-sigma1 arm flipped                   : {flips_A}/{len(armA)}")
     if armB:
         print(f"matched-displacement arm flipped             : {flips_B}/{len(armB)}")
+        print(f"  ...flipped at ANY scale during search      : {flips_B_anywhere}/{len(armB)}")
+        print(f"  ...actually matched within {DISP_TOL:.0%}            : {matched_B}/{len(armB)}")
     print("=" * 66)
     print(json.dumps(meta, indent=2))
     return 0

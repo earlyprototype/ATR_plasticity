@@ -14,6 +14,11 @@ Issues #26, #30, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120 steps,
 >   normalises by `‖ΔW_offline‖`. **The label is wrong, not the numbers.** Do not restate the
 >   ratio against the other reference — report the **6.81° rotation** and **2.8% shortening**
 >   instead. See **C-32**, `provisional`.
+> - **The `n=5` in §3's table is a cell count, not an independent sample size.** Those five
+>   cells are 3 prompts × repeated seeds at one site. Repeated seeds on the same prompt are not
+>   independent runs, so **the independent n is 3** (`A01_physics`, `A02_medical`,
+>   `A04_climate`), one site, one eta. Every dispersion figure in that table — the ranges and
+>   medians — inherits that limit. See **C-41**.
 
 The step-size map found `hebb` at this eta to be the only cell in the whole sweep that moves the loop inside a clean band: basin `prolet` → `comrade` at 1.12% relative weight change with the norm ceiling silent. `oja`, `anti_hebb` and `random` all have wide usable bands in which no basin change was recorded. Every offline-control number previously recorded in this repo was taken at `oja`, eta 1e-5 — inside the dead zone. This is the first time the control has been run where the loop actually moves.
 
