@@ -959,6 +959,42 @@ about the **editability of iterated dynamics**, which:
 - and places the work next to model editing, activation steering and test-time adaptation,
   where there is an audience and a comparison class.
 
+### Editability and coupling are AND, not either/or — but asymmetrically
+
+Reordering the two is not a choice between them. They answer different halves of one
+experiment, and both currently hold:
+
+| | **Editability** | **Coupling** |
+|---|---|---|
+| Asks | does ΔW change what the model does? | does feedback change how ΔW is produced? |
+| Object | the attractor landscape | the weight update itself |
+| Rows | C-21, C-22, C-26 | C-30 – C-34 |
+| Core number | 1.1% rank-1 edit moves the basin; one case changes dynamical class | 6.81° rotation, 2.8% shortening, 12% of drift, against a null of exactly zero |
+| Status | flip measured; "structured, not generic" `provisional` (T1.4) | `supported`, conditional on `y_source="recomputed"` |
+| Behavioural consequence | *is* the claim | **none** — both arms flip the same basin (C-33) |
+| Falsified by | T1.4 | T2.1 finding no growth into outcome change |
+
+**The dependency runs one way, and that is the whole argument for the ordering.** If
+editability fails, coupling is worthless — feedback steering a weight change that changes
+nothing is not a result. If coupling fails, editability is untouched. **Editability is
+necessary for coupling to matter; coupling is not necessary for editability to matter.** So
+editability is the claim, and coupling is a *measure taken on it*.
+
+**Where they genuinely conflict:** C-33 — both arms flip the same basin — cuts both ways. It
+*helps* editability (the effect needs no feedback, so the claim is simpler and more robust) and
+*embarrasses* coupling (feedback alters ΔW and alters nothing observable). One fact, opposite
+signs. That is why the two read as mutually exclusive when they are not.
+
+**Where they combine, and this is the prize:** **T2.1 / C-35**. If the feedback-attributable
+component grows with coupling strength and crosses into changing the outcome, the two claims
+merge into one that is strictly larger than either — *the landscape is editable by the model's
+own activation statistics, **and** the loop steers which edit happens*. That is the project's
+founding question, answered properly. It is the highest-value experiment in the register.
+
+**So nothing is dropped.** Lead editability; report coupling in the same breath as C-33's limit
+— *"feedback measurably steers the update and does not, at this operating point, change the
+outcome"*; run T2.1 to promote coupling from refinement to co-headline.
+
 **One caution, from F10.** That last point cuts both ways: ROME already makes rank-1 edits to
 a mid-stack GPT-2 MLP down-projection. So the novel element is **not** "a rank-1 edit there
 changes behaviour" — it is that the edit is derived *with no target*, from the model's own
