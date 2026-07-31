@@ -134,6 +134,12 @@ def posmean(state: torch.Tensor) -> torch.Tensor:
 
 
 def one_minus_cos(a: torch.Tensor, b: torch.Tensor) -> float:
+    """`1 - cos(a, b)` in float64, the repo's standard state-distance metric.
+
+    float64 on purpose: the quantities compared here run down to ~1e-09, and a
+    float32 reduction over 2.36M elements carries ~5e-05 relative error -- four
+    orders above the signal. Every derived number in this file is float64 for
+    the same reason."""
     return float(1.0 - F.cosine_similarity(a.reshape(1, -1).double(),
                                            b.reshape(1, -1).double()).item())
 
@@ -160,6 +166,14 @@ def rank1_random(g: torch.Generator, n_in: int, n_out: int,
 
 
 def main() -> int:
+    """Run the reference rows, then both random arms, and write the verdict.
+
+    Order matters. The frozen (`off`) and `hebb` rows run first and the script
+    aborts if they do not reproduce `prolet` -> `comrade`, because every number
+    after that point is only meaningful against a harness known to reproduce
+    the published episode. Writes `rank1_random.jsonl` (one record per arm per
+    seed, including every Arm B probe) and `meta.json` (provenance and the
+    flip rates) to --out."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=5,
                     help="number of random rank-1 directions per arm")
@@ -316,6 +330,8 @@ def main() -> int:
             # Bisection's final probe can sit further from the target than an
             # earlier one, which would report an unmatched point as "matched".
             def err(p):
+                """Relative distance from hebb's loop displacement, for
+                choosing which probe is the best-matched one."""
                 return abs(p["disp_1mcos"] - hebb_disp) / hebb_disp
 
             best = min(all_probes, key=err)
