@@ -78,6 +78,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import platform
 import sys
@@ -180,6 +181,10 @@ def main() -> int:
     ap.add_argument("--out", default="experiments/output_rank1_random")
     ap.add_argument("--skip-arm-b", action="store_true",
                     help="run only the matched-sigma1 arm (much faster)")
+    ap.add_argument("--resume", action="store_true",
+                    help="skip arm/seed cells already present in the output "
+                         "JSONL. Records are flushed as they are produced, so "
+                         "an interrupted run resumes without recomputing.")
     args = ap.parse_args()
 
     out_dir = REPO_ROOT / args.out
@@ -233,8 +238,8 @@ def main() -> int:
     dt = time.time() - t
     print(f"[off ] basin={off_b['basin']!r} margin={off_b['margin']:.4f} "
           f"({dt:.1f}s for {N_EPISODE} steps)", flush=True)
-    records.append({"arm": "off", "basin": off_b["basin"], "top5": off_b["top5"],
-                    "margin": off_b["margin"], "seconds": dt})
+    rec_off = {"arm": "off", "basin": off_b["basin"], "top5": off_b["top5"],
+               "margin": off_b["margin"], "seconds": dt}
 
     # -- Reference 1: hebb, re-run here so a harness bug is visible ------------
     plast.install()
@@ -256,13 +261,13 @@ def main() -> int:
     print(f"[hebb] basin={hebb_b['basin']!r} sigma1={hebb_sigma1:.4f} "
           f"||dW||_F={hebb_fro:.4f} 1-cos(off)={hebb_disp:.4e} "
           f"clip={rep.get('clip_rate', float('nan')):.3f}", flush=True)
-    records.append({
+    rec_hebb = {
         "arm": "hebb", "eta": ETA, "basin": hebb_b["basin"], "top5": hebb_b["top5"],
         "margin": hebb_b["margin"], "sigma1": hebb_sigma1, "fro": hebb_fro,
         "frac_energy_1": float(sv[0] ** 2 / (sv ** 2).sum()),
         "disp_1mcos": hebb_disp, "clip_rate": rep.get("clip_rate"),
         "rel_weight_change": rep.get("rel_change"),
-    })
+    }
 
     HARNESS_OK = hebb_b["basin"] == "comrade" and off_b["basin"] == "prolet"
     print(f"[chk ] harness reproduces published prolet->comrade: {HARNESS_OK}",
@@ -294,82 +299,132 @@ def main() -> int:
             "sigma1": scale, "fro": scale,
         }
 
+    # -- Incremental persistence ----------------------------------------------
+    # Every record is flushed as it is produced. An earlier revision wrote the
+    # JSONL only at the end; a run reaped after 40 minutes left nothing on disk
+    # and had to start over. A long experiment that persists nothing until it
+    # finishes is one interruption away from being no experiment at all.
+    jsonl_path = out_dir / "rank1_random.jsonl"
+
+    def emit(rec: dict) -> None:
+        """Append one record to the JSONL immediately and keep it in memory."""
+        records.append(rec)
+        with jsonl_path.open("a") as fh:
+            fh.write(json.dumps(rec) + "\n")
+
+    done = set()
+    if args.resume and jsonl_path.exists():
+        for line in jsonl_path.read_text().splitlines():
+            if not line.strip():
+                continue
+            r = json.loads(line)
+            records.append(r)
+            if "arm" in r and "seed" in r:
+                done.add((r["arm"], r["seed"]))
+        print(f"[resume] {len(done)} arm/seed cells already on disk", flush=True)
+    else:
+        jsonl_path.write_text("")
+
+    for r in (rec_off, rec_hebb):
+        if not args.resume:
+            emit(r)
+
     # -- Arm A: matched operator norm -----------------------------------------
+    ARM_A = "rank1_random_matched_sigma1"
     print(f"\n[armA] matched sigma1 = {hebb_sigma1:.4f}, {args.seeds} seeds",
           flush=True)
+    armA_by_seed: dict[int, dict] = {r["seed"]: r for r in records
+                                     if r.get("arm") == ARM_A}
     for s in range(args.seeds):
+        seed = 1000 + s
+        if (ARM_A, seed) in done:
+            continue
         t = time.time()
-        rec = eval_scale(1000 + s, hebb_sigma1)
-        rec.update({"arm": "rank1_random_matched_sigma1", "seed": 1000 + s,
-                    "seconds": time.time() - t,
+        rec = eval_scale(seed, hebb_sigma1)
+        rec.update({"arm": ARM_A, "seed": seed, "seconds": time.time() - t,
                     "flipped": rec["basin"] != off_b["basin"]})
-        records.append(rec)
-        print(f"[armA] seed={1000+s} basin={rec['basin']!r:<14} "
+        emit(rec)
+        armA_by_seed[seed] = rec
+        print(f"[armA] seed={seed} basin={rec['basin']!r:<14} "
               f"1-cos(off)={rec['disp_1mcos']:.4e} "
               f"(hebb {hebb_disp:.4e}) flip={rec['flipped']}", flush=True)
 
     # -- Arm B: matched loop displacement -------------------------------------
+    #
+    # Solved in log-log space rather than by doubling-then-bisecting. Loop
+    # displacement grows very nearly as a power of the edit scale -- measured
+    # exponents 2.1 and 2.8 on the first two seeds -- so two points determine a
+    # local power law and the secant step lands close immediately.
+    #
+    # The first point is free: Arm A already evaluated this seed at
+    # sigma1 = hebb's. The previous approach spent 14-15 loop runs per seed
+    # doubling from that scale; this spends about 4. That matters because the
+    # run has already been reaped once at 40 minutes.
+    ARM_B = "rank1_random_matched_disp"
     if not args.skip_arm_b:
         print(f"\n[armB] matched loop displacement = {hebb_disp:.4e}, "
               f"{args.seeds} seeds", flush=True)
         for s in range(args.seeds):
-            lo, hi = hebb_sigma1, hebb_sigma1
-            # Expand upward until displacement brackets hebb's. EVERY probe is
-            # kept: a basin flip seen during expansion is a real observation
-            # about this direction and must not be discarded just because the
-            # scale was not the one the search finally settled on.
-            probe = eval_scale(1000 + s, hi)
-            n_eval = 1
-            all_probes = [probe]
-            while probe["disp_1mcos"] < hebb_disp and hi < 200 * hebb_sigma1:
-                lo, hi = hi, hi * 2.0
-                probe = eval_scale(1000 + s, hi)
-                n_eval += 1
-                all_probes.append(probe)
-            # Keep the probe CLOSEST to the target, not the last one evaluated.
-            # Bisection's final probe can sit further from the target than an
-            # earlier one, which would report an unmatched point as "matched".
+            seed = 1000 + s
+            if (ARM_B, seed) in done:
+                continue
+            t = time.time()
+
             def err(p):
-                """Relative distance from hebb's loop displacement, for
-                choosing which probe is the best-matched one."""
+                """Relative distance from hebb's loop displacement."""
                 return abs(p["disp_1mcos"] - hebb_disp) / hebb_disp
 
-            best = min(all_probes, key=err)
+            base = armA_by_seed.get(seed)
+            if base is None:
+                base = eval_scale(seed, hebb_sigma1)
+            probes = [base]
+
+            # Quadratic first guess, then log-log secant refinement.
+            c = hebb_sigma1 * (hebb_disp / max(base["disp_1mcos"], 1e-30)) ** 0.5
             for _ in range(MAX_BISECT):
+                c = float(min(max(c, 1e-6), 500.0 * hebb_sigma1))
+                probes.append(eval_scale(seed, c))
+                best = min(probes, key=err)
                 if err(best) <= DISP_TOL:
                     break
-                mid = 0.5 * (lo + hi)
-                probe = eval_scale(1000 + s, mid)
-                n_eval += 1
-                all_probes.append(probe)
-                if probe["disp_1mcos"] < hebb_disp:
-                    lo = mid
+                # Secant on log(disp) vs log(scale) through the two probes
+                # nearest the target; falls back to the quadratic step if the
+                # two are degenerate.
+                near = sorted(probes, key=err)[:2]
+                (c1, d1), (c2, d2) = ((p["scale"], p["disp_1mcos"]) for p in near)
+                if c1 == c2 or d1 <= 0 or d2 <= 0 or d1 == d2:
+                    c = c1 * (hebb_disp / max(d1, 1e-30)) ** 0.5
                 else:
-                    hi = mid
-                best = min(all_probes, key=err)
-            # A flip anywhere in the search is reported, not only at `best`.
+                    slope = (math.log(d2) - math.log(d1)) / (math.log(c2) - math.log(c1))
+                    if abs(slope) < 1e-9:
+                        break
+                    c = math.exp(math.log(c1)
+                                 + (math.log(hebb_disp) - math.log(d1)) / slope)
+
+            best = min(probes, key=err)
             flips_seen = sorted(
                 ({"scale": p["scale"], "basin": p["basin"],
                   "disp_1mcos": p["disp_1mcos"]}
-                 for p in all_probes if p["basin"] != off_b["basin"]),
-                key=lambda p: p["scale"])
-            best.update({"arm": "rank1_random_matched_disp", "seed": 1000 + s,
-                         "n_evals": n_eval,
-                         "disp_rel_err": err(best),
-                         "matched": err(best) <= DISP_TOL,
-                         "flipped": best["basin"] != off_b["basin"],
-                         "flipped_anywhere": bool(flips_seen),
-                         "flips_seen": flips_seen,
-                         # every probe for this seed, so a flip seen at ANY
-                         # scale during the search is not silently discarded
-                         "probes": [{"scale": p["scale"], "basin": p["basin"],
-                                     "disp_1mcos": p["disp_1mcos"]}
-                                    for p in all_probes]})
-            records.append(best)
-            print(f"[armB] seed={1000+s} scale={best['scale']:.4f} "
-                  f"basin={best['basin']!r:<14} "
-                  f"1-cos(off)={best['disp_1mcos']:.4e} "
-                  f"flip={best['flipped']} ({n_eval} evals)", flush=True)
+                 for p in probes if p["basin"] != off_b["basin"]),
+                key=lambda q: q["scale"])
+            rec = dict(best)
+            rec.update({"arm": ARM_B, "seed": seed, "n_evals": len(probes),
+                        "seconds": time.time() - t,
+                        "disp_rel_err": err(best),
+                        "matched": err(best) <= DISP_TOL,
+                        "flipped": best["basin"] != off_b["basin"],
+                        "flipped_anywhere": bool(flips_seen),
+                        "flips_seen": flips_seen,
+                        "probes": [{"scale": p["scale"], "basin": p["basin"],
+                                    "disp_1mcos": p["disp_1mcos"]}
+                                   for p in probes]})
+            emit(rec)
+            print(f"[armB] seed={seed} scale={rec['scale']:.4f} "
+                  f"basin={rec['basin']!r:<14} "
+                  f"1-cos(off)={rec['disp_1mcos']:.4e} "
+                  f"match={rec['matched']} flip={rec['flipped']} "
+                  f"anyflip={rec['flipped_anywhere']} ({len(probes)} evals)",
+                  flush=True)
 
     # -- Verdict ---------------------------------------------------------------
     armA = [r for r in records if r.get("arm") == "rank1_random_matched_sigma1"]
@@ -400,8 +455,10 @@ def main() -> int:
         "python": platform.python_version(),
     }
 
-    (out_dir / "rank1_random.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in records) + "\n")
+    # emit() already flushed each record; rewrite once at the end so the file
+    # is a single consistent snapshot rather than an append log with any
+    # partial line from an interrupted write.
+    jsonl_path.write_text("\n".join(json.dumps(r) for r in records) + "\n")
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 
     print("\n" + "=" * 66)
