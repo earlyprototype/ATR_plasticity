@@ -36,7 +36,7 @@ already in the repo.
 **Bootstrap note.** `ALIGNMENT_REVIEW.md` was written before this register existed, so its
 findings F1–F11 are numbered independently and do not cite C-rows. The mapping is one-way and
 recorded here: F1 → C-30…C-34, F2 → C-26…C-28, F3 → C-04…C-07, F4 → C-10, C-22, C-23,
-F5 → C-13…C-15, F6 → C-41, F7 → C-44, C-46, C-47, F10 → C-42, C-43, F11 → C-45. Every
+F5 → C-13…C-15, F6 → C-41, F7 → C-44, F8 → C-47, F10 → C-42, C-43, F11 → C-45, C-46. Every
 document written *after* this file cites row IDs directly.
 
 ## Status vocabulary

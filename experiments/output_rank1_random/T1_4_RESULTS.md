@@ -112,13 +112,26 @@ records: seed 1007's probes at scales 86.266, 102.588, 145.081 give 1−cos =
 2.4719e-01, 2.4720e-01, 2.4739e-01 — a 1.7× scale range with the displacement
 flat to three figures.
 
-One field caveat: the per-record `saturation_suspected` flag reads `false` on
-seed 1007 despite that plateau. The heuristic that wrote it compared
-displacements by exact equality after rounding to 9 decimals, which the
-plateau's 2e-05 relative agreement does not trigger. The flag was rewritten to
-a relative-tolerance comparison after the sweep (flagged by review); the
-committed records were produced by, and keep, the old rule's output. The probe
-lists themselves are the evidence — read those, not the flag.
+Three field caveats, all found in review, none touching a headline count:
+
+1. **`saturation_suspected` reads `false` on seed 1007 despite that plateau.**
+   The heuristic that wrote it compared displacements by exact equality after
+   rounding to 9 decimals, which the plateau's 2e-05 relative agreement does
+   not trigger. Rewritten to a relative-tolerance comparison after the sweep;
+   the committed records keep the old rule's output. The probe lists themselves
+   are the evidence — read those, not the flag.
+2. **The `hebb` reference record's `clip_rate` and `rel_weight_change` are
+   `null`** — the script asked `report()` for keys it has never had (fixed to
+   `clipped`/`delta_frac` after the sweep). Ceiling-silence for this eta is
+   therefore evidenced by `step_size_map.jsonl`'s 0.0%-clip cells (C-20/C-21),
+   not by this record.
+3. **Seed 1000's Arm B record was produced by the superseded log-log-secant
+   search** (pre-`529c0b2`), which is why it lacks the `bracketed`,
+   `saturation_suspected` and `position_spread_min_cos` fields the other nine
+   carry. Its reported cell is still a plain evaluation of (seed 1000, scale
+   121.912) — the search algorithm chose which scales were probed, not what an
+   evaluation returns — and it is the best-matched cell of its seed at 0.4%
+   relative error.
 
 ### Correction to `T1_4_PARTIAL.md`
 

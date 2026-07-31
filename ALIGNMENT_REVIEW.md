@@ -179,7 +179,7 @@ not the 5 cells the tables imply (see F6).
 
 ---
 
-### F2 — The bifurcation claim is refuted by the repo's own baseline
+### F2 — The bifurcation claim is not established, and its own α-sweep argues against it
 
 `BASIN_BIFURCATION.md` is titled *"`comrade` is a created attractor"* and places the result
 at issue #25's ladder **step 4** — "create an attractor where none existed", which the
@@ -207,8 +207,8 @@ treats it as corroboration: *"The argmax (the basin) is discrete; the logit it i
 **of** is not. Smooth logits, discrete attractor — the signature the result turns on."*
 That is **consistent with a relabelled, continuously-moving fixed point** — ladder step 2 — though it does not exclude an unobserved coexisting attractor, which is what T1.2 tests.
 The crossing is driven entirely by `prolet`'s logit *falling* (16.95 → 16.07, −0.88).
-**`comrade`'s logit does not rise — it also falls** (16.29 → 16.25, −0.02), monotonically at
-every α. The argmax changes because the incumbent is suppressed, not because a competitor
+**`comrade`'s logit does not rise — it also falls** (16.29 → 16.27 at the α\* = 0.75 crossing,
+−0.02; 16.25 by α = 1.00), monotonically at every α. The argmax changes because the incumbent is suppressed, not because a competitor
 grows: a steering-vector signature, not a new attractor.
 
 **(b) D1 does not discriminate what it claims to.** For any ΔW ≠ 0 the perturbed map's fixed
@@ -385,8 +385,9 @@ promoted it as decisive. It is not.**
 **Two directions, not three.** `oja` = `H − D` and `anti_hebb` = `−H − D`
 (`plasticity.py:1113-1128`), and at this site the brake dominates the reinforcement term ~110:1
 (`HANDOVER.md`), so both collapse to ≈ `−D`. They are one arm sampled twice. Measured in the
-loop's own state space, the cosine between their displacements from the `off` cell is **0.9998
-at every eta**, and both sit at cos **−0.95** to `hebb`'s. In the linear regime the three arms
+loop's own state space, the cosine between their displacements from the `off` cell stays at
+**0.9987–0.9999 across the six lowest shared etas** (it drops to 0.991 and 0.939 at the two
+heavily-clipped ones), and both sit at cos **−0.95** to `hebb`'s. In the linear regime the three arms
 occupy a **single axis**: `hebb` on one sign (`W` grows), `oja`/`anti_hebb` on the other (`W`
 shrinks). `step_size_map.py` already encodes this — its `U_REF` calibration constant is
 identical (14000.0) for both.
@@ -406,7 +407,8 @@ arm**, reappearing in its proposed replacement.
 | **`anti_hebb`** | **2.944e-05** | 6.9517 | **146.8** | **4.713e-03** | −0.924 | **0.0%** | `prolet` |
 
 `anti_hebb`@2.944e-05 is **ceiling-silent**, reaches **94%** of `hebb`'s loop-state perturbation
-(displacement norms 146.8 against 152.7), points at cos −0.92 to `hebb`'s flip direction — and
+(`1−cos` 4.713e-03 against 5.000e-03; by displacement norm, 146.8 against 152.7, it is 96%),
+points at cos −0.92 to `hebb`'s flip direction — and
 **does not flip**. Conversely `hebb`@3.925e-05 points the *same* way at cos +0.99, reaches only
 a quarter of the perturbation, and also does not flip.
 
@@ -727,6 +729,10 @@ conformable, so nothing raises. Measured relative error on `y`: **0.838**. End t
 | `attn.c_proj` (whole matrix) | 1.03e-04 | 1.000000 | **0.000e+00** (bit-identical, as documented) |
 | `attn.c_proj.head.2` | **6.02e-01** | **0.802** | **3.87e-04** — four orders above the 1e-8 detection limit |
 
+All measured magnitudes in this finding (0.838, and this table) come from a **Conv1D-shaped
+stand-in, not real GPT-2 weights** — provisional until T1.5 reproduces them (§7, C-45). The
+structural defect is read from source and does not depend on them.
+
 `verify_arms_matched` passes **17/17 in both cases**, because `y_source` is deliberately not
 an axis, so the verifier structurally cannot see this. The TransformerLens path is worse:
 `_site_bias` looks for `b_out`/`bias` while TL's `Attention` spells it `b_O`, so the bias is
@@ -870,7 +876,8 @@ it is cheap.** (F4)
 **T1.5 — Fix `_recompute_y` at head sites, and add a head-site test to
 `test_offline_control.py`.** **Blocks T3.1 and T3.2.** No published result is affected, but
 the defect is invisible to all 17 axes — though the severed-path control *does* flag it, at a
-floor of 3.87e-04 against a documented 0.000e+00 — and it sits on the
+floor of 3.87e-04 against a documented 0.000e+00 (a stand-in figure; reproducing it on real
+weights is part of this task) — and it sits on the
 path to `blocks.11.attn.head.7` — the site the parent project makes most interesting. Fix
 before the site sweep, not after. (F11)
 
@@ -1037,9 +1044,12 @@ require the loop to be useful for anything.
 - **Experiments were not re-run.** Every number was verified against the committed JSONL
   artifacts rather than regenerated. Three independent audits did this; no fabricated figure
   was found in any document.
-- **No external citation was verified against its source.** `PRIOR_ART.md`'s
-  verification-status column is the record and issue #28's gaps remain open. See F10 on
-  Chaudhary — that one needs a human to open the PDF.
+- **No external citation was verified against its source by a human.** One — Chaudhary — was
+  verified by agent retrieval, three times independently (F10, C-44); the small remaining gap
+  C-44 records is that no human has opened the PDF. For the rest, `PRIOR_ART.md`'s
+  verification-status column is the record and issue #28's gaps remain open. (An earlier
+  version of this bullet said no citation had been verified at all, contradicting F10 four
+  sections above — the propagation failure this review documents, in its own closing section.)
 - **The suite was confirmed to collect 295 tests but not run to completion.** CI on `main` is
   green as of 2026-07-31.
 - **The code audit ran against a Conv1D-shaped stand-in** for the measured probes, because no

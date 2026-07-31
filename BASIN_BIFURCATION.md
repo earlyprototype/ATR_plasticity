@@ -133,7 +133,7 @@ Underneath the discrete basin flip the logits move smoothly. `comrade`'s rank cl
 ### The `prolet` → `comrade` → `Divine` cascade
 
 Past `comrade` the sweep changes dynamical class — **[the word "bifurcates" is the
-superseded reading; what is measured is a class change, which is real and is ladder step 3]**. At alpha = 1.50 the basin tips into `Divine` and the lag-1 cosine **collapses** from ~1.0000 (a fixed point) to 0.7340 — the fixed point gives way to the period-2 cycle `Divine` sits on in the baseline. So the `alpha`-axis reads `prolet` (fixed point) → `comrade` (fixed point) → `Divine` (period-2): two bifurcations along one line, not one.
+superseded reading; what is measured is a class change, which is real and is ladder step 3]**. At alpha = 1.50 the basin tips into `Divine` and the lag-1 cosine **collapses** from ~1.0000 (a fixed point) to 0.7340 — the fixed point gives way to the period-2 cycle `Divine` sits on in the baseline. So the `alpha`-axis reads `prolet` (fixed point) → `comrade` (fixed point) → `Divine` (period-2): two transitions along one line — the first a relabelling of the readout while the fixed point moves smoothly (step 2 pending T1.1, C-26/C-27), the second a genuine change of dynamical class into the pre-existing `Divine` orbit (step 3, C-28).
 
 ## What this establishes, and what it does not
 

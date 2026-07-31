@@ -109,6 +109,15 @@ LAYER_START = 0
 LAYER_END = 11
 N_EPISODE = 120
 
+# Bumped on any change to the arm B search or the record schema, and stamped
+# into every record written. The committed T1.4 artifact mixes records from
+# three revisions because --resume trusted any (arm, seed) pair on disk with
+# nothing identifying which code produced it; the per-record stamp is what
+# makes that provenance readable instead of forensic. Revisions: 1 = doubling
+# bisect, 2 = log-log secant, 3 = safeguarded bracket (529c0b2), 4 = bracket +
+# relative-tolerance saturation flag. Pre-stamp records carry no field.
+SCRIPT_REV = 4
+
 # Arm B search: stop when the loop displacement is within this relative
 # tolerance of hebb's, or after this many bisection steps.
 DISP_TOL = 0.02
@@ -260,15 +269,21 @@ def main() -> int:
     hebb_fro = float(dW_hebb.double().norm())
     hebb_disp = one_minus_cos(posmean(hebb_state), off_pm)
     hebb_b = basin_of(model, hebb_state)
+    # report() exposes `clipped` (a latching boolean -- C-46: the library does
+    # not provide a rate) and `delta_frac`; an earlier revision asked it for
+    # `clip_rate`/`rel_change`, keys it has never had, so the committed hebb
+    # reference record carries null for both. Ceiling-silence at this eta is
+    # evidenced by step_size_map.jsonl's 0.0%-clip cells (C-20/C-21), not here.
     print(f"[hebb] basin={hebb_b['basin']!r} sigma1={hebb_sigma1:.4f} "
           f"||dW||_F={hebb_fro:.4f} 1-cos(off)={hebb_disp:.4e} "
-          f"clip={rep.get('clip_rate', float('nan')):.3f}", flush=True)
+          f"clipped={rep.get('clipped')} delta_frac={rep.get('delta_frac'):.4e}",
+          flush=True)
     rec_hebb = {
         "arm": "hebb", "eta": ETA, "basin": hebb_b["basin"], "top5": hebb_b["top5"],
         "margin": hebb_b["margin"], "sigma1": hebb_sigma1, "fro": hebb_fro,
         "frac_energy_1": float(sv[0] ** 2 / (sv ** 2).sum()),
-        "disp_1mcos": hebb_disp, "clip_rate": rep.get("clip_rate"),
-        "rel_weight_change": rep.get("rel_change"),
+        "disp_1mcos": hebb_disp, "clipped": rep.get("clipped"),
+        "rel_weight_change": rep.get("delta_frac"),
     }
 
     HARNESS_OK = hebb_b["basin"] == "comrade" and off_b["basin"] == "prolet"
@@ -330,6 +345,7 @@ def main() -> int:
 
     def emit(rec: dict) -> None:
         """Append one record to the JSONL immediately and keep it in memory."""
+        rec.setdefault("script_rev", SCRIPT_REV)
         records.append(rec)
         with jsonl_path.open("a") as fh:
             fh.write(json.dumps(rec) + "\n")
@@ -343,7 +359,12 @@ def main() -> int:
             records.append(r)
             if "arm" in r and "seed" in r:
                 done.add((r["arm"], r["seed"]))
-        print(f"[resume] {len(done)} arm/seed cells already on disk", flush=True)
+        stale = sum(1 for r in records
+                    if r.get("arm") and r.get("script_rev") != SCRIPT_REV)
+        note = (f"; {stale} from another script revision, kept as-is "
+                f"(provenance is per-record)" if stale else "")
+        print(f"[resume] {len(done)} arm/seed cells already on disk{note}",
+              flush=True)
     else:
         jsonl_path.write_text("")
 
@@ -409,11 +430,12 @@ def main() -> int:
             #
             # An earlier revision used an unsafeguarded log-log secant. It
             # assumed displacement is a monotone power of scale. It is not:
-            # displacement SATURATES. On seed 1001 scale 85 and scale 358 both
-            # give 1-cos = 0.2580 to four figures, so the local slope is ~0, the
-            # secant proposed the same point eight times, and the search
-            # returned its own starting probe as "best". Speed is worthless if
-            # the answer can be the input.
+            # displacement SATURATES. On seed 1001 (discarded run 1 -- these
+            # probes are not in the committed artifact) scales 85 and 358 gave
+            # 1-cos 2.5809e-01 and 2.5802e-01 -- equal to three figures -- so
+            # the local slope was ~0, the secant proposed the same point eight
+            # times, and the search returned its own starting probe as "best".
+            # Speed is worthless if the answer can be the input.
             #
             # So: establish a genuine bracket first, then bisect inside it in
             # log-scale. The quadratic guess is kept, but only to jump-start
