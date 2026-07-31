@@ -27,7 +27,7 @@ What has gone wrong is entirely above the numbers. Three drifts:
 | | Finding |
 |---|---|
 | **Under-claimed** | The coupling result. The top-level summary tells the next reader feedback did nothing; the evidence says it steers the update, against a null of exactly zero. **F1** |
-| **Over-claimed** | The bifurcation. `BASIN_BIFURCATION.md` reports a created attractor; the repo's own baseline shows the `comrade` state sits *well inside* the `prolet` basin's ordinary scatter. **F2** |
+| **Over-claimed** | The bifurcation. `BASIN_BIFURCATION.md` reports a created attractor; the α-sweep shows one fixed point moving smoothly while an argmax relabels, and D1 cannot discriminate step 4 from step 2. **F2** |
 | **Unknown to itself** | Issue #31 — "the cheapest measurement in the project", listed as unrun in three places — was run, and is committed in `BASELINE.md`. Its answer changes how every basin result reads. **F3** |
 
 F3 is the one that explains the other two. **No artifact in this repository maps a claim
@@ -35,9 +35,13 @@ to its evidence**, so a measurement can be made and lost, and a correction can l
 file while three others keep the superseded version. §4 proposes the fix; it costs one file.
 
 Separately, a full code audit found the whole-matrix path defended to the last bit and **one
-high-severity latent defect on the per-head path** — invisible to all 17 matched axes *and*
-to the severed-path control, and sitting directly in front of the next planned experiment.
-No published result is affected; every committed artifact is `blocks.6.mlp`. **F11**
+high-severity latent defect on the per-head path** — invisible to all 17 matched axes, though
+the severed-path control does flag it — sitting directly in front of the next planned
+experiment. No published result is affected; every committed artifact is `blocks.6.mlp`. **F11**
+
+**This review has itself been adversarially attacked and corrected** — four of its load-bearing
+claims were refuted in part, and the withdrawals are marked in place. None of the three findings
+above fell. See §7.
 
 Both F1 and F2 entered through pull requests that received **no peer review**, in a project
 whose review mechanism had previously caught two defects that changed conclusions (**F9**).
@@ -52,9 +56,10 @@ under better control than it realises (**F4**), and is not making.
 
 Stated first, because the rest is critical and the asset is real.
 
-**A properly controlled direction-specificity result — better controlled than the repo
-claims.** See F4. Three near-rank-1 weight updates at matched Frobenius norm *and* matched
-operator norm; one flips the basin, two do not.
+**A ceiling-silent, loop-displacement-matched control the repo has never cited.** See F4.
+`anti_hebb` at **94%** of `hebb`'s loop-state perturbation, opposite sign on the same axis,
+does **not** move the basin — while `hebb` at a quarter of its own perturbation, *same* sign,
+also does not. **Both magnitude and sign are required.**
 
 **A dynamical-class change.** `A04_climate` goes from a fixed point (lag-1 0.99999) to the
 period-2 `Divine` orbit (lag-1 0.661). lag-1 is a property of the trajectory, not of the
@@ -92,23 +97,40 @@ undercut the project's own headline, published anyway. That is rare and worth pr
 The severed arms are **bit-identical** — `torch.equal` returns True, `rel_fro_diff` is
 exactly `0.0`. That is the correct and complete null: with no feedback path the two arms
 compute the same function of the same inputs and must agree exactly. They do. Any departure
-in the routed configuration is attributable to feedback, and the instrument's own round-off
-floor (`1 − cos ≈ 1.5e-14`) is ten orders of magnitude below the routed signal:
+in the routed configuration is attributable to feedback:
 
-| prompt | `1 − cos` routed | `1 − cos` severed | ratio |
-|---|---|---|---|
-| `A01_physics` | 7.06e-03 | 3.9e-13 | 1.8e+10 |
-| `A02_medical` | 6.08e-03 | 3.2e-13 | 1.9e+10 |
-| `A04_climate` | 6.17e-03 | 2.9e-13 | 2.1e+10 |
+| prompt | `1 − cos` routed | severed |
+|---|---|---|
+| `A01_physics` | 7.06e-03 | **0.0 exactly** (`torch.equal` True) |
+| `A02_medical` | 6.08e-03 | **0.0 exactly** |
+| `A04_climate` | 6.17e-03 | **0.0 exactly** |
 
-And it is a **direction** change, not a scale change. Decomposing the difference against
-`ΔW_closed` and `‖ΔW_closed‖`: perpendicular **0.1220**, parallel **0.0213** — **5.73 to 1
-in favour of direction.**
+The severed floor is `0.0`, not a small number, so there is no ratio to quote — which is
+stronger than any ratio would be. (An earlier draft of this review printed severed values of
+~3e-13 and a ratio of ~1.8e+10. Those are float64 round-off in computing `cos(v, v)` on
+bit-identical matrices, and the `1 − cos ≈ 1.5e-14` figure quoted alongside them is a *state*
+float32 floor from `BASELINE.md`, imported into a *weight* table. Both were wrong to include.)
 
-> *Correction to `EXP_001_RESULTS.md:133`.* The published figures 0.1153 / 0.0346 (ratio
-> 3.33) are arithmetically correct but decomposed against **`ΔW_offline`**, not
-> `ΔW_closed` as the prose states. Against the stated reference the ratio is 5.73. The
-> direction-dominance is *stronger* than published; only the label is wrong.
+And it is predominantly a **direction** change. Convention-free: feedback **rotates** the
+update by **6.81°** (cos 0.99294; 6.32° and 6.37° on the other two prompts) and **shortens**
+it by **2.8%** (`‖ΔW_closed‖ / ‖ΔW_offline‖` = 0.97225).
+
+> **Do not quote a perpendicular:parallel ratio.** It is a deterministic function of those two
+> statistics, `r·sinθ / |r·cosθ − 1|`, so it measures nothing they do not. It takes the value
+> **3.33** referenced to `ΔW_offline` and **5.73** referenced to `ΔW_closed`; it is
+> ill-conditioned here (`d ln ratio / d ln r` = **−47**, with the parallel component's zero
+> sitting 2.1% away in norm ratio); and it ranges **5.03–7.67** across the three prompts. At
+> this cosine, perpendicular dominance is automatic for any norm ratio in **[0.900, 1.144]** —
+> at *equal* norms the ratio would be 16.8, so the measured value is **less** direction-dominated
+> than equal norms would give. Report the rotation and the shortening.
+
+> *Correction to `EXP_001_RESULTS.md:133`.* The published figures 0.1153 / 0.0346 are
+> arithmetically correct, but the prose labels them fractions of `‖ΔW_closed‖`;
+> `exp001_hebb.py:1163-1173` normalises by `‖ΔW_offline‖`. **The label is wrong, not the
+> numbers.** Note `diff_over_drift` uses that same reference (`offline_control.py:975`,
+> `diff / max(drift)`, offline being the larger), so the 0.120 headline above is on the same
+> footing; against `‖ΔW_closed‖` it would be 0.124. Fix the label — do not restate the ratio
+> against the other reference, which would inflate it without strengthening the effect.
 
 **What the summary layer tells a new reader.** `HANDOVER.md` §3.3 — the first file anyone
 picks this project up from:
@@ -136,9 +158,12 @@ issue thread.
 
 > In the closed loop, feedback measurably steers the weight change. Against a severed-path
 > null of exactly zero, the feedback-attributable component is 12% of the total drift and
-> is predominantly a change of direction rather than magnitude (5.73:1). At this step size
-> and horizon that steering does **not** change the behavioural outcome — both arms flip
-> to the same basin.
+> is predominantly a change of direction: a **6.81° rotation** with a **2.8% shortening**.
+> At this step size and horizon that steering does **not** change the behavioural outcome —
+> both arms flip to the same basin. The result is conditional on `y_source="recomputed"`;
+> in `recorded` mode the severed floor exceeds the routed value and the comparison reverses,
+> which is why `offline_control.py` already declares that mode uninterpretable as a feedback
+> test.
 
 Both halves matter. The first is the coupling result the project has been looking for; the
 second is the honest limit, and it makes the next experiment obvious (T1.1).
@@ -198,30 +223,53 @@ monotonically, lag-1 above 0.99992 at every sampled iteration.
 |---|---|
 | `comrade` state vs the `prolet` fixed point (D1, iter 200) | **4.39e-03** |
 | mean pairwise spread **within** the `prolet` basin (55 prompts) | 2.77e-03 |
+| **median** pair within the `prolet` basin (cos 0.999400) | 6.00e-04 |
 | **worst** pair within the `prolet` basin (cos 0.966079) | **3.39e-02** |
 | gap between the two *nearest genuine basins* (`Anarch`–`prolet`) | 2.87e-03 |
 
-**The `comrade` state is 7.7× closer to the `prolet` fixed point than the two most distant
-members of the `prolet` basin are to each other.** By the project's own basin metric,
-`comrade` sits comfortably inside `prolet`'s ordinary scatter — at 13% of that basin's own
-diameter. It is 1.5× the gap between two basins the project already treats as distinct,
-which means `comrade` and the pre-existing `Anarch`/`prolet` distinction stand or fall
-together.
+**No argument against step 4 can be built from this displacement's size, in either direction.**
+It is *larger* than `prolet`'s mean pairwise spread (1.58×), larger than the nearest-basin
+`Anarch`–`prolet` gap (1.53×), and 7.3× larger than the median within-`prolet` pair. It is
+smaller than exactly one number — the single worst of 1485 within-`prolet` pairs, which sits at
+56× the median — and one extreme order statistic is not a diameter.
 
-This does not make the result worthless. It **calibrates** it: the basin taxonomy has a
-resolution of order `1 − cos` ≈ 3e-3, and the `comrade` displacement is the same order.
-A claim of a *created attractor* needs to clear that resolution and does not.
+Nor would a larger number settle it. Within-basin variation is one-dimensional (**C-05**,
+participation ratio 1.29, 87% of variance in a single direction), so the basin is a *segment*,
+and a displacement magnitude decides nothing about membership unless its alignment with that
+segment is measured — which nothing here does. Against the segment's transverse RMS spread
+(chord 0.0265) the `comrade` displacement (chord 0.0937) is 3.5× outside. And membership is
+settled by the readout anyway: the `comrade` state's argmax *is* `comrade`. Note also that a
+saddle-node bifurcation creates a new attractor at *zero* separation from the old one, so small
+separation would not have been evidence against step 4 even if it had been found.
 
-> **Comparability, stated so the argument is checkable — this is the load-bearing assumption.**
-> The two figures come from different runs and are not obviously the same measurement. The
-> `comrade` number is a D1 relaxation trace (`cos_to_comrade0`, transformer_lens 3.6.0); the
-> scatter numbers are phase-aware pairwise cosines over the **position-mean** `(768,)` vector
-> across 55 prompts (3.5.1). What licenses the comparison is **C-06**: all 125 settled states
-> are fully position-uniform, so a position-mean cosine and a whole-tensor cosine coincide.
-> The version gap contributes a ~0.1%-class norm drift, an order below the 4.39e-03 signal.
-> **If that licensing fails, this specific comparison must be withdrawn** — but (a) and (b)
-> above are independent of it, so the step-2 reading survives either way. C-26 is held at
-> `not-established` rather than `retired` for exactly this reason.
+> **An earlier draft of this review got this backwards** and said the `comrade` state is "7.7×
+> closer… comfortably inside `prolet`'s ordinary scatter", concluding that a created attractor
+> "needs to clear that resolution and does not". That used the worst of 1485 pairs as the
+> yardstick; against every other summary of the same distribution the displacement *clears* the
+> resolution. The claim is withdrawn. It was the review's own most-flagged weak link, and it
+> did not survive.
+
+What the scatter numbers **do** license is narrower and worth keeping. `comrade` sits 1.5× the
+`Anarch`–`prolet` gap from `prolet`, so **`comrade` and the pre-existing `Anarch`/`prolet`
+distinction stand or fall together**; and at `1 − cos` ~ 3e-03 the basin label is a coarse
+instrument — 69 of 125 baseline prompts sit below a 0.5 top1−top2 margin, and `A01_physics`
+carries `comrade` at rank 4 in its *frozen* top-5. A basin flip at this scale is a weak signal
+whichever way it is read. **The argument against step 4 rests on (a) and (b), not on a distance.**
+
+> **Comparability, checked — it holds.** The two figures do come from different runs: the
+> `comrade` number is a D1 relaxation trace (whole-tensor cosine, transformer_lens 3.6.0), the
+> scatter numbers are phase-aware **position-mean** `(768,)` cosines over 55 prompts (3.5.1).
+> All three licences were verified rather than assumed. **Metric:** position-uniformity (C-06)
+> makes the two cosines coincide — across the 91 fixed-point baseline prompts the estimators
+> differ by ≤ **1.01e-06**, and on the 34 `Divine` period-2 prompts their `1 − cos` values agree
+> to a **median ratio of 0.9997**. **Phase:** a no-op on `prolet`, which is 55 fixed points and
+> 0 period-2. **Version:** exactly zero here — baseline `A01_physics` at iteration 120 gives
+> `‖state‖` 4782.77880859375 and margin 0.2303314208984375 under 3.5.1, and the α = 0 cell
+> reproduces both **bit-for-bit** under 3.6.0.
+>
+> So the comparison is admissible. It is simply not *decisive*, for the reasons above — which is
+> a different and more interesting failure than the one this caveat was written to guard against.
+> **C-26 is held at `not-established` because T1.1 is unrun, not because of a measurement doubt.**
 
 **(d) The file never mentions the offline arm.** `grep -i "offline\|coupling\|feedback"` on
 `BASIN_BIFURCATION.md` returns **zero hits**. But the offline arm — no feedback path at all
@@ -322,42 +370,99 @@ its magnitude"* — is not established by that comparison.
 | `oja` | 2.944e-06 | 0.0119 | 1.9651 | **1.9288** | 0.0% | `prolet` |
 | `anti_hebb` | 2.944e-06 | 0.0116 | 1.9131 | **1.8745** | 0.0% | `prolet` |
 
-Three near-rank-1 updates at the same site, matched on Frobenius norm *and* operator norm
-*and* drift, all ceiling-silent. One flips the basin; two do not. And `oja` at 2.9% drift
-reaches σ₁ = 4.68 — **2.6× `hebb`'s** — and still does not flip.
+**That comparison does not work either, for two reasons — and an earlier draft of this review
+promoted it as decisive. It is not.**
 
-**Stated precisely, because "differing only in direction" would overstate it.** The arms sit at
-different etas (7.065e-05 against 2.944e-06, a 24× gap) and their σ₁ agree only to within 6%;
-the match was *found* on a log-spaced grid, not constructed. So the clean statement is: across
-these arms, operator norm does not predict whether the basin moves — and the `oja` cell at 2.6×
-`hebb`'s σ₁ makes magnitude run the *wrong way*, which is the stronger half of the argument.
-Two gaps remain before this is more than provisional: whether σ₁-matching across modes at
-different etas is fair rather than a grid coincidence, and whether `oja`'s update — dominated by
-the brake, so pointing roughly back along `W` as a shrinkage — is treated differently by the
-loop's L2 renormalisation than `hebb`'s growth along the activation mode. If so,
-"direction-specific" holds for a duller reason than it appears. **T1.4 is the deciding test.**
+**Two directions, not three.** `oja` = `H − D` and `anti_hebb` = `−H − D`
+(`plasticity.py:1113-1128`), and at this site the brake dominates the reinforcement term ~110:1
+(`HANDOVER.md`), so both collapse to ≈ `−D`. They are one arm sampled twice. Measured in the
+loop's own state space, the cosine between their displacements from the `off` cell is **0.9998
+at every eta**, and both sit at cos **−0.95** to `hebb`'s. In the linear regime the three arms
+occupy a **single axis**: `hebb` on one sign (`W` grows), `oja`/`anti_hebb` on the other (`W`
+shrinks). `step_size_map.py` already encodes this — its `U_REF` calibration constant is
+identical (14000.0) for both.
 
-**That is the direction-specificity result, properly controlled, already measured, and
-requiring no new compute.** It is strictly stronger than the C2 comparison the README leans
-on. Promote it; retire the isotropic comparison as the decisive one; and run the genuinely
-missing control — a **rank-1 random direction at matched σ₁** — which is cheap and can
-falsify the whole thing.
+**And matched σ₁ is not matched effect.** The three cells perturb the loop state by
+`1 − cos(off)` = **5.000e-03** (`hebb`), **1.197e-04** (`oja`), **2.121e-04** (`anti_hebb`) — a
+24–42× gap. `oja` never reaches `hebb`'s perturbation anywhere in the sweep (max 2.724e-03
+against the 5.000e-03 that flips). **That is verbatim the defect that disqualified the isotropic
+arm**, reappearing in its proposed replacement.
 
-**Related, and it explains everything above.** With the repo's convention (`y = x@W`,
-`dW = E[x yᵀ]`), the Hebbian update is exactly
+**The control that does work is one row further down the same table.**
 
-> **ΔW = E[x xᵀ] W = C·W**
+| mode | eta | σ₁ | ‖disp‖ | `1 − cos(off)` | cos → flip dir | clip | basin |
+|---|---|---|---|---|---|---|---|
+| **`hebb`** | **7.065e-05** | 1.8135 | **152.7** | **5.000e-03** | +1.000 | 0.0% | **`comrade`** ← flips |
+| `hebb` | 3.925e-05 | 0.9002 | 75.5 | 1.229e-03 | +0.989 | 0.0% | `prolet` |
+| **`anti_hebb`** | **2.944e-05** | 6.9517 | **146.8** | **4.713e-03** | −0.924 | **0.0%** | `prolet` |
 
-— one step of power iteration on the site's input second-moment matrix. Since the attractor
-states are position-uniform (F3: 125/125), C is effectively rank-1, so
-**ΔW ≈ η·N·λ₁·v₁(v₁ᵀW): a rank-1 weight edit along the site's dominant activation mode.**
-The repo's own measurements confirm it (95.8% of ‖ΔW‖²_F in component 1, stable rank 1.04).
+`anti_hebb`@2.944e-05 is **ceiling-silent**, reaches **94%** of `hebb`'s loop-state perturbation
+(displacement norms 146.8 against 152.7), points at cos −0.92 to `hebb`'s flip direction — and
+**does not flip**. Conversely `hebb`@3.925e-05 points the *same* way at cos +0.99, reaches only
+a quarter of the perturbation, and also does not flip.
+
+**So the honest statement is: the flip needs both a sufficient magnitude and the right sign on
+this axis. Neither alone.** That is a real, loop-displacement-matched, ceiling-silent control,
+already in the repo and never cited — and it is a weaker claim than "direction-specific".
+
+**"Direction-specific, not magnitude-specific" must be withdrawn**, because F2's own α-sweep
+refutes it two findings earlier: holding this exact ΔW's *direction* fixed and scaling it alone
+produces three basins (`prolet` → `comrade` → `Divine`, α\* = 0.75). Within `hebb`, σ₁ 0.9002 →
+`prolet` and σ₁ 1.8135 → `comrade`, same direction, both ceiling-silent. Magnitude clearly does
+part of the work.
+
+Remaining gaps: only two directions are sampled, and `hebb` grows `W` while `oja`/`anti_hebb`
+shrink it, which the loop's L2 renormalisation may treat asymmetrically. **T1.4 — a rank-1
+random direction at matched σ₁ *and* matched loop displacement — is still the deciding test,
+and it can falsify what is left.**
+
+**The isotropic critique stands unchanged.** Theory for an iid Gaussian (3072, 768) gives
+σ₁/‖·‖_F = 0.054127; measured across all 8 `random` cells the mean is 0.054203 — 0.14%
+agreement. `random`'s largest σ₁ anywhere is 0.4469 against `hebb`'s flipping 1.8135. Retiring
+the isotropic arm as the decisive control is correct.
+
+**Related, and it explains everything above.** At this site the module computes `y = x@W + b_out`
+— `x` is `blocks.6.mlp.hook_post`, `y` is `blocks.6.hook_mlp_out` (`plasticity.py:448`) — and the
+rule accumulates `ΔW = E[x yᵀ]` (`plasticity.py:105-109`). The exact identity is therefore
+
+> **ΔW = E[x xᵀ]·W + E[x]·b_outᵀ = C·W + x̄ b_outᵀ**
+
+— power iteration on the site's input second-moment matrix, **plus a rank-1 bias term that is
+not droppable**: `‖x̄ b_outᵀ‖_F / ‖ΔW‖_F = ‖b_out‖ / ‖ȳ‖ = 3.353 / 19.451 = **17%** at the routed
+working point. Position-uniformity *maximises* it, because `E[x]` does not average down. In
+augmented form it is still exactly power iteration: with `x̃ = [x; 1]`, `ΔW = E[x x̃ᵀ]·[W; b_outᵀ]`.
+
+Since the attractor states are position-uniform (F3: 125/125) — and injection at
+`hook_resid_pre` discards positional embeddings (`atr_bridge.py:37-40`), so uniformity survives
+attention and the position-wise MLP exactly — C is effectively rank-1 and
+
+> **ΔW ≈ η·N· x̄ ȳᵀ: a rank-1 weight edit whose input-side factor is the site's dominant
+> activation mode, and whose output-side factor is the site's mean output ȳ = Wᵀx̄ + b_out —
+> not Wᵀx̄.**
+
+> **An earlier draft of this review stated the identity as `ΔW = C·W` "exactly", dropping the
+> bias.** The repo's own artifact refutes that form by three to four orders of magnitude:
+> `u_right_sign_ref_cos` gives **cos(v₁, ȳ) = 0.999999** in the severed cells (where ΔW is
+> exactly rank-1), whereas a bias-free `v₁ ∝ Wᵀx̄` would give **0.9975**. The rank-1 evidence
+> originally cited as confirmation (95.8% of `‖ΔW‖²_F` in component 1, stable rank 1.04) does
+> **not** discriminate — rank-1-ness follows from position-uniformity alone and holds for
+> `C·W + x̄b_outᵀ` equally well.
+
+The rank-1 part is measured: 95.8% of `‖ΔW‖²_F` in component 1 at `routed:A01_physics`,
+**100.0%** in the severed cells, stable rank 1.04–1.06 — though only 81–84% in the two episode
+cells. **One consequence for the decode:** ~17% of the norm of the direction EXP-001 pushes
+through the unembedding is `b_out`, a prompt-independent constant of the layer. That is worth
+knowing before reading anything into the token list.
 Three consequences the write-up must confront:
 
-1. **"No loss" is weaker than stated.** Plain Hebb is exactly gradient ascent on ½E‖y‖²;
-   Oja is the same under a norm constraint. There *is* an implicit objective. The defensible
-   phrasing is "no **externally specified** objective" — a much smaller gap from unsupervised
-   test-time adaptation than "no loss at all".
+1. **"No loss" is weaker than stated.** Plain Hebb is exactly gradient ascent on ½E‖y‖², and
+   the bias does not disturb this — `∂/∂W ½E‖xW+b‖² = E[x yᵀ]`, term for term. There *is* an
+   implicit objective. The defensible phrasing is "no **externally specified** objective" — a
+   much smaller gap from unsupervised test-time adaptation than "no loss at all".
+   *Narrower than an earlier draft said:* Oja's **single-unit** rule is the same under a
+   unit-norm constraint, but the 768-output subspace rule this repo runs is a constrained
+   gradient flow only when `WᵀW = I`, which here it is not (`WᵀW` diagonal mean 35.4, stable
+   rank 31.0).
 2. **The offline/closed agreement is predicted, not surprising**, because C barely moves.
 3. **Stating the identity makes the result more credible, not less**, and pre-empts the
    reviewer who derives it first.
@@ -415,7 +520,7 @@ each **n = 1**.
 |---|---|---|---|
 | E1 | `EXP_001_RESULTS.md` intro, `HANDOVER.md:96` | `hebb`@7.07e-05 is "the **only** cell in the whole sweep that moves the loop inside a clean band" | **Two** clean flipping cells: `hebb`@7.07e-05 (1.12% drift) *and* `hebb`@1.18e-04 (2.20% drift), both 0.0% clip, both `comrade`. Good news — robustness of the flip across a 1.7× change in eta — and it is being suppressed by an error. Not an independent replication: both cells share prompt, seed, site and cadence |
 | E2 | `EXP_001_RESULTS.md` §4 | ΔW effective rank "1.8–3.8 for `oja`" | `oja`'s range is **1.0–2.9**. The 3.8 is `anti_hebb`@9.81e-05, a cell at **60.8% clip** — which by the repo's own rule should not be cited at all |
-| E3 | `EXP_001_RESULTS.md:133` | perp/parallel decomposed against `ΔW_closed` | Decomposed against `ΔW_offline`. Against the stated reference: 0.1220 / 0.0213, ratio **5.73** (see F1) |
+| E3 | `EXP_001_RESULTS.md:133` | perp/parallel decomposed against `ΔW_closed` | Decomposed against `ΔW_offline`. **The label is wrong, not the numbers** — do not restate the ratio against the other reference (see F1); report the 6.81° rotation and the 2.8% shortening instead |
 
 **Two more citation-hygiene problems of the same class:** `STEP_SIZE_MAP.md` §5's evidence
 that effective rank *rises* is taken from `anti_hebb`@9.81e-05 at 60.8% clip; and
@@ -688,9 +793,14 @@ This is the mechanism that would have caught all three drifts, and it costs one 
 answer (**compression, one-dimensional, position-uniform across all basins, nearest-basin
 ratio 1.16**), and propagate it into `HANDOVER.md` §5.4 and `RESONANCE_NOTE.md`. (F3)
 
-**T0.2 — Promote the matched-σ₁ control.** The `hebb`/`oja`/`anti_hebb` triple at matched
-Frobenius *and* operator norm is already in `step_size_map.jsonl` and is a strictly better
-C2 than the isotropic comparison. Write it up; retire the isotropic arm as decisive. (F4)
+**T0.2 — Promote the loop-displacement-matched control.** `anti_hebb`@2.944e-05 — ceiling-silent,
+94% of `hebb`'s loop-state perturbation, opposite sign on the same axis, does not flip — paired
+with `hebb`@3.925e-05 (same sign, quarter magnitude, also does not flip). Both are already in
+`step_size_map.jsonl` and neither has ever been cited. Write them up as the real control, retire
+the isotropic arm as decisive, and **do not** substitute the σ₁-matched triple: matching σ₁
+leaves the loop perturbation 24–42× apart, which is the same defect that disqualified the
+isotropic arm. The claim they support is "both magnitude and sign are required", not
+"direction, not magnitude". (F4)
 
 **T0.3 — Reset the bifurcation claim.** Retitle `BASIN_BIFURCATION.md`, set the `comrade`
 result at ladder step 2 pending T1.1, add the `prolet`-basin-scatter comparison, and add one
@@ -719,9 +829,12 @@ deformation; a hysteresis loop → a real transition. Independent check on T1.1.
 **T1.3 — Refine α\* around the real transition,** the interval (1.25, 1.50) where lag-1
 collapses — not (0.50, 0.75) where only the argmax moves.
 
-**T1.4 — The rank-matched random control.** A rank-1 random direction at matched σ₁, not
-isotropic noise at matched ‖·‖_F. If it also flips the basin, the direction-specificity
-conclusion collapses. **This can falsify the project's central result and it is cheap.** (F4)
+**T1.4 — The rank-matched random control.** A rank-1 random direction matched to `hebb` on
+σ₁ **and** on loop-state displacement (`1 − cos(off)` ≈ 5.0e-03) — not isotropic noise at
+matched ‖·‖_F, and not σ₁ alone, since F4 shows σ₁-matching leaves the loop perturbation
+24–42× apart. If it also flips the basin, what remains of C-22 collapses and the result is
+about magnitude on any rank-1 direction. **This can falsify the project's central claim and
+it is cheap.** (F4)
 
 **T1.5 — Fix `_recompute_y` at head sites, and add a head-site test to
 `test_offline_control.py`.** **Blocks T3.1 and T3.2.** No published result is affected, but
@@ -785,11 +898,16 @@ Meanwhile the project has proved something else, cleanly, under better control t
 realises, and is not claiming it:
 
 > **A frozen transformer's iterated-dynamics attractor landscape is editable by a rank-1
-> weight perturbation of ~1% derived from the model's own activation statistics — and the
-> edit is direction-specific, not magnitude-specific.** Two other near-rank-1 updates at
-> matched Frobenius and (to within 6%) operator norm do not reproduce it; one of them at 2.6× the operator
-> norm. In one case the edit changes the *dynamical class* of the trajectory, turning a fixed
-> point into a period-2 cycle.
+> weight perturbation of ~1% derived from the model's own activation statistics, with no
+> target and no loss — and the edit is structured, not generic.** A ceiling-silent update of
+> **94%** the same loop-state magnitude, in the opposite sign on the same axis, does not
+> reproduce it; neither does the same-sign update at a quarter the magnitude; and an isotropic
+> edit of matched Frobenius norm never comes close. In one case the edit changes the
+> *dynamical class* of the trajectory, turning a fixed point into a period-2 cycle.
+
+**Not "direction-specific, not magnitude-specific"** — an earlier draft said that and F2's own
+α-sweep refutes it, since scaling this exact ΔW at fixed direction produces three different
+basins. Both magnitude and sign matter; that is the claim, and it is the one the data carry.
 
 Every clause is measured, controlled and reproducible from committed artifacts. It is a claim
 about the **editability of iterated dynamics**, which:
@@ -834,6 +952,26 @@ require the loop to be useful for anything.
   called complete.
 - **Not attempted:** any judgement on whether the parent ATR project's own findings are sound.
   This review takes the bridge's bit-exactness as given, since CI enforces it.
+
+**This review has been through one adversarial pass against itself**, in which four of its
+load-bearing claims were attacked by independent skeptics instructed to refute them, and the
+verdicts adjudicated against the artifacts. **All four were refuted in part.** The corrections
+are marked in place rather than silently applied:
+
+| Claim attacked | Outcome |
+|---|---|
+| F2c — `comrade` "inside `prolet`'s scatter" | **Withdrawn.** Used the worst of 1485 pairs as the yardstick; against mean, median and nearest-basin gap the displacement is *larger*, not smaller |
+| C-22 — "direction-specific, not magnitude-specific" | **Withdrawn.** Refuted by this review's own α-sweep. Replaced by a better control found in the same file: `anti_hebb`@2.944e-05 |
+| C-32 — the 5.73:1 direction ratio | **Withdrawn.** Normalisation-dependent, ill-conditioned, and less direction-dominated than equal norms would give. Replaced by a rotation and a shortening |
+| C-10 — `ΔW = C·W` "exactly" | **Corrected.** The site has a bias; the omitted term is 17% of `‖ΔW‖_F`, and the repo's own `u_right_sign_ref_cos` refutes the bias-free form by 3–4 orders |
+
+**None of the three headline findings fell.** F1 survives because the severed null really is
+`torch.equal`-exact zero. F2 survives on arguments (a) and (b), exactly as it predicted it would
+if (c) failed. F3 was not attacked and reproduces directly from `BASELINE.md`.
+
+The pattern is worth naming, because it is the same one the review documents in the project: in
+every case the measurement was sound and the sentence written on top of it reached further than
+the measurement licensed.
 
 ---
 

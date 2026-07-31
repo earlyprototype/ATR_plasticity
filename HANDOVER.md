@@ -12,13 +12,15 @@ Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 > that review lands, `CLAIMS.md` is the authority where they disagree:
 >
 > - **§3.3, "The two agree… feedback did nothing."** Wrong. Against a severed-path null of
->   *exactly zero*, the feedback-attributable component is 12% of drift and is direction-
->   dominated 5.73:1. Feedback measurably steers ΔW; what it does **not** do at this
->   operating point is change the outcome. See `CLAIMS.md` C-30 – C-34.
-> - **§5.3, "ladder step 4 — a created attractor."** Not established. The `comrade` state
->   sits 7.7× *closer* to the `prolet` fixed point than `prolet`'s own two most distant
->   members are to each other — inside that basin's ordinary scatter. The parsimonious
->   reading is step 2. See C-26, C-07.
+>   *exactly zero* (`torch.equal` True), the feedback-attributable component is 12% of drift:
+>   a **6.81° rotation** of the update with a **2.8% shortening**. Feedback measurably steers
+>   ΔW; what it does **not** do at this operating point is change the outcome. Conditional on
+>   `y_source="recomputed"`. See `CLAIMS.md` C-30 – C-34.
+> - **§5.3, "ladder step 4 — a created attractor."** Not established — but by elimination and
+>   by the α-sweep, **not** by any argument about how far the `comrade` state sits from
+>   `prolet`. D1 returns the same verdict for any ΔW that displaces the fixed point, and the
+>   α-sweep shows one continuously-moving fixed point (lag-1 ≥ 0.999998 across α = 0→1.25).
+>   The parsimonious reading is step 2. See C-26.
 > - **§5.4, "issue #31 not yet started."** It was run. The measurement is in
 >   `experiments/output_baseline/BASELINE.md` and the answer is compression, one-dimensional,
 >   position-uniform across all basins. See C-04 – C-07.

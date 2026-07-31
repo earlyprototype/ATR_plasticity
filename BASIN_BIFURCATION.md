@@ -8,10 +8,16 @@
 > *interpretation* placed on them that does not follow. Three points, all from committed
 > artifacts:
 >
-> 1. **The `comrade` state is inside the `prolet` basin's ordinary scatter.** It sits
->    `1−cos` = 4.39e-03 from the `prolet` fixed point, against a worst within-`prolet` pair
->    of 3.39e-02 (`BASELINE.md`) — 7.7× further. The basin taxonomy's own resolution is
->    ~3e-03, comparable to the gap between `Anarch` and `prolet`.
+> 1. **No size argument settles this, in either direction.** The `comrade` state sits
+>    `1−cos` = 4.39e-03 from the settled `prolet` state — which is *larger* than `prolet`'s
+>    mean within-basin spread (2.77e-03), larger than the `Anarch`–`prolet` gap (2.87e-03),
+>    and 7.3× larger than the median within-`prolet` pair (6.00e-04). It is smaller only than
+>    the single worst of 1485 pairs. And within-basin variation is one-dimensional, so the
+>    basin is a segment, not a ball; a saddle-node bifurcation would create a new attractor at
+>    *zero* separation anyway. What the numbers do license: `comrade` sits 1.5× the
+>    `Anarch`–`prolet` gap away, so **`comrade` and that pre-existing distinction stand or fall
+>    together**, and at this scale the basin label is a coarse instrument (69/125 baseline
+>    prompts below a 0.5 margin; `A01_physics` carries `comrade` at rank 4 when *frozen*).
 > 2. **D2 shows one fixed point moving smoothly, not a bifurcation.** lag-1 stays ≈1.0 across
 >    α = 0 → 1.25 and the state norm advances in near-equal increments (+11.6, +12.9, +14.3,
 >    +15.3, +14.9). Only the *argmax* changes discretely at α\* — and an argmax always does,
