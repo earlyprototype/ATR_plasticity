@@ -121,8 +121,36 @@ middle, and it is cheap to reach.
 
 ## Why Oja rather than Hebb
 
-Raw Hebbian updates diverge immediately — no fixed point, unbounded weight
-growth. Oja's rule adds a decay term proportional to post-synaptic activity:
+**Corrected 2026-08-01.** This section used to open by saying that raw Hebbian
+updates diverge immediately, with no fixed point and unbounded weight growth.
+That was wrong at the step size this project actually runs at, and the register
+retires it as row C-15. What the committed sweep records is below.
+
+Raw Hebb is bounded and finite everywhere it has been measured here. At the
+working point (step size 7.07e-05, 120 updates, one update per iteration) it
+gives zero non-finite values, a clip rate of 0.0% meaning the safety ceiling
+never fired, and a weight-norm change of +0.03%. Across all ten `hebb` cells of
+the step-size map the non-finite count is zero in every one
+([STEP_SIZE_MAP.md](STEP_SIZE_MAP.md)). At the larger step sizes total drift
+stops at the 5% ceiling with the clip rate climbing to 99.2%, so those cells
+measure the ceiling and say nothing either way about unbounded growth.
+
+The divergence claim survives only in a narrower regime, and there it is real:
+with the ceiling lifted (control C3 runs at `max_delta_frac=1e9`) and a step
+size of 1e-3, roughly fourteen times the working point, the Hebb drift trace
+grows monotonically and super-linearly over a few applications while the Oja
+trace saturates. So the defensible statement is that Hebb grows without bound
+at large step size once the ceiling is removed, not that it diverges
+immediately.
+
+One further correction from the same measurement, because it inverts the
+intuition: at every stable step size Oja's own update is about a hundred times
+**larger** than Hebb's in absolute terms, since at a real weight scale of
+`‖W‖_F = 164.9` the decay term dominates the reinforcement term rather than
+correcting it. "Hebb diverges, Oja does not" is a claim about growth across a
+run. It is false as a claim about which update is bigger at any single step.
+
+Oja's rule adds a decay term proportional to post-synaptic activity:
 
 ```
 Hebb:  dW = <x yᵀ>
@@ -139,6 +167,17 @@ is worth stating in any write-up.
 
 `mode="hebb"` is included so you can produce the divergence figure (control C3)
 rather than asserting it.
+
+**And the section title has not survived the experiments.** The theoretical
+argument above still stands, but it did not predict what happened. Oja's rule
+was run at eight step sizes spanning five orders of magnitude and moved the
+loop's settled word at none of them, including the ceiling-silent cells up to
+2.9% drift (register row C-13). Every recorded result in this repository came
+from `hebb`, the mode included as a foil. Why Oja is inert here is **not**
+established: the leading explanation, that the brake outweighs the
+reinforcement term by roughly 110 to 1 at this site, is row C-14 and has never
+been tested as an explanation. Read this section as the reason the project
+started with Oja, not as a finding.
 
 ## Hardware
 
@@ -194,7 +233,7 @@ In order. Do not skip.
 | **C0** | At `eta=0`, do the hooks perturb the trajectory? | **Stop.** Contamination; nothing downstream is interpretable |
 | **C1** | Does `revert()` restore the original trajectory? | Hidden state accumulating somewhere |
 | **C2** | Does a random update of matched norm do the same thing? | You've measured "perturbing weights changes things", not Hebbian learning |
-| **C3** | Does raw Hebb diverge and Oja not? | The decay term isn't doing its job |
+| **C3** | With the ceiling lifted and a large step size, does Hebb's drift keep growing where Oja's saturates? | The decay term isn't doing its job |
 
 ```python
 from controls import c0_identity, c1_revert, c2_random_direction, c3_divergence_demo

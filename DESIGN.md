@@ -68,7 +68,7 @@ periodic, not fewer.
 | Symptom | Likely cause |
 |:---|:---|
 | C0 fails | Hook has a side effect; dtype cast leaking; in-place op on a captured tensor |
-| `nonfinite` fires early | eta too high, or `mode="hebb"` (expected) |
+| `nonfinite` fires early | eta too high. **Not** "expected under `mode="hebb"`": across all 35 cells of the step-size map, `hebb` never once went non-finite (register row C-15) |
 | `clipped` fires immediately | eta far too high; the ceiling is doing its job |
 | Landscape identical to baseline at every eta | Site is not load-bearing for the dynamics; try a different layer or `attn.c_proj` |
 | Oja and random controls agree (C2) | The result is about perturbation magnitude; the branch as framed is dead and needs rethinking |
@@ -77,7 +77,12 @@ periodic, not fewer.
 ## Sweep order
 
 1. C0, C1 on a single prompt, 50 iterations. Gate.
-2. C3 divergence demo — one figure, establishes the rule choice.
+2. C3 divergence demo, one figure. **It did not establish the rule choice, and
+   the sweep since went the other way.** C3 shows Hebb's drift growing where
+   Oja's saturates only with the ceiling lifted at a large eta; at the step
+   sizes actually used, Hebb is bounded and finite (C-15). Oja then moved the
+   basin at none of the eight step sizes tested (C-13), and every recorded
+   result in the repository comes from `hebb`.
 3. Single prompt, eta ∈ {1e-6, 3e-6, 1e-5, 3e-5, 1e-4}, 500 iterations. Find
    the eta where anything happens at all.
 4. C2 at that eta. **Gate — if this fails, stop and rethink.**

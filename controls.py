@@ -201,10 +201,19 @@ def c3_divergence_demo(
     n_iter: int = 100,
 ) -> dict:
     """
-    C3 -- pedagogical: show that raw Hebbian diverges and Oja does not.
+    C3 -- pedagogical: show that Hebb's drift keeps growing where Oja's
+    saturates, WITH THE CEILING LIFTED and at a large eta.
 
     Not a control on the result; a demonstration that the decay term is doing
     the job it is there to do. Worth one figure.
+
+    Scope, because the unqualified form is false and is retired as CLAIMS.md
+    row C-15: this runs at `max_delta_frac=1e9`, so the ceiling is effectively
+    off, and the effect is measured at eta ~1e-3, roughly 14x the working point
+    the experiments use. At the working point raw Hebb is bounded and finite
+    (0 non-finite, 0.0% clip, ||W||_F +0.03%). The claim is about growth across
+    a run in this regime, not about which update is larger at any single step:
+    at every stable eta Oja's update is ~100x larger in absolute terms.
     """
     traces = {}
     for mode in ("hebb", "oja"):

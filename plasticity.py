@@ -61,7 +61,7 @@ import torch.nn as nn
 #   x : (N, n_in)   flattened over batch and token positions
 #   y : (N, n_out)
 #
-# Raw Hebbian:  dW = <x y^T>                     -- diverges, included to show why
+# Raw Hebbian:  dW = <x y^T>                     -- unbraked; see the note below
 # Oja subspace: dW = <x y^T> - W <y y^T>         -- intrinsically normalised
 # Anti-Hebbian: dW = -<x y^T> - W <y y^T>        -- erodes, and still braked
 #
@@ -69,6 +69,27 @@ import torch.nn as nn
 # convenience: Oja's rule is Hebbian learning with normalisation built in, and
 # it performs power iteration on the input correlation structure. ATR is
 # nonlinear power iteration on activations. Same mathematics, one loop up.
+#
+# TWO CORRECTIONS TO THE PARAGRAPH ABOVE, both from this repo's own artifacts
+# and both carried in CLAIMS.md. The theoretical argument stands; the empirical
+# claims that used to sit beside it do not.
+#
+#   1. "Raw Hebb diverges" is retired (C-15). Across all ten `hebb` cells of
+#      the step-size map the non-finite count is zero, and at the working point
+#      (eta 7.07e-05, 120 updates) the ceiling never fires and ||W||_F moves
+#      +0.03%. Hebb grows without bound only at large eta with the ceiling
+#      lifted, which is the regime c3_divergence_demo runs in. At every stable
+#      eta Oja's update is in fact ~100x LARGER than Hebb's, because at
+#      ||W||_F = 164.9 the decay term dominates the reinforcement term rather
+#      than correcting it.
+#
+#   2. "The right rule here" is not what the measurements say (C-13). Oja was
+#      run at eight step sizes over five orders of magnitude and moved the
+#      loop's settled basin at none of them, including the ceiling-silent cells
+#      up to 2.9% drift. Every recorded result in this repository comes from
+#      `hebb`. Why oja is inert is NOT established: the leading explanation,
+#      that the brake outweighs the reinforcement term ~110:1 at this site, is
+#      C-14 and is untested as an explanation.
 #
 # ANTI-HEBBIAN IS NOT A NEGATIVE ETA, and the difference is the decay term.
 # `eta = -e` scales the whole rule, so it flips BOTH terms: the reinforcement
@@ -837,7 +858,14 @@ class OjaPlasticity:
         gradient here and no optimiser to save you.
     mode : {"oja", "hebb", "anti_hebb", "random", "off"}
         "oja"       - Oja subspace rule (the real experiment)
-        "hebb"      - raw Hebbian, no decay (will diverge; pedagogical)
+        "hebb"      - raw Hebbian, no decay. NOT "will diverge": at the
+                      step sizes this repo runs at it is bounded and finite
+                      (working point 7.07e-05: 0 non-finite, 0.0% clip,
+                      ||W||_F +0.03%), and it is the mode that produced every
+                      recorded result. It grows without bound only at large
+                      eta with the ceiling lifted, which is what C3 shows.
+                      See the note above the learning rules; register row C-15
+                      retires the old unqualified claim.
         "anti_hebb" - Oja with the reinforcement term negated and the decay
                       term left alone: dW = -<x y^T> - W <y y^T>. Erodes what
                       the loop has settled into while staying bounded. NOT the
