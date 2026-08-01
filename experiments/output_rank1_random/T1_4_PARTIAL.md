@@ -1,13 +1,20 @@
 # T1.4 — rank-1 random control, partial results
 
 > **Superseded.** The sweep is complete: see `T1_4_RESULTS.md` (10/10 both arms).
-> This file is kept as the mid-run record. One correction, marked rather than
-> silently applied: the "Seed 1001's probe sequence" table below quotes probes at
-> scales 85.150 and 357.968 that appear in **no committed version of
+> This file is kept as the mid-run record. Three corrections, marked rather than
+> silently applied. (1) The "Seed 1001's probe sequence" table below quotes probes
+> at scales 85.150 and 357.968 that appear in **no committed version of
 > `rank1_random.jsonl`** — they are from the discarded run 1. The committed
 > seed-1001 record's probes are listed in `T1_4_RESULTS.md`; the
 > distinct-scales-same-displacement observation survives via the committed
-> seed-1007 record.
+> seed-1007 record. (2) "The bracketed search did not span the target" is true
+> only of seed 1004 (`bracketed: false`, stopped at the scale cap). Seed 1001's
+> record says `bracketed: true` — its bracket did span the target; matching
+> failed because the displacement jumps discontinuously across it. (3) The
+> position-uniformity table reports 2 of the 4 measurements the artifact carried
+> when this file was written — seeds 1003 (0.9999999999999557) and 1004
+> (0.9999999999999398) also had the field, extending the measured range to
+> 2.20× ‖W0‖_F.
 
 **Status: incomplete.** 10/10 Arm A seeds, 5/10 Arm B seeds. Run stopped at session
 end. Resume with:
