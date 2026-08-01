@@ -7,6 +7,36 @@ where something is interpretation it is marked as such.*
 Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 "where we are and what's next" layer on top of it.
 
+> **Review notice — read before quoting anything below.** `ALIGNMENT_REVIEW.md` found three
+> claims in this file superseded by evidence already in the repo. Until the Tier 0 work in
+> that review lands, `CLAIMS.md` is the authority where they disagree:
+>
+> - **§3.3, "The two agree… feedback did nothing."** Wrong. Against a severed-path null of
+>   *exactly zero* (`torch.equal` True), the feedback-attributable component is 12% of drift:
+>   a **6.81° rotation** of the update with a **2.8% shortening**. Feedback measurably steers
+>   ΔW; what it does **not** do at this operating point is change the outcome. Conditional on
+>   `y_source="recomputed"`. See `CLAIMS.md` C-30 – C-34.
+> - **§5.3, "ladder step 4 — a created attractor."** Not established — but by elimination and
+>   by the α-sweep, **not** by any argument about how far the `comrade` state sits from
+>   `prolet`. D1 returns the same verdict for any ΔW that displaces the fixed point, and the
+>   α-sweep shows one continuously-moving fixed point (lag-1 ≥ 0.999998 across α = 0→1.25).
+>   The parsimonious reading is step 2. See C-26.
+> - **§5.4, "issue #31 not yet started."** It was run. The measurement is in
+>   `experiments/output_baseline/BASELINE.md` and the answer is compression, one-dimensional,
+>   position-uniform across all basins. See C-04 – C-07.
+> - **"Three facts worth carrying forward" (below), both of its first two claims.**
+>   *"The only cell in the whole sweep"* — there are **two**: `hebb`@7.07e-05 (1.12% drift) and
+>   `hebb`@1.18e-04 (2.20%), both ceiling-silent, both `comrade`. See C-21. And *"the basin
+>   change is specific to the update's **direction**, not its magnitude"* — **withdrawn**. The
+>   α-sweep holds this exact ΔW's direction fixed and produces three basins by scaling alone
+>   (`prolet` → `comrade` → `Divine`, α\* = 0.75), and `hebb`@3.925e-05 is the same direction at
+>   a quarter the magnitude and does not flip. The supported claim is that **both magnitude and
+>   sign are required**. See C-22, now `provisional`.
+>
+> Also: §3.2's "the only cell that moves the loop" undercounts — there are **two** clean
+> cells (C-21); and the Chaudhary reading in §5.4 is the superseded one, which predicts the
+> opposite failure mode to `PRIOR_ART.md` (C-44).
+
 ---
 
 ## 1. What the project is, in one paragraph

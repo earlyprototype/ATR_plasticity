@@ -1,4 +1,52 @@
-# Basin bifurcation — `comrade` is a created attractor
+# Basin bifurcation — `comrade` is a created attractor **[SUPERSEDED READING]**
+
+*The measurements in this file stand. The title's claim does not — it is held at
+`not-established` in `CLAIMS.md` C-26. Retained unrewritten as the record of what the
+project believed; read the notice below before quoting anything here.*
+
+> **Review notice — this file's headline is not established.** `ALIGNMENT_REVIEW.md` §F2
+> finds the "created attractor" reading refuted by evidence already in the repo. The
+> measurements below are sound — the weight-space anchors reproduce EXP-001 to ~9 figures,
+> while the closed-loop state norm carries the ~0.1%-class drift this file already reports
+> (1.22e-03 relative, from regenerating rather than loading the state). It is the
+> *interpretation* placed on them that does not follow. Three points, all from committed
+> artifacts:
+>
+> 1. **No size argument settles this, in either direction.** The `comrade` state sits
+>    `1−cos` = 4.39e-03 from the settled `prolet` state — which is *larger* than `prolet`'s
+>    mean within-basin spread (2.77e-03), larger than the `Anarch`–`prolet` gap (2.87e-03),
+>    and 7.3× larger than the median within-`prolet` pair (6.00e-04). It is smaller only than
+>    the single worst of 1485 pairs. And within-basin variation is one-dimensional, so the
+>    basin is a segment, not a ball; a saddle-node bifurcation would create a new attractor at
+>    *zero* separation anyway. What the numbers do license: `comrade` sits 1.5× the
+>    `Anarch`–`prolet` gap away, so **`comrade` and that pre-existing distinction stand or fall
+>    together**, and at this scale the basin label is a coarse instrument (69/125 baseline
+>    prompts below a 0.5 margin; `A01_physics` carries `comrade` at rank 4 when *frozen*).
+> 2. **D2 shows one fixed point moving smoothly, not a bifurcation.** lag-1 stays ≈1.0 across
+>    α = 0 → 1.25 and the state norm advances in near-equal increments (+11.6, +12.9, +14.3,
+>    +15.3, +14.9). Only the *argmax* changes discretely at α\* — and an argmax always does,
+>    including under perfectly smooth motion. The genuine qualitative transition is between
+>    α = 1.25 and 1.50, where lag-1 collapses to 0.734 and the norm jumps +65.9 — and that
+>    lands in the **pre-existing** `Divine` basin, i.e. ladder step 3.
+> 3. **D1 does not discriminate step 3 or 4 from step 2.** For any ΔW ≠ 0 the perturbed map's
+>    fixed point is generically not fixed under the unperturbed map — so **D1 alone cannot
+>    distinguish the alternatives**. It returns the same verdict for any ΔW that displaces the
+>    fixed point at all, a random edit included (which would not reproduce D1's *numbers* —
+>    equal norms do not imply equal trajectories — but would reach the same *conclusion*).
+>    D1's own trace — smooth monotone relaxation back to `prolet` — is the signature of a
+>    *displaced* fixed point.
+>
+> **Also missing:** this file never mentions the offline arm. The no-feedback arm flips the
+> **same basin** (`EXP_001_RESULTS.md` §1), so the flip is **not uniquely caused by feedback** —
+> the rule reproduces it from frozen activation statistics alone. That is not the same as
+> "feedback contributes nothing": the measured feedback component is 12% of total drift against
+> a severed-path null of exactly zero (`CLAIMS.md` C-31). What the offline arm rules out is
+> attributing *this basin flip* to the coupling. Read alone, this file implies otherwise.
+>
+> The decisive test is unrun and costs ~1 CPU-minute: under `W0 + ΔW`, seed the original
+> frozen `prolet` state and iterate. Stays → two attractors coexist → step 4 stands. Moves →
+> one displaced attractor → step 2. See `CLAIMS.md` C-26, C-27, C-28 and `ALIGNMENT_REVIEW.md`
+> T1.1 – T1.3.
 
 Issues #25, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120-step episode, cadence 1, `max_delta_frac` = 0.05, prompt `A01_physics`.
 
@@ -53,7 +101,10 @@ Restore W0 and iterate the **frozen** loop starting from the episode's final `co
 
 The frozen map leaves `comrade` at **iteration 4** (into `prolet`) and settles at `prolet` — the frozen baseline's own fixed point — with lag-1 returning to 1.000000. Crucially the state's own motion is smooth and monotone the whole way: lag-1 stays above 0.99992 at every sampled iteration and `cos→c₀` decays without a jump. There is no discontinuity for the argmax to ride; the `comrade` label sat on a thin ledge the original map slides straight off, not in a basin that map has. **`comrade` is not an attractor of the original frozen map** — a created attractor (issue #25 step 4, a bifurcation).
 
-> *Interpretation.* D1 is the definition of step 4 made operational: the attractor the episode ended in is absent from the pre-episode map. The episode did not walk the state to a standing `comrade` basin; the accumulated ΔW is what put a `comrade` fixed point where there was none.
+> *Interpretation.* **[SUPERSEDED — see C-26.]** D1 does **not** discriminate step 4 from
+> step 2: for any ΔW ≠ 0 the perturbed map's fixed point is generically not fixed under the
+> unperturbed one, so this trace is what a *displaced* fixed point produces too. Read as
+> written below, D1 was taken as the definition of step 4 made operational: the attractor the episode ended in is absent from the pre-episode map. The episode did not walk the state to a standing `comrade` basin; the accumulated ΔW is what put a `comrade` fixed point where there was none.
 
 ## D2 — the installable ΔW `alpha`-sweep (issue #32 section 5)
 
@@ -81,15 +132,16 @@ Underneath the discrete basin flip the logits move smoothly. `comrade`'s rank cl
 
 ### The `prolet` → `comrade` → `Divine` cascade
 
-Past `comrade` the sweep bifurcates again. At alpha = 1.50 the basin tips into `Divine` and the lag-1 cosine **collapses** from ~1.0000 (a fixed point) to 0.7340 — the fixed point gives way to the period-2 cycle `Divine` sits on in the baseline. So the `alpha`-axis reads `prolet` (fixed point) → `comrade` (fixed point) → `Divine` (period-2): two bifurcations along one line, not one.
+Past `comrade` the sweep changes dynamical class — **[the word "bifurcates" is the
+superseded reading; what is measured is a class change, which is real and is ladder step 3]**. At alpha = 1.50 the basin tips into `Divine` and the lag-1 cosine **collapses** from ~1.0000 (a fixed point) to 0.7340 — the fixed point gives way to the period-2 cycle `Divine` sits on in the baseline. So the `alpha`-axis reads `prolet` (fixed point) → `comrade` (fixed point) → `Divine` (period-2): two transitions along one line — the first a relabelling of the readout while the fixed point moves smoothly (step 2 pending T1.1, C-26/C-27), the second a genuine change of dynamical class into the pre-existing `Divine` orbit (step 3, C-28).
 
 ## What this establishes, and what it does not
 
 **Establishes:**
 
 - **Closes issue #32 section 5.** The installable-ΔW `alpha`-sweep answer is a **threshold**, not a smooth bias: the basin holds at `prolet` and flips discretely at alpha\* = 0.75.
-- **Answers issue #25's step-3-vs-4.** `comrade` is a **created attractor** (step 4, a bifurcation), not a boundary move into a pre-existing basin (step 3). Both discriminators agree: D1 shows the frozen W0 map does not hold the `comrade` state (it leaves at iteration 4 and settles at `prolet`); D2 shows the `comrade` attractor appears **discretely** as `alpha` crosses alpha\*, which is what a bifurcation is.
-- **The two discriminators are independent and agree.** D1 iterates from the settled state under the *unmodified* map; D2 installs *fractional* ΔW and reads the settled basin from a fresh start. Neither is the other restated.
+- **[SUPERSEDED] Answers issue #25's step-3-vs-4.** This file concluded `comrade` is a **created attractor** (step 4, a bifurcation) rather than a boundary move (step 3). **C-26 holds that at `not-established`**: D1 cannot separate the two, and the α-sweep is consistent with one continuously-moving fixed point being relabelled. T1.1/T1.2 are the deciding tests. The `A04`→`Divine` class change *is* step 3 and is not affected. Both discriminators agree: D1 shows the frozen W0 map does not hold the `comrade` state (it leaves at iteration 4 and settles at `prolet`); D2 shows the `comrade` attractor appears **discretely** as `alpha` crosses alpha\*, which is what a bifurcation is.
+- **[SUPERSEDED] The two discriminators are independent and agree.** They agree, but on a reading neither can establish — D1 iterates from the settled state under the *unmodified* map; D2 installs *fractional* ΔW and reads the settled basin from a fresh start. Neither is the other restated.
 
 **Does not / caveats:**
 

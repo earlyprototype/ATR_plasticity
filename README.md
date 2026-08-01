@@ -190,7 +190,7 @@ code that runs them. **Every test runs against real GPT-2 small.**
 python3 -m venv .venv
 .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest                 # 227 tests (4 skip without the parent repo), ~2-3 min on CPU; downloads gpt2 (~500MB) once
+.venv/bin/pytest                 # 295 tests (4 skip without the parent repo), ~2-3 min on CPU; downloads gpt2 (~500MB) once
 ```
 
 A Claude Code session does this for you: `.claude/hooks/session-start.sh` builds
@@ -216,7 +216,7 @@ exercises `transposed=True`.
 
 CI runs the whole suite on every push, with the checkpoint cached. It sets
 `ATR_REQUIRE_MODEL=1`, which turns "GPT-2 unavailable" from a skip into a
-failure — without it a runner missing the model skips all 227 tests and exits 0,
+failure — without it a runner missing the model skips all 295 tests and exits 0,
 and a check that cannot fail is worse than no check.
 
 **Hebb and Oja invert between the toy and the real model.** At the real weight
