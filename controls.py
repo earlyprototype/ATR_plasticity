@@ -211,9 +211,16 @@ def c3_divergence_demo(
     row C-15: this runs at `max_delta_frac=1e9`, so the ceiling is effectively
     off, and the effect is measured at eta ~1e-3, roughly 14x the working point
     the experiments use. At the working point raw Hebb is bounded and finite
-    (0 non-finite, 0.0% clip, ||W||_F +0.03%). The claim is about growth across
-    a run in this regime, not about which update is larger at any single step:
-    at every stable eta Oja's update is ~100x larger in absolute terms.
+    (0 non-finite, 0.0% clip, ||W||_F +0.03%).
+
+    A second boundary on what this demonstrates: it runs a fixed, small
+    `n_iter`, so it records continued growth over that run and does NOT
+    establish an unbounded limit. Nothing here shows Hebb never levels off.
+    Do not report the result as "Hebb grows without bound".
+
+    The claim is also about growth across a run rather than about which update
+    is larger at any single step: at every stable eta Oja's update is ~100x
+    larger in absolute terms.
     """
     traces = {}
     for mode in ("hebb", "oja"):

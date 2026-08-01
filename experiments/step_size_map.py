@@ -543,19 +543,21 @@ def band_for_mode(recs: list) -> dict:
           and r["clip_rate"] <= CLIP_QUIET
           and r["rel_weight_change"] >= FLOOR_DELTA_FRAC]
     below = [r for r in recs if r["rel_weight_change"] < FLOOR_DELTA_FRAC]
-    above = [r for r in recs if r["clip_rate"] > CLIP_QUIET or r["n_nonfinite"]
-             or r["nonfinite_state"]]
-    # `above` is a disjunction: the ceiling got loud OR the run went non-finite.
-    # Which disjunct fired is recorded separately, because the report used to
-    # label this threshold "ceiling audible / diverges" and thereby asserted a
-    # divergence that never happened -- in the committed sweep every one of the
-    # 35 cells has n_nonfinite == 0 and nonfinite_state False, so the threshold
-    # is set by clipping alone.
+    # Two DISTINCT failure modes, deliberately not merged into one threshold.
+    # `eta_ceiling` used to be the minimum over a disjunction (clipped loudly OR
+    # went non-finite) and the report labelled it "ceiling audible / diverges".
+    # That is wrong in both directions: it asserted a divergence that never
+    # happened (in the committed sweep all 35 cells have n_nonfinite == 0 and
+    # nonfinite_state False), and had a run gone non-finite below the clipping
+    # threshold it would have been reported as the ceiling becoming audible when
+    # no clipping threshold had been crossed. `eta_ceiling` is now clip-only and
+    # non-finite etas are carried separately, so each is reported as itself.
+    clipping = [r for r in recs if r["clip_rate"] > CLIP_QUIET]
     diverged = sorted(r["eta"] for r in recs
                       if r["n_nonfinite"] or r["nonfinite_state"])
     out = {
         "eta_floor": max((r["eta"] for r in below), default=None),
-        "eta_ceiling": min((r["eta"] for r in above), default=None),
+        "eta_ceiling": min((r["eta"] for r in clipping), default=None),
         "diverged": diverged,
         "band": [min((r["eta"] for r in ok), default=None),
                  max((r["eta"] for r in ok), default=None)],
@@ -853,11 +855,10 @@ def build_report(recs: list, meta: dict) -> str:
         A(f"- Nothing happens at or below **{_fmt(b['eta_floor'], '.3g')}** "
           f"(relative weight change < {FLOOR_DELTA_FRAC:g}).")
         A(f"- Ceiling audible at or above **{_fmt(b['eta_ceiling'], '.3g')}** "
-          f"(the lowest eta where the clip rate exceeds {CLIP_QUIET:.0%}, or a "
-          f"run went non-finite). "
-          + (f"Non-finite at eta "
-             f"{', '.join(f'{e:.3g}' for e in b['diverged'])}."
-             if b["diverged"] else "No run went non-finite at any eta."))
+          f"(lowest eta with a clip rate above {CLIP_QUIET:.0%}).")
+        A("- " + (f"Non-finite at eta "
+                  f"{', '.join(f'{e:.3g}' for e in b['diverged'])}."
+                  if b["diverged"] else "No run went non-finite at any eta."))
         if b["hollowed"]:
             A(f"- **Hollowing-out flagged** (effective rank fell >"
               f"{ERANK_DROP_FLAG:.0%} while ‖W‖_F stayed within "

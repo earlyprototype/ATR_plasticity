@@ -31,7 +31,8 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 Geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)): **6.8e-05**. Nearest measured cell: 7.07e-05.
 
 - Nothing happens at or below **3.93e-06** (relative weight change < 0.001).
-- Ceiling audible at or above **0.00022** (the lowest eta where the clip rate exceeds 2%, or a run went non-finite). No run went non-finite at any eta.
+- Ceiling audible at or above **0.00022** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ### `oja`
@@ -39,7 +40,8 @@ Geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)): **6.8e-05
 Geometric middle of the usable band 9.81e-07 … 9.81e-06 (3 cell(s)): **3.1e-06**. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
-- Ceiling audible at or above **2.94e-05** (the lowest eta where the clip rate exceeds 2%, or a run went non-finite). No run went non-finite at any eta.
+- Ceiling audible at or above **2.94e-05** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ### `anti_hebb`
@@ -47,7 +49,8 @@ Geometric middle of the usable band 9.81e-07 … 9.81e-06 (3 cell(s)): **3.1e-06
 Geometric middle of the usable band 9.81e-07 … 2.94e-05 (4 cell(s)): **5.37e-06**. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
-- Ceiling audible at or above **9.81e-05** (the lowest eta where the clip rate exceeds 2%, or a run went non-finite). No run went non-finite at any eta.
+- Ceiling audible at or above **9.81e-05** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ### `random`
@@ -55,7 +58,8 @@ Geometric middle of the usable band 9.81e-07 … 2.94e-05 (4 cell(s)): **5.37e-0
 Geometric middle of the usable band 2.94e-06 … 2.94e-05 (3 cell(s)): **9.31e-06**. Nearest measured cell: 9.81e-06.
 
 - Nothing happens at or below **9.81e-07** (relative weight change < 0.001).
-- Ceiling audible at or above **9.81e-05** (the lowest eta where the clip rate exceeds 2%, or a run went non-finite). No run went non-finite at any eta.
+- Ceiling audible at or above **9.81e-05** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ## What the map says
@@ -108,7 +112,7 @@ The ΔW effective-rank and top-0.1%-mass columns are reported for issue #27 item
 |---|---|
 | 2 — no interesting middle | **Ruled out as a confound.** Every mode has a band where the weights move with the ceiling silent. For `oja`/`anti_hebb`/`random` nothing happens inside it; for `hebb` something does. |
 | 3 — we measure the rescaling | **Ruled out here.** The pre-rescale norm is flat wherever the loop is flat, so the homeostat is not absorbing a hidden weight effect. |
-| 11 — norm ceiling and rescaling destroy each other | **Not observed.** Effective rank flat or rising on every cell, max entry falling, ΔW mass spread rather than concentrated. |
+| 11 — norm ceiling and rescaling destroy each other | **Not observed on the ceiling-silent cells**, which are the ones this can be read from: effective rank flat or rising across all 23 of them, max entry falling, ΔW mass spread rather than concentrated. The ceiling-fired cells do show small falls (640.5 and 641.4 against a frozen 642.6) and are kept in the full table as diagnostics, not as evidence. See §5. |
 | 1 — the rule moves the weights and nothing else happens | **Consistent with, not established.** That claim needs the offline arm (#26); this map only shows the loop-on side. |
 | 5 — collapse is already the default | Untouched. This prompt is a fixed point under the frozen loop and stays one. |
 | 7 — depth | Untouched. |

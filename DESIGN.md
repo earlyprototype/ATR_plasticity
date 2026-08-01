@@ -80,9 +80,12 @@ periodic, not fewer.
 2. C3 divergence demo, one figure. **It did not establish the rule choice, and
    the sweep since went the other way.** C3 shows Hebb's drift growing where
    Oja's saturates only with the ceiling lifted at a large eta; at the step
-   sizes actually used, Hebb is bounded and finite (C-15). Oja then moved the
-   basin at none of the eight step sizes tested (C-13), and every recorded
-   result in the repository comes from `hebb`.
+   sizes actually used, Hebb is bounded and finite (C-15), and C3's evidence is
+   continued growth over the fixed small number of applications it runs, not an
+   unbounded limit. Oja then moved the basin at none of the eight step sizes
+   tested (C-13), and every result in which the loop's behaviour changed comes
+   from `hebb`. The other rules are recorded throughout the step-size map; what
+   they record is that nothing moved.
 3. Single prompt, eta ∈ {1e-6, 3e-6, 1e-5, 3e-5, 1e-4}, 500 iterations. Find
    the eta where anything happens at all.
 4. C2 at that eta. **Gate — if this fails, stop and rethink.**

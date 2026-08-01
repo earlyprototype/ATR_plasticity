@@ -83,7 +83,10 @@ Hebb has no brake of its own, so the ceiling is what bounds it at large step siz
 that at the step sizes these experiments run at, Hebb does not in fact run away: at the
 working point it records zero non-finite values, the ceiling never fires, and the weight
 norm moves 0.03%. The claim that raw Hebb diverges immediately is retired as register row
-C-15, and it holds only at large step size with the ceiling lifted.
+C-15. What survives is narrower: at large step size with the ceiling lifted, Hebb's drift
+keeps growing over the applications control C3 measures, while Oja's settles. C3 runs a
+fixed, small number of applications, so that is continued growth in the regime tested and
+not a demonstration that the growth is unbounded.
 
 The ceiling is a chosen number, and a run in which it is firing is a measurement of the
 ceiling rather than of the rule, so the clip state has to be reported with every result.

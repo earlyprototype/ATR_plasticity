@@ -77,8 +77,11 @@ import torch.nn as nn
 #   1. "Raw Hebb diverges" is retired (C-15). Across all ten `hebb` cells of
 #      the step-size map the non-finite count is zero, and at the working point
 #      (eta 7.07e-05, 120 updates) the ceiling never fires and ||W||_F moves
-#      +0.03%. Hebb grows without bound only at large eta with the ceiling
-#      lifted, which is the regime c3_divergence_demo runs in. At every stable
+#      +0.03%. Hebb's drift keeps growing only at large eta with the ceiling
+#      lifted, which is the regime c3_divergence_demo runs in -- and note the
+#      limit of that evidence: C3 runs a fixed, small number of applications,
+#      so it records continued growth over the run measured, not an unbounded
+#      limit. Nothing here shows Hebb never levels off. At every stable
 #      eta Oja's update is in fact ~100x LARGER than Hebb's, because at
 #      ||W||_F = 164.9 the decay term dominates the reinforcement term rather
 #      than correcting it.
@@ -86,8 +89,10 @@ import torch.nn as nn
 #   2. "The right rule here" is not what the measurements say (C-13). Oja was
 #      run at eight step sizes over five orders of magnitude and moved the
 #      loop's settled basin at none of them, including the ceiling-silent cells
-#      up to 2.9% drift. Every recorded result in this repository comes from
-#      `hebb`. Why oja is inert is NOT established: the leading explanation,
+#      up to 2.9% drift. Every result in which the loop's behaviour CHANGED
+#      comes from `hebb`; the other rules are recorded throughout the
+#      step-size map and the C3 traces, and what they record is that nothing
+#      moved. Why oja is inert is NOT established: the leading explanation,
 #      that the brake outweighs the reinforcement term ~110:1 at this site, is
 #      C-14 and is untested as an explanation.
 #
@@ -857,13 +862,20 @@ class OjaPlasticity:
         Learning rate. Start absurdly small (1e-6) and work up. There is no
         gradient here and no optimiser to save you.
     mode : {"oja", "hebb", "anti_hebb", "random", "off"}
-        "oja"       - Oja subspace rule (the real experiment)
+        "oja"       - Oja subspace rule. The rule the project was designed
+                      around, but measured inert at the one site tested: it
+                      moved the loop's settled basin at none of the eight
+                      step sizes swept, including the ceiling-silent cells up
+                      to 2.9% drift (register row C-13). Why is not
+                      established (C-14).
         "hebb"      - raw Hebbian, no decay. NOT "will diverge": at the
                       step sizes this repo runs at it is bounded and finite
                       (working point 7.07e-05: 0 non-finite, 0.0% clip,
                       ||W||_F +0.03%), and it is the mode that produced every
-                      recorded result. It grows without bound only at large
-                      eta with the ceiling lifted, which is what C3 shows.
+                      behaviour-changing result. Its drift keeps growing only
+                      at large eta with the ceiling lifted, over the fixed
+                      small number of applications C3 measures -- which is
+                      continued growth in that regime, not an unbounded limit.
                       See the note above the learning rules; register row C-15
                       retires the old unqualified claim.
         "anti_hebb" - Oja with the reinforcement term negated and the decay

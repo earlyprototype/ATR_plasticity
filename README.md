@@ -65,8 +65,13 @@ interpretation rather than measurement.
 an unconstrained local learning rule, given no task and no target, do to a pretrained
 model's iterated dynamics? "Iterated dynamics" is the behaviour of the loop that feeds
 the model's output back in as its next input, hundreds of times, until the internal
-state settles. That question carries no loss and no objective to optimise, which is what
-makes it unoccupied ground beside the fine-tuning and model-editing work it sits next to.
+state settles. That question carries no externally specified objective, unlike the
+fine-tuning and model-editing work it sits next to. Whether that makes it unoccupied
+ground is **not** settled here: the register holds the novelty claim at `provisional`
+(C-42), because it rests on a literature search rather than on the literature, and
+eleven of its absence claims have no preserved search artifact. C-43, on how the work
+compares to model editing, is still `open`. Treat this as a description of the setup,
+not as a claim to priority.
 
 **The standing result is about editability.** A frozen transformer's settled-state
 landscape is editable by a near-rank-1 weight change of about 1% of the matrix's own
@@ -139,9 +144,12 @@ The divergence claim survives only in a narrower regime, and there it is real:
 with the ceiling lifted (control C3 runs at `max_delta_frac=1e9`) and a step
 size of 1e-3, roughly fourteen times the working point, the Hebb drift trace
 grows monotonically and super-linearly over a few applications while the Oja
-trace saturates. So the defensible statement is that Hebb grows without bound
-at large step size once the ceiling is removed, not that it diverges
-immediately.
+trace saturates. Note the limit of that evidence: C3 runs a fixed, small number
+of applications, so what it records is continued growth over the run measured,
+not an unbounded limit. Nothing here shows Hebb never levels off. The
+defensible statement is that at large step size with the ceiling removed,
+Hebb's drift keeps growing over the applications measured while Oja's settles,
+not that Hebb diverges immediately or without bound.
 
 One further correction from the same measurement, because it inverts the
 intuition: at every stable step size Oja's own update is about a hundred times
@@ -172,8 +180,10 @@ rather than asserting it.
 argument above still stands, but it did not predict what happened. Oja's rule
 was run at eight step sizes spanning five orders of magnitude and moved the
 loop's settled word at none of them, including the ceiling-silent cells up to
-2.9% drift (register row C-13). Every recorded result in this repository came
-from `hebb`, the mode included as a foil. Why Oja is inert here is **not**
+2.9% drift (register row C-13). Every result in which the loop's behaviour
+changed came from `hebb`, the mode included as a foil. The other rules are not
+absent from the record: the step-size map and the C3 traces record them, and
+what they record is that nothing moved. Why Oja is inert here is **not**
 established: the leading explanation, that the brake outweighs the
 reinforcement term by roughly 110 to 1 at this site, is row C-14 and has never
 been tested as an explanation. Read this section as the reason the project
