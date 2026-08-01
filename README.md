@@ -53,6 +53,60 @@ of a trained artifact or something the loop can reshape:
 - Does the `Divine` period-2 limit cycle become a fixed point, or survive?
 - Does GPT-2 Medium's single `D` funnel open, or tighten?
 
+## What the project can say so far
+
+This section states the claim the project leads with, and the frame around it. It
+cites the claim register, [CLAIMS.md](CLAIMS.md), which is the file that decides what
+each measurement is allowed to be called. The reasoning behind the choice of frame is
+in [ALIGNMENT_REVIEW.md](ALIGNMENT_REVIEW.md) section 6, which is marked there as
+interpretation rather than measurement.
+
+**The project is a characterisation study.** The question it leads with is: what does
+an unconstrained local learning rule, given no task and no target, do to a pretrained
+model's iterated dynamics? "Iterated dynamics" is the behaviour of the loop that feeds
+the model's output back in as its next input, hundreds of times, until the internal
+state settles. That question carries no loss and no objective to optimise, which is what
+makes it unoccupied ground beside the fine-tuning and model-editing work it sits next to.
+
+**The standing result is about editability.** A frozen transformer's settled-state
+landscape is editable by a near-rank-1 weight change of about 1% of the matrix's own
+size, derived from the model's own activation statistics, with no target and no
+externally specified objective. "Near-rank-1" means the change is dominated by a single
+direction: 96% to 100% of it in the routed and severed control cells, and 81% to 84% in
+the two live-episode cells, so "rank-1" is an approximation rather than an exact
+description. At one site (`blocks.6.mlp`) of one model (GPT-2 small), that edit changes
+which word the loop settles on (claim C-20, three prompts), and in one case it changes
+the trajectory's dynamical class, turning a fixed point into a two-step cycle (claim
+C-24, one prompt). These are the supported rows, and each carries its sample size, which
+is small, and its single site.
+
+**What the random-direction control settled.** An arbitrary near-rank-1 direction of the
+same size usually moves the settled word too, in 4 of the 6 cases that could be
+size-matched, so the edit is not special merely for having structure (claim C-55, which
+retired the earlier "the right sign is required" claim, C-22). But no random direction
+ever reaches the Hebbian rule's own destination, 0 of 10 random seeds, and matching its
+effect costs 66 to 172 times as much weight change. So direction does not decide whether
+the landscape moves; it decides where it moves to, and how cheaply.
+
+**Coupling is reported as a refinement, not the headline.** The project's founding
+interest is coupling: the weights changing while the activations they change feed back
+into them. That has been measured (claim C-31): the feedback-attributable part of the
+weight change is 12% of the total, against a severed-path control whose floor is exactly
+zero, not a small number. But at the operating point tested, feedback changes the weights
+without changing the outcome, since the connected and disconnected runs settle on the
+same word (claim C-33). The honest one-line form is that feedback measurably steers the
+update and does not, at this operating point, change the result. Whether that holds as
+coupling grows is the highest-value open experiment, T2.1 (issue #48).
+
+**Two honest limits on the lead.** First, what is still open: whether the new settled
+word is a genuinely created stable state or the old one moved is not established (claim
+C-26). The coexistence and hysteresis tests that would settle it are issues #45 and #46.
+Second, on novelty: model editing, in particular ROME, already makes near-rank-1 edits to
+a mid-stack GPT-2 projection, so the new element is not "a rank-1 edit changes
+behaviour." It is that this edit is derived with no target, from the model's own
+activity, and is read out on the iterated map's settled-state structure rather than on
+next-token output. Stated any other way, the comparison to prior work is lost.
+
 ## Where this sits
 
 | Rung | Weights | Status in the literature |
