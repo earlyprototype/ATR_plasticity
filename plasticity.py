@@ -594,10 +594,17 @@ class _HeadSliceSite:
 
     W0, delta and the `max_delta_frac` ceiling are all the stripe's, so
     `delta_frac` is drift relative to ||W_head||_F, not to the whole matrix.
+
+    `shared_post_activity = True` marks that y is the shared full projection
+    output rather than this site's own matmul. `offline_control.replay_offline`
+    reads it to reconstruct the drifted full output additively when recomputing
+    y (`record.y + x @ delta`), instead of rebuilding a single head's
+    contribution -- see that module for why the two are not the same tensor.
     """
 
     backend = "module"
     supports_transposed = False
+    shared_post_activity = True
 
     def __init__(self, model: nn.Module, site: str):
         path, head = _split_head(site)
@@ -690,10 +697,16 @@ class _TransformerLensHeadSite:
     Hook hygiene as for `_TransformerLensMLPSite`: plain torch forward hooks on
     the HookPoint modules, removed by their own handles, never a model-wide
     `reset_hooks()`.
+
+    `shared_post_activity = True` marks that y is the whole layer's attention
+    output, not this head's block of it. `offline_control.replay_offline` reads
+    the flag to reconstruct the drifted full output additively when recomputing
+    y (`record.y + x @ delta`) rather than rebuilding one head's contribution.
     """
 
     backend = "transformer_lens"
     supports_transposed = False
+    shared_post_activity = True
 
     def __init__(self, model: nn.Module, site: str):
         path, head = _split_head(site)
