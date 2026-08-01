@@ -770,6 +770,20 @@ def _findings(recs: list, by_mode: dict, ref: dict | None) -> list:
 
 
 def build_report(recs: list, meta: dict) -> str:
+    """
+    Render `STEP_SIZE_MAP.md` from the recorded cells and the run metadata.
+
+    `recs` is one dict per cell as written to `step_size_map.jsonl`, `meta` the
+    run's configuration. Returns the whole document as a single string; the
+    caller writes it.
+
+    The committed document is this function's output, so the two must not drift.
+    Anything asserted in the prose here is asserted about `recs` and has to be
+    derivable from it: the verdict bullets in particular report the clipping
+    threshold and any non-finite etas as SEPARATE facts, because an earlier
+    version merged them into one "ceiling audible / diverges" label and thereby
+    stated a divergence that never happened. See `band_for_mode`.
+    """
     by_mode = {}
     ref = next((r for r in recs if r["mode"] == "off"), None)
     for r in recs:
