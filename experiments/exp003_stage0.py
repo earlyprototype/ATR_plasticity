@@ -75,10 +75,23 @@ N_RANDOM_SPLITS = 10
 SEED = 20260802
 
 
+N_CENSUS = 125
+
+
 def load_census() -> list[dict]:
-    """The committed 125-input baseline census, one record per input."""
+    """The committed 125-input baseline census, one record per input.
+
+    Rejects any other row count. A truncated or edited baseline would otherwise
+    produce a complete-looking analysis with wrong population counts and gates.
+    """
     with open(BASELINE) as f:
-        return [json.loads(line) for line in f]
+        rows = [json.loads(line) for line in f]
+    if len(rows) != N_CENSUS:
+        raise ValueError(
+            f"baseline census has {len(rows)} rows, expected {N_CENSUS}; "
+            f"gates computed from a different population are not comparable"
+        )
+    return rows
 
 
 def dynamical_class(row: dict) -> str:
@@ -238,8 +251,14 @@ def main() -> int:
     """Run the census, write every record as it is produced, then report the gates."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="run a stratified sample of N prompts drawn across all end states")
-    ap.add_argument("--out", default=str(OUT_DIR / "stage0.jsonl"))
+    # A limited run defaults to a separate file. The registered artifact is the
+    # 125-input one, and `os.replace` below would otherwise let a smoke run
+    # silently overwrite it.
+    ap.add_argument("--out", default=None)
     args = ap.parse_args()
+    out_path = args.out or str(
+        OUT_DIR / ("stage0_smoke.jsonl" if args.limit else "stage0.jsonl")
+    )
     if args.limit < 0:
         # A negative limit silently produces an empty selection and a run over zero
         # inputs, which would report gates computed from nothing.
@@ -260,7 +279,18 @@ def main() -> int:
         by_basin: dict[str, list[dict]] = {}
         for r in census:
             by_basin.setdefault(r["basin"], []).append(r)
-        picked, i = [], 0
+        # Both dynamical classes must be present or gate 2 is not a class
+        # comparison at all. Seed the selection with one of each before the
+        # basin round-robin.
+        picked = []
+        for cls in ("fixed-point", "period-2"):
+            first = next((r for r in census if dynamical_class(r) == cls), None)
+            if first is not None and len(picked) < args.limit:
+                picked.append(first)
+        seeded = {r["prompt_id"] for r in picked}
+        for b in by_basin:
+            by_basin[b] = [r for r in by_basin[b] if r["prompt_id"] not in seeded]
+        i = 0
         while len(picked) < args.limit:
             added = False
             for b in sorted(by_basin):
@@ -276,7 +306,7 @@ def main() -> int:
     rows = []
     # PARTIAL SUFFIX: write to a scratch path and rename only on success, so an
     # in-flight artifact can never be mistaken for, or committed as, a finished one.
-    partial = args.out + ".partial"
+    partial = out_path + ".partial"
     with open(partial, "w") as f:
         f.write(json.dumps({
             "kind": "meta",
@@ -310,7 +340,7 @@ def main() -> int:
         result = analyse(rows)
         f.write(json.dumps(result) + "\n")
 
-    os.replace(partial, args.out)
+    os.replace(partial, out_path)
 
     print("\n=== STAGE 0 ===", flush=True)
     print(f"gate 1 basins       {result['gate1_basin_separation']:.4f} "
@@ -327,7 +357,7 @@ def main() -> int:
           f"{'PASS' if result['controlB_pass'] else 'FAIL'}")
     print(f"\nbasin means: {result['basin_means']}")
     print(f"class means: {result['class_means']}")
-    print(f"\nwritten to {args.out}")
+    print(f"\nwritten to {out_path}")
     return 0
 
 

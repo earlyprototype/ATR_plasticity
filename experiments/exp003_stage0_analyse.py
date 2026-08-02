@@ -200,7 +200,20 @@ def main() -> int:
                     "whitened scalar")
 
     # ---- 3. source-inspired variant: the settle profile, Euclidean ---------
-    have_profile = "settled_mass_per_layer" in rows[0]
+    # Checked across every record, not just the first: a mixed schema would
+    # otherwise either raise part way through or silently skip the measurement
+    # depending on which record happened to be written first.
+    presence = ["settled_mass_per_layer" in r for r in rows]
+    if any(presence) and not all(presence):
+        raise ValueError(
+            f"settled_mass_per_layer present in {sum(presence)} of {len(rows)} "
+            f"records; the run file has a mixed schema"
+        )
+    have_profile = all(presence)
+    if have_profile:
+        widths = {len(r["settled_mass_per_layer"]) for r in rows}
+        if len(widths) != 1:
+            raise ValueError(f"per-layer profiles have mixed widths: {sorted(widths)}")
     g_profile = None
     if have_profile:
         z = standardise(rows, "settled_mass_per_layer")

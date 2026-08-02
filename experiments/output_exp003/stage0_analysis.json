@@ -58,7 +58,7 @@
   "beats_token_labels": true
  },
  "profile": {
-  "measurement": "per-layer profile (post-registration)",
+  "measurement": "settle profile, source-inspired (post-registration)",
   "basin_separation": 1.430308793729347,
   "basin_pass": false,
   "class_separation": 0.6195260609606891,

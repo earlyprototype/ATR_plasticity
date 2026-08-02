@@ -1,6 +1,12 @@
 # Test configuration only. This repo is a scaffold, not a distributable package,
 # so there is no [build-system] or [project] table.
 
+[project]
+name = "atr-plasticity"
+version = "0.0.0"
+# zip(..., strict=True) is used in the EXP-003 analysis and raises TypeError on 3.9.
+requires-python = ">=3.10"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

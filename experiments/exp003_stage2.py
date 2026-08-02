@@ -76,10 +76,22 @@ SITES = [f"blocks.{i}.mlp" for i in range(12)]
 FALSIFIER_MARGIN = 5
 
 
+N_CENSUS = 125
+N_REPROMPTS_REGISTERED = 31
+
+
 def load_census() -> list[dict]:
-    """The committed 125-input baseline census, one record per input."""
+    """The committed 125-input baseline census, one record per input.
+
+    Rejects any other row count, for the reason given in `exp003_stage0.py`.
+    """
     with open(BASELINE) as f:
-        return [json.loads(line) for line in f]
+        rows = [json.loads(line) for line in f]
+    if len(rows) != N_CENSUS:
+        raise ValueError(
+            f"baseline census has {len(rows)} rows, expected {N_CENSUS}"
+        )
+    return rows
 
 
 def pick_reprompts(rows: list[dict], n: int) -> list[dict]:
@@ -160,9 +172,20 @@ def run_census(model, reprompts: list[dict]) -> dict:
 def main() -> int:
     """Run the reference gate, then each cadence cell, then report whether drift matched."""
     ap = argparse.ArgumentParser()
-    ap.add_argument("--reprompts", type=int, default=31)
-    ap.add_argument("--out", default=str(OUT_DIR / "stage2.jsonl"))
+    ap.add_argument("--reprompts", type=int, default=N_REPROMPTS_REGISTERED)
+    ap.add_argument("--out", default=None)
     args = ap.parse_args()
+    # The falsifier margin is registered as 5 of 31. A different input count
+    # would leave that threshold attached to a different denominator, so a
+    # non-registered count must not write to the registered artifact.
+    registered = args.reprompts == N_REPROMPTS_REGISTERED
+    if not registered and args.out is None:
+        ap.error(
+            f"--reprompts {args.reprompts} is not the registered "
+            f"{N_REPROMPTS_REGISTERED}; pass an explicit --out so the "
+            f"registered artifact is not overwritten"
+        )
+    out_path = args.out or str(OUT_DIR / "stage2.jsonl")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     from transformer_lens import HookedTransformer
@@ -180,11 +203,13 @@ def main() -> int:
           f"{len(set(r['basin'] for r in reprompts))} end states", flush=True)
 
     # PARTIAL SUFFIX: see exp003_stage0.py. Rename on success only.
-    partial = args.out + ".partial"
+    partial = out_path + ".partial"
     out = open(partial, "w")
     out.write(json.dumps({"kind": "meta", "ladder": list(CADENCE_LADDER),
                           "n_iter": N_ITER, "amendment": 1,
-                          "falsifier_margin": FALSIFIER_MARGIN}) + "\n")
+                          "falsifier_margin": FALSIFIER_MARGIN,
+                          "n_reprompts": args.reprompts,
+                          "registered_run": registered}) + "\n")
     out.flush()
 
     # --- reference gate: the census must reproduce itself before anything moves
@@ -196,8 +221,15 @@ def main() -> int:
     print(f"[gate] reference census agreement {ref['census_agreement']}/{ref['n']}, "
           f"settled {ref['n_settled']}/{ref['n']}  {time.time()-t0:.0f}s", flush=True)
     if ref["census_agreement"] != ref["n"]:
-        print("[gate] WARNING reference census does not reproduce itself; every "
-              "number below is suspect", flush=True)
+        # A gate that only warns is not a gate. Without a reproducing reference,
+        # nothing measured afterwards is attributable to the drift rather than to
+        # the instrument, so the run stops and leaves no artifact behind.
+        print(f"[gate] FAILED: reference census {ref['census_agreement']}/{ref['n']}, "
+              f"expected {ref['n']}/{ref['n']}. Stopping; no artifact written.",
+              flush=True)
+        out.close()
+        os.unlink(partial)
+        return 1
 
     results = {}
     for k in CADENCE_LADDER:
@@ -221,12 +253,14 @@ def main() -> int:
             drift = float(rep.get("delta_frac", float("nan")))
             clipped = bool(rep.get("clipped"))
             nonfinite = bool(rep.get("nonfinite"))
+            nonfinite = bool(rep.get("nonfinite"))
             # Weights stay where they drifted for the census, then are reverted.
             cen = run_census(model, reprompts)
         # `with` exit reverts every matrix bit-exactly.
 
         rec = {"kind": "cell", "k": k, "n_applied": n_applied,
                "aggregate_drift": drift, "clipped": clipped,
+               "nonfinite": nonfinite,
                "nonfinite": nonfinite,
                "driven_word": basin_of(model, x),
                "census_agreement": cen["census_agreement"],
@@ -241,6 +275,10 @@ def main() -> int:
               f"{time.time()-tk:.0f}s", flush=True)
 
     drifts = [results[k]["aggregate_drift"] for k in CADENCE_LADDER]
+    # A non-finite cell cannot support any verdict. NaN fails every comparison
+    # silently, so it is checked explicitly rather than left to the spread test.
+    any_nonfinite = any(results[k].get("nonfinite") for k in CADENCE_LADDER)
+    any_bad_drift = any(not (d == d and abs(d) != float("inf")) for d in drifts)
     spread = max(drifts) / min(drifts) if min(drifts) > 0 else float("inf")
     lo, hi = CADENCE_LADDER[0], CADENCE_LADDER[-1]
     delta = results[hi]["census_agreement"] - results[lo]["census_agreement"]
@@ -255,12 +293,17 @@ def main() -> int:
         "drift_matched": bool(spread <= 2.0),
         "delta_agreement_hi_minus_lo": delta,
         "falsifier_margin": FALSIFIER_MARGIN,
-        "timescale_supported": bool(delta >= FALSIFIER_MARGIN and spread <= 2.0),
+        "any_nonfinite": any_nonfinite,
+        "any_nonfinite_drift": any_bad_drift,
+        "timescale_supported": bool(
+            delta >= FALSIFIER_MARGIN and spread <= 2.0
+            and not any_nonfinite and not any_bad_drift
+        ),
         "qualitative_only": bool(spread > 2.0),
     }
     out.write(json.dumps(analysis) + "\n")
     out.close()
-    os.replace(partial, args.out)
+    os.replace(partial, out_path)
 
     print("\n=== STAGE 2 ===")
     print(f"reference agreement      {ref['census_agreement']}/{ref['n']}")
@@ -273,7 +316,7 @@ def main() -> int:
     print(f"agreement at k={hi} minus k={lo}: {delta:+d} "
           f"(need >= {FALSIFIER_MARGIN})")
     print(f"TIMESCALE READING: {'SUPPORTED' if analysis['timescale_supported'] else 'NOT SUPPORTED at this resolution'}")
-    print(f"\nwritten to {args.out}")
+    print(f"\nwritten to {out_path}")
     return 0
 
 

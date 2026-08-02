@@ -66,9 +66,15 @@ register row C-07. Reported alongside every count.
 - **Focal, primary:** `(block 6, head 8)`. Block 6 is where every committed single-site
   result was measured. Head 8 is arbitrary and pinned.
 - **Focal, second arm:** the lower median of the realised distributed draw, defined as
-  element 11 after sorting the 24 sites by `(block, head)`. If the two focal arms differ by
-  more than 5 of 31 on census agreement, the focal condition is reported as site-dependent
-  and no distributed-versus-focal claim is made at that setting.
+  element 11 after sorting the 24 sites by `(block, head)`.
+
+**How the two focal arms combine.** At each setting, the focal result is the **maximum**
+of the two arms' census agreement. Maximum rather than mean, because the comparison asks
+whether concentrating the signal can do as well as spreading it, so the strongest focal
+result is the fair opponent. If the two arms differ by more than 5 of 31, the focal
+condition is reported as **site-dependent** at that setting and **no
+distributed-versus-focal claim is made there**, whichever arm is higher. The same rule and
+the same maximum apply to Stage 4's selection.
 
 Sites are chosen by position, not by depth: the forward direction is ignored in the design
 and measured in the result.
@@ -86,7 +92,11 @@ baseline.
 | Separates fixed points from two-step cycles | above 1.5 |
 | Does not separate random halves of the largest group | below 1.2 in at least 9 of 10 splits |
 | Control A, permute block labels | must score below the true statistic |
-| Control B, permute head labels | must change nothing, threshold 1e-9 |
+| Control B, permute head labels | the **depth** centroid must change nothing, threshold 1e-9 |
+
+Control B is a depth-only control: it permutes head labels and checks that `ca_depth` is
+unmoved. It does not test the head component of the two-number centroid, which is not used
+by any gate.
 
 Registered consequence of a failed gate: the statistic is discarded and later stages use
 labels alone with C-07's limitation attached.
@@ -157,6 +167,12 @@ A crossing on the strength ladder is recorded as a separate observation about th
   and `s_frozen`. **If `s_signal` exceeds `s_frozen` by more than 0.10, that setting and
   every stronger one on the same ladder are discarded.** Ties discard. Computed on the
   signal-on census; for a two-step cycle the representative state is the last iterate.
+
+  **"Stronger" is defined per ladder**, because the two run in opposite directions.
+  On the strength ladder, stronger means larger `beta`, so discarding proceeds upward
+  through 0.003, 0.010, 0.032, 0.100, 0.316. On the rate ladder, stronger means **more
+  frequent**, so it is smaller `m`, and discarding proceeds downward through 16, 8, 4, 2,
+  1. Discarding is applied independently on each ladder.
 - *Zero strength*: bit-identical to the existing loop, and one injection point bit-identical
   to single-point injection.
 
@@ -167,8 +183,11 @@ Cost: about 55 hours.
 
 ### Stage 4 — signal during against signal after. NOT RUN.
 
-Two orders at the setting with the highest signal-on census agreement from Stage 3, ties to
-the lower strength then the larger `m`.
+Two orders at the setting with the highest signal-on census agreement from Stage 3,
+**selected only from settings that survived every Stage 3 control**: not reflection
+discarded, not excluded by the signal-without-adjustment floor, and not marked
+site-dependent. Ties to the lower strength, then the larger `m`, then the distributed
+shape. If no admissible setting remains, Stage 4 does not run.
 
 Falsifier: if applying the signal afterwards recovers to within 5 of 31 of applying it
 during, the account of where the change is held is wrong.
@@ -190,8 +209,11 @@ runs. Signal strength and signal shape become the eighteenth and nineteenth. No 
 is reported unless all nineteen agree.
 
 Register row C-63 records that the no-feedback baseline is exactly zero only at a single
-site. Every comparison here uses twelve, so none has a zero baseline, and no quantity here
-may be placed in a series with rows C-31 or C-58.
+**plastic** site. **Every comparison in this series adjusts twelve plastic sites**, so none
+has a zero baseline and no quantity here may be placed in a series with rows C-31 or C-58.
+That statement is about plastic sites only. It is unrelated to the number of sites that
+receive the injected signal, which is 24 for the distributed arm, 1 for focal, and 0 in
+Stages 0 to 2.
 
 ## What is not claimed
 
@@ -204,7 +226,10 @@ One driven input, one seed, one site family, one model, one episode length. The 
 31 inputs, not the full 125. Register rows C-40 and C-41 already record this as the
 project's weakest dimension.
 
-The injected vector is the input's own starting state. Fresh noise at every step is not
+The ATR loop's own injection at `blocks.{layer_start}.hook_resid_pre` rescales the carried
+state and writes it back wholesale; that is the loop, not the stimulation. The **stimulation**
+vectors are separate: one fixed unit direction per site, drawn once from a seeded generator
+and reused on every firing, added to what is already at the site. Fresh noise per step is not
 tested and is the obvious follow-up.
 
 Rule-to-rule comparison is qualitative only, following EXP-002, because the two rules
