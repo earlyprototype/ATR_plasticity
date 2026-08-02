@@ -165,9 +165,54 @@ own data.
 
 The correct measurement is given below.
 
-## Why the collapse happens, in terms this repository has already measured
+## Why the collapse happens: the explanation this document offered, and its refutation
 
-This section is inference from results already in the register, not a new measurement.
+**RETRACTED, 2026-08-02, by the test this section itself named as deciding.** The
+mechanism set out below was measured in EXP-003 Stage 1 and it is wrong. It is kept
+in place rather than deleted, because this repository keeps what it used to believe,
+and because the reasoning that follows is still the clearest statement of what was
+tested.
+
+What was claimed: that repeated rank-one adjustments concentrate each weight matrix
+onto a single direction, so that twelve adjusted sites in series leave the loop able
+to produce only one resting state.
+
+What was measured, reproducing EXP-002's episode exactly to twelve significant
+figures: the mean effective rank of the twelve matrices falls by **0.044 percent**.
+The threshold registered in advance for the explanation to be supported was a fall of
+10 percent, and for refutation a fall below 2 percent. The share of each matrix held
+by its strongest direction, which the valve picture requires to grow toward 1, moves
+from 0.00777 to 0.00780, very slightly the wrong way. No site shows the effect; the
+largest fall anywhere is 0.244 percent.
+
+**So the weights come out of the collapse with essentially the character they went in
+with.** Whatever destroys this model's ability to tell its inputs apart, it is not a
+loss of capacity in the matrices. Full numbers in
+`experiments/output_exp003/STAGE1_RESULTS.md`.
+
+**What this costs the argument, stated rather than absorbed.** The
+distributed-beats-focal prediction had two independent routes, one from the biology
+and one from this mechanism. The second is gone, and the prediction now rests on the
+biological measurement alone. The pre-registration anticipated exactly this and said
+the series continues, because the collapse is a measured fact whatever explains it,
+and because a spread-out signal still beating a concentrated one when no mathematical
+argument predicts it would be a stronger result for the analogy rather than a weaker
+one.
+
+**What the refutation suggests instead, marked as speculation and untested.** The
+weights barely change in character while the behaviour is destroyed entirely, which
+points at the landscape rather than the matrices. Row C-07 records that the spread of
+states sharing an end state exceeds the gap between the two nearest distinct end
+states, and row C-55 records that arbitrary directions at matched displacement
+usually move the settled end state. Together they suggest a landscape on a knife edge
+that almost any coherent push of sufficient size will topple, in which case the
+collapse is not plasticity degrading the model but a barely separated structure being
+displaced wholesale by a small change that leaves capacity intact.
+
+---
+
+*The original argument, kept for the record. It was inference from results already in
+the register, not a new measurement, and it was marked as such at the time.*
 
 Register row C-10 establishes what the reinforcing rule actually computes. Each time it
 fires, it adds to the weight matrix a quantity equal to the matrix multiplied by the
