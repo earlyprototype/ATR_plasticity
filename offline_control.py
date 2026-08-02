@@ -276,6 +276,15 @@ def _recompute_y(x: torch.Tensor, w: torch.Tensor, bias: Optional[torch.Tensor])
     `test_a_site_the_loop_does_not_route_through` is what will tell you: it
     asserts bit-identity with the feedback path severed, and that assertion is
     only reachable while this matches.
+
+    NOT the path for per-head sites. There y is the shared full projection
+    output that all heads write into, not this site's own matmul, so it cannot
+    be rebuilt from one head's weight. `replay_offline` branches on
+    `site.shared_post_activity` and reconstructs it additively as `record.y + x
+    @ delta` before ever reaching here. That reconstruction is exact in
+    arithmetic but not bit-for-bit against the live forward's fused twelve-head
+    einsum, so the severed floor at a head site is float32 noise (~1e-7), not
+    the exact zero this function buys at a whole-matrix site.
     """
     if bias is None:
         return x @ w
@@ -750,12 +759,25 @@ def replay_offline(
                    state feedback and Oja's own y = xW recursion. This is what
                    PRIOR_ART.md specifies literally.
       "recomputed" recompute y from the recorded x and this arm's current
-                   weight, via `_recompute_y`, which matches the site's fused
-                   addmm bit for bit rather than merely mathematically. Freezes
-                   the state feedback only, leaving the rule's internal
-                   recursion live in both arms, which is the stricter isolation
-                   of the feedback path -- and the one under which a loop that
-                   does not route through the site gives bit-identical arms.
+                   weight, so the rule sees its own weight move. Freezes the
+                   state feedback only, leaving the rule's internal recursion
+                   live in both arms, which is the stricter isolation of the
+                   feedback path. HOW y is rebuilt depends on the site:
+
+                   whole-matrix  via `_recompute_y`, which matches the site's
+                                 fused addmm bit for bit rather than merely
+                                 mathematically -- so a loop that does not route
+                                 through the site gives bit-identical arms.
+                   per-head      y is the SHARED full projection output, which
+                                 all heads write into and which this head's own
+                                 matmul cannot reproduce. It is rebuilt by the
+                                 additive-remainder identity `record.y + x @
+                                 delta` (marked by `site.shared_post_activity`):
+                                 the other heads and b_O stay frozen inside the
+                                 recorded full y, and only this head's block
+                                 moved. That is NOT the live forward's fused
+                                 einsum over all heads, so the severed arms agree
+                                 to float32 (~1e-7), not bit-for-bit.
     """
     if y_source not in VALID_Y_SOURCES:
         raise ValueError(f"y_source must be one of {VALID_Y_SOURCES}, got {y_source!r}")
@@ -787,6 +809,22 @@ def replay_offline(
                 x = record.x[j].to(plast.W0.dtype)
                 if y_source == "recorded":
                     y = record.y[j].to(plast.W0.dtype)
+                elif getattr(plast._site, "shared_post_activity", False):
+                    # Per-head site: the recorded y is the SHARED full
+                    # projection output that all twelve heads write into, not
+                    # this head's isolated contribution. `_recompute_y(x, W_head)`
+                    # would rebuild the latter -- a quantity the model never
+                    # forms -- and land ~1.0 relative off the full output. Use
+                    # the additive-remainder identity instead: every other head
+                    # and b_O are frozen inside record.y, and only this head's
+                    # block moved (by `delta`), so `record.y + x @ delta` is the
+                    # full output under the drifted weight. x is already this
+                    # head's slice, so `x @ delta` is exactly its change. This is
+                    # NOT the fused einsum the live forward runs over all heads,
+                    # so it matches only to float32 -- there is no bit-identical
+                    # floor here, unlike at a whole-matrix site (see the module
+                    # docstring and `_recompute_y`).
+                    y = record.y[j].to(plast.W0.dtype) + x @ plast.delta
                 else:
                     y = _recompute_y(x, plast._effective_W(), bias)
                 plast.observe(x, y)

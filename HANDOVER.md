@@ -20,7 +20,9 @@ Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 >   by the α-sweep, **not** by any argument about how far the `comrade` state sits from
 >   `prolet`. D1 returns the same verdict for any ΔW that displaces the fixed point, and the
 >   α-sweep shows one continuously-moving fixed point (lag-1 ≥ 0.999998 across α = 0→1.25).
->   The parsimonious reading is step 2. See C-26.
+>   The parsimonious reading is step 2. See C-26. *(Update: T1.1 has since settled this —
+>   C-26 is `retired`, refuted by its own decisive test. The step-2 displacement reading is
+>   now the supported claim, C-56.)*
 > - **§5.4, "issue #31 not yet started."** It was run. The measurement is in
 >   `experiments/output_baseline/BASELINE.md` and the answer is compression, one-dimensional,
 >   position-uniform across all basins. See C-04 – C-07.

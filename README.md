@@ -103,9 +103,12 @@ same word (claim C-33). The honest one-line form is that feedback measurably ste
 update and does not, at this operating point, change the result. Whether that holds as
 coupling grows is the highest-value open experiment, T2.1 (issue #48).
 
-**Two honest limits on the lead.** First, what is still open: whether the new settled
-word is a genuinely created stable state or the old one moved is not established (claim
-C-26). The coexistence and hysteresis tests that would settle it are issues #45 and #46.
+**Two honest limits on the lead.** First, on what the edit actually does: the
+"created attractor" reading is retired (claim C-26). The coexistence test (T1.1, issue
+#45) shows the edit displaces the single settled state rather than creating a second one
+beside it, and the hysteresis sweep (T1.2, issue #46) retraces cleanly, corroborating
+the same reading by an independent route (claim C-56). The edit relocates the one
+settled state; it does not add another.
 Second, on novelty: model editing, in particular ROME, already makes near-rank-1 edits to
 a mid-stack GPT-2 projection, so the new element is not "a rank-1 edit changes
 behaviour." It is that this edit is derived with no target, from the model's own

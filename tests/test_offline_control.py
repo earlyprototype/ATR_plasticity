@@ -644,6 +644,133 @@ def test_a_site_the_loop_does_not_route_through(tl_gpt2, shallow_loop):
 
 
 # --------------------------------------------------------------------------
+# Per-head sites: the recomputed y is the SHARED full output (T1.5, #47)
+# --------------------------------------------------------------------------
+# At a whole-matrix site the recomputed y IS the site's own forward, so
+# `_recompute_y` reproduces it bit-for-bit and the severed floor is exactly
+# zero. At a per-head site y is the layer's fused twelve-head output that all
+# heads write into -- a quantity one head's matmul cannot rebuild. Recomputing y
+# as `_recompute_y(x, W_head)` there rebuilds a single head's contribution
+# instead, landing ~1.0 relative off the full output; `replay_offline`
+# reconstructs the drifted full output additively as `record.y + x @ delta`.
+# These two tests pin that: the reconstruction is the full output, and the
+# severed floor it buys is float32 noise (~3e-8), NOT the exact zero the
+# whole-matrix site delivers. Block 11, head 7 as in tests/test_head_sites.py.
+
+TL_HEAD_SITE = "blocks.11.attn.head.7"
+
+
+def test_recomputed_y_at_a_head_site_is_the_shared_full_output(
+    tl_gpt2, tl_loop, monkeypatch
+):
+    """The recomputed y at a per-head site must be the FULL projection output,
+    not this one head's contribution to it.
+
+    All twelve heads write to the same 768 output units, so a single head's
+    isolated contribution is an activity the model never forms (see
+    `_HeadSliceSite`/`_TransformerLensHeadSite`). `replay_offline` reads
+    `site.shared_post_activity` and reconstructs the drifted full output
+    additively -- `record.y + x @ delta`, with the other eleven heads and b_O
+    frozen inside the recorded full y -- rather than rebuilding one head via
+    `_recompute_y(x, W_head)`.
+
+    Run at eta=0 so delta stays exactly zero: the additive `x @ delta` remainder
+    vanishes and what is left is precisely the base-output choice under test.
+    Post-fix the rule sees `record.y` bit-for-bit (rel err 0.0). The old path saw
+    `x @ W_head` -- a single head's ~1/12 of the output, ~1.0 relative off the
+    full 768-wide activity, and a y no proposed rule uses. The `x @ delta`
+    remainder's correctness under real drift is checked, at the weight level and
+    against the live fused forward, by
+    `test_a_head_site_the_loop_does_not_route_through`.
+    """
+    r0, step = tl_loop
+    record = record_frozen_activations(tl_gpt2, r0, step, TL_HEAD_SITE, N_STEPS)
+    assert record.y[0].shape[-1] == 768, "y is the full output, not a head stripe"
+
+    seen: list[torch.Tensor] = []
+    real_observe = OjaPlasticity.observe
+
+    def spy(self, x, y):
+        seen.append(y.detach().clone())
+        return real_observe(self, x, y)
+
+    monkeypatch.setattr(OjaPlasticity, "observe", spy)
+    replay_offline(tl_gpt2, record, eta=0.0, mode="oja", y_source="recomputed")
+
+    assert len(seen) == len(record.y)
+    worst = 0.0
+    for got, full in zip(seen, record.y, strict=True):
+        num = (got.double() - full.double()).norm().item()
+        den = full.double().norm().item()
+        worst = max(worst, num / den)
+    print(
+        f"\n[head-site reconstruction] site={TL_HEAD_SITE} n_steps={N_STEPS} "
+        f"eta=0\n  worst rel err of recomputed y vs full output = {worst:.3e}"
+    )
+    assert worst < 1e-6, (
+        "the recomputed y at a head site is not the shared full output: rel err "
+        f"{worst:.3e} to record.y. The single-head path rebuilt x @ W_head, "
+        "which is ~1.0 relative off the full 768-wide output."
+    )
+
+
+def test_a_head_site_the_loop_does_not_route_through(tl_gpt2, shallow_loop):
+    """The severed-path detection limit, at a per-head site.
+
+    The per-head analogue of `test_a_site_the_loop_does_not_route_through`, at
+    `blocks.11.attn.head.7`. The loop reads at `blocks.3.hook_resid_post`, so
+    block 11's W_O never feeds back and the x the rule sees is bit-identical in
+    both arms. Whatever the recomputed-y arms still differ by here is the floor,
+    and no claim about feedback at a head site can be made underneath it.
+
+    THE FLOOR IS NOT ZERO HERE, and measuring it is the point. At a whole-matrix
+    site the recomputed y is `_recompute_y`'s fused addmm, so the severed arms
+    are bit-for-bit identical (floor exactly 0.0). At a head site y is the
+    layer's fused twelve-head einsum, and the offline arm reconstructs the
+    drifted full output additively as `record.y + x @ delta`. The two are equal
+    in arithmetic but not bit-for-bit -- a single head's additive remainder
+    cannot reproduce a twelve-head fused reduction exactly -- so the floor is
+    float32 accumulation noise (~3e-8 measured), NOT the exact zero the
+    whole-matrix site buys. Asserting `bit_identical is True` here would be
+    asserting a property the arithmetic cannot deliver; the head-site null is a
+    measured float-noise bound, and that is the rule-3 tension stated in code.
+    """
+    r0, step = shallow_loop
+    res = run_matched_arms(tl_gpt2, r0, step, TL_HEAD_SITE, N_STEPS, eta=ETA,
+                           rerun_frozen=False)
+    assert res.verification["ok"] is True
+
+    recomputed = res.comparison["weight_recomputed_y"]
+    recorded = res.comparison["weight"]
+    print(
+        f"\n[head-site detection limit] site={TL_HEAD_SITE} read_at=blocks.3 "
+        f"eta={ETA} n_steps={N_STEPS}"
+        f"\n  y_source=recomputed rel_fro_diff={recomputed['rel_fro_diff']:.3e} "
+        f"bit_identical={recomputed['bit_identical']}"
+        f"\n  y_source=recorded   rel_fro_diff={recorded['rel_fro_diff']:.3e}"
+    )
+    # A bound, never a value: this is float accumulation order, hardware
+    # dependent, and -- unlike the whole-matrix site -- structurally nonzero.
+    # Measured 2.96e-08 on GPT-2 small; the bound sits ~1.5 orders above that
+    # (for hardware variation, which the module notes is ~2x on such floors) and
+    # ~4.7 orders below the pre-fix single-head value (~5e-2), so it is red
+    # before the fix and green after.
+    BOUND = 1e-6
+    assert recomputed["rel_fro_diff"] < BOUND, (
+        "the head-site detection limit has regressed: no state feedback exists "
+        "here, so anything above float noise is a defect. rel_fro_diff="
+        f"{recomputed['rel_fro_diff']:.3e}"
+    )
+    # NOT bit-identical, deliberately: a twelve-head fused einsum cannot be
+    # reconstructed bit-for-bit from one head's additive remainder. This is the
+    # head-site analogue of the whole-matrix test's `bit_identical is True`,
+    # inverted for exactly that reason -- the rule-3 tension made assertable.
+    assert recomputed["bit_identical"] is False
+    # ...and the recorded-y floor is larger, as at the whole-matrix site.
+    assert recorded["rel_fro_diff"] > recomputed["rel_fro_diff"]
+
+
+# --------------------------------------------------------------------------
 # The measurement
 # --------------------------------------------------------------------------
 
