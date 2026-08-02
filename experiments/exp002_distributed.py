@@ -55,7 +55,11 @@ LAYER_END = 11
 LAYER_END_SEVERED = 3
 
 ETA_STAR = 1.8e-2 * 164.854 / (120 * 350.0)       # 7.065171428571429e-05
-CALIB_MULTS = [1.0, 0.5, 0.25, 0.1, 0.05]
+# Amendment 1: probe low and shared, then scale each site to a common target.
+PROBE_MULTS = [0.01, 0.002, 0.0005]
+TARGET_DRIFT = 0.0112   # the drift the single-site working point produced (C-21)
+MAX_SCALE = 2000.0      # ceiling on the per-site scale-up, so an inert site
+                        # cannot demand an absurd step size
 MAX_DELTA_FRAC = 0.05
 SEED = 0
 MODES = ["hebb", "anti_hebb"]
@@ -126,11 +130,21 @@ def installed_weights(model, pairs):
 
 # ----------------------------------------------------------------- the arms
 
-def build_driver(model, sites, mode: str, eta: float) -> MultiSitePlasticity:
+def build_driver(model, sites, mode: str, eta) -> MultiSitePlasticity:
+    """`eta` is one value shared by every site, or one value per site.
+
+    Per-site values are the amended design: layers respond so differently to the
+    same step size (over 200x spread, measured) that one shared value cannot
+    drive them all without either clipping the fastest or leaving the slowest
+    inert.
+    """
+    etas = [eta] * len(sites) if isinstance(eta, (int, float)) else list(eta)
+    if len(etas) != len(sites):
+        raise ValueError(f"{len(etas)} step sizes for {len(sites)} sites")
     return MultiSitePlasticity(model, [
-        SiteSpec(s, mode=mode, eta=eta, cadence=1,
+        SiteSpec(s, mode=mode, eta=e, cadence=1,
                  max_delta_frac=MAX_DELTA_FRAC, seed=SEED)
-        for s in sites
+        for s, e in zip(sites, etas)
     ])
 
 
@@ -160,24 +174,26 @@ def run_closed_episode(model, r0, step, sites, mode: str, eta: float,
     return report, weights, states
 
 
-def offline_weights(model, r0, step, sites, mode: str, eta: float, n_steps: int):
+def offline_weights(model, r0, step, sites, mode, eta, n_steps: int):
     """The blocking control (issue #26), built from the tested single-site path.
 
     One deterministic frozen recording per site, then one independent offline
     replay per site. No feedback reaches any of them: every recording is of the
     untouched model, and no replay can see another replay's drift.
     """
+    etas = [eta] * len(sites) if isinstance(eta, (int, float)) else list(eta)
     out = []
     diag = []
-    for site in sites:
+    for site, eta_i in zip(sites, etas):
         rec = record_frozen_activations(model, r0, step, site, n_steps,
                                         keep_states=False)
-        arm = replay_offline(model, rec, eta=eta, mode=mode,
+        arm = replay_offline(model, rec, eta=eta_i, mode=mode,
                              max_delta_frac=MAX_DELTA_FRAC, seed=SEED,
                              apply_every=1, y_source="recomputed")
         out.append((site, arm.weight.detach().clone()))
         diag.append({
             "site": site,
+            "eta": eta_i,
             "delta_frac": arm.report()["delta_frac"],
             "clipped": arm.report()["clipped"],
             "nonfinite": arm.report()["nonfinite"],
@@ -373,46 +389,72 @@ def main() -> None:
             raise RuntimeError("revert gate failed: a matrix was not restored bit-exactly")
 
     # ---------------------------------------------------------- calibration
-    chosen_eta = None
-    for mult in CALIB_MULTS:
-        key = f"calib:{mult}"
-        if unit_done(done, key):
-            continue
-        t0 = time.time()
-        rep, _, _ = run_closed_episode(model, s0.tensor, step, SITES_ALL,
-                                       "hebb", mult * ETA_STAR, 30,
-                                       keep_states=False)
-        per = [{"site": r["site"], "delta_frac": r["delta_frac"],
-                "clipped": r["clipped"], "nonfinite": r["nonfinite"]}
-               for r in rep["per_site"]]
-        any_clip = rep["clipped"]
-        append({"unit": key, "kind": "calibration", "eta_mult": mult,
-                "eta": mult * ETA_STAR, "n_steps": 30,
-                "any_site_clipped": bool(any_clip),
-                "nonfinite": bool(rep["nonfinite"]),
-                "aggregate_delta_frac": rep["delta_frac"],
-                "per_site": per,
-                "note": "calibration only; declared not-evidence in the prereg",
-                "seconds": round(time.time() - t0, 1)})
-        print(f"[calib] {mult}x eta: any_clip={any_clip} "
-              f"agg_drift={rep['delta_frac']:.5f}", flush=True)
-
-    # read the choice back from the record, so resume picks the same one
-    calib = {}
-    with open(JSONL) as f:
-        for line in f:
+    # Amendment 1: per-site step sizes anchored to a common target drift. The
+    # probe measures how far each site travels at a low shared step size over a
+    # full episode; each site's step size is then scaled to reach TARGET_DRIFT.
+    # Calibration only -- declared non-evidence in the pre-registration.
+    def calibrate(mode: str) -> tuple[list, dict]:
+        key = f"calib:{mode}"
+        for line in open(JSONL):
             d = json.loads(line)
-            if d.get("kind") == "calibration":
-                calib[d["eta_mult"]] = d
-    for mult in CALIB_MULTS:
-        if mult in calib and not calib[mult]["any_site_clipped"] \
-                and not calib[mult]["nonfinite"]:
-            chosen_eta = mult * ETA_STAR
-            chosen_mult = mult
-            break
-    if chosen_eta is None:
-        raise RuntimeError("no candidate step size left every site ceiling-silent")
-    print(f"[calib] chosen: {chosen_mult}x eta* = {chosen_eta:.6g}", flush=True)
+            if d.get("unit") == key:
+                return d["etas"], d
+        probe_eta = None
+        probe_per = None
+        for mult in PROBE_MULTS:
+            rep, _, _ = run_closed_episode(model, s0.tensor, step, SITES_ALL,
+                                           mode, mult * ETA_STAR, N_EPISODE,
+                                           keep_states=False)
+            print(f"[calib {mode}] probe {mult}x: clip={rep['clipped']} "
+                  f"agg={rep['delta_frac']:.5f}", flush=True)
+            if not rep["clipped"] and not rep["nonfinite"]:
+                probe_eta = mult * ETA_STAR
+                probe_mult = mult
+                probe_per = [{"site": r["site"], "delta_frac": r["delta_frac"]}
+                             for r in rep["per_site"]]
+                break
+        if probe_eta is None:
+            raise RuntimeError(f"[{mode}] every probe step size clipped a site")
+
+        # Scale each site to the target. Drift is close to linear in the step
+        # size at fixed step count, so this is one Newton step from the probe,
+        # and the achieved drift is measured and recorded rather than assumed.
+        etas = []
+        for rec in probe_per:
+            d = rec["delta_frac"]
+            if not (d > 0):
+                etas.append(probe_eta * MAX_SCALE)
+                continue
+            scale = min(TARGET_DRIFT / d, MAX_SCALE)
+            etas.append(probe_eta * scale)
+
+        rep2, _, _ = run_closed_episode(model, s0.tensor, step, SITES_ALL, mode,
+                                        etas, N_EPISODE, keep_states=False)
+        achieved = [{"site": r["site"], "eta": e, "delta_frac": r["delta_frac"],
+                     "clipped": r["clipped"], "nonfinite": r["nonfinite"]}
+                    for r, e in zip(rep2["per_site"], etas)]
+        rec = {"unit": key, "kind": "calibration", "mode": mode,
+               "probe_eta": probe_eta, "probe_mult": probe_mult,
+               "probe_per_site": probe_per,
+               "target_drift": TARGET_DRIFT, "max_scale": MAX_SCALE,
+               "etas": etas, "achieved": achieved,
+               "any_clipped": bool(rep2["clipped"]),
+               "nonfinite": bool(rep2["nonfinite"]),
+               "aggregate_delta_frac": rep2["delta_frac"],
+               "note": "calibration only; declared non-evidence in the prereg"}
+        append(rec)
+        print(f"[calib {mode}] anchored: achieved drift "
+              f"{[round(a['delta_frac'], 4) for a in achieved]} "
+              f"clip={rep2['clipped']}", flush=True)
+        return etas, rec
+
+    ETAS = {}
+    for mode in MODES:
+        ETAS[mode], _ = calibrate(mode)
+    # The severed gate drives only blocks.4..11, so it takes that slice of the
+    # calibrated step sizes -- the same value each of those sites gets in the
+    # main run, so the floor is measured on the configuration that is used.
+    severed_etas = [ETAS["hebb"][SITES_ALL.index(s_)] for s_ in SITES_SEVERABLE]
 
     # ---------------------------------------------------------- gate: severed
     if not unit_done(done, "gate:severed"):
@@ -422,17 +464,17 @@ def main() -> None:
                               layer_end=LAYER_END_SEVERED,
                               initial_norm=s0s.initial_norm)
         rep, wc, _ = run_closed_episode(model, s0s.tensor, steps,
-                                        SITES_SEVERABLE, "hebb", chosen_eta,
+                                        SITES_SEVERABLE, "hebb", severed_etas,
                                         N_EPISODE, keep_states=False)
         wo, _ = offline_weights(model, s0s.tensor, steps, SITES_SEVERABLE,
-                                "hebb", chosen_eta, N_EPISODE)
+                                "hebb", severed_etas, N_EPISODE)
         # W0 read straight off the untouched model, never reconstructed
         w0s = [(s, _make_site(model, s).weight.detach().clone())
                for s in SITES_SEVERABLE]
         cmp = compare_weightsets(wc, wo, w0s)
         append({"unit": "gate:severed", "kind": "gate", "sites": SITES_SEVERABLE,
                 "read_at": f"blocks.{LAYER_END_SEVERED}.hook_resid_post",
-                "eta": chosen_eta, "n_steps": N_EPISODE,
+                "etas": severed_etas, "n_steps": N_EPISODE,
                 "clipped": rep["clipped"], "nonfinite": rep["nonfinite"],
                 "comparison": cmp,
                 "floor_is_exactly_zero": cmp["diff_fro"] == 0.0,
@@ -464,10 +506,10 @@ def main() -> None:
         print(f"[arm] {mode} starting", flush=True)
         t0 = time.time()
         rep, wc, traj = run_closed_episode(model, s0.tensor, step, SITES_ALL,
-                                           mode, chosen_eta, N_EPISODE)
+                                           mode, ETAS[mode], N_EPISODE)
         closed_stats = trajectory_stats(model, traj)
         wo, odiag = offline_weights(model, s0.tensor, step, SITES_ALL, mode,
-                                    chosen_eta, N_EPISODE)
+                                    ETAS[mode], N_EPISODE)
         cmp = compare_weightsets(wc, wo, W0S)
 
         with installed_weights(model, wo):
@@ -480,7 +522,8 @@ def main() -> None:
         if not unit_done(done, f"episode:{mode}"):
             append({
                 "unit": f"episode:{mode}", "kind": "step2_episode", "mode": mode,
-                "eta": chosen_eta, "eta_mult": chosen_mult, "n_steps": N_EPISODE,
+                "etas": ETAS[mode], "target_drift": TARGET_DRIFT,
+                "n_steps": N_EPISODE,
                 "sites": SITES_ALL,
                 "clipped": rep["clipped"], "nonfinite": rep["nonfinite"],
                 "aggregate_delta_frac": rep["delta_frac"],
