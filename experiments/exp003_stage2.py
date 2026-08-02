@@ -48,6 +48,7 @@ import argparse
 import json
 import sys
 import time
+import os
 from pathlib import Path
 
 import torch
@@ -186,7 +187,9 @@ def main() -> int:
     print(f"[setup] {len(reprompts)} fresh inputs over "
           f"{len(set(r['basin'] for r in reprompts))} end states", flush=True)
 
-    out = open(args.out, "w")
+    # PARTIAL SUFFIX: see exp003_stage0.py. Rename on success only.
+    partial = args.out + ".partial"
+    out = open(partial, "w")
     out.write(json.dumps({"kind": "meta", "ladder": list(CADENCE_LADDER),
                           "n_iter": N_ITER, "amendment": 1,
                           "falsifier_margin": FALSIFIER_MARGIN}) + "\n")
@@ -260,6 +263,7 @@ def main() -> int:
     }
     out.write(json.dumps(analysis) + "\n")
     out.close()
+    os.replace(partial, args.out)
 
     print("\n=== STAGE 2 ===")
     print(f"reference agreement      {ref['census_agreement']}/{ref['n']}")

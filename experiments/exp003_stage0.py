@@ -52,6 +52,7 @@ import random
 import statistics
 import sys
 import time
+import os
 from pathlib import Path
 
 import torch
@@ -273,7 +274,10 @@ def main() -> int:
     print(f"[setup] {len(census)} prompts, {N_ITER} iterations each", flush=True)
 
     rows = []
-    with open(args.out, "w") as f:
+    # PARTIAL SUFFIX: write to a scratch path and rename only on success, so an
+    # in-flight artifact can never be mistaken for, or committed as, a finished one.
+    partial = args.out + ".partial"
+    with open(partial, "w") as f:
         f.write(json.dumps({
             "kind": "meta",
             "n_iter": N_ITER,
@@ -305,6 +309,8 @@ def main() -> int:
 
         result = analyse(rows)
         f.write(json.dumps(result) + "\n")
+
+    os.replace(partial, args.out)
 
     print("\n=== STAGE 0 ===", flush=True)
     print(f"gate 1 basins       {result['gate1_basin_separation']:.4f} "
