@@ -1,44 +1,28 @@
-"""EXP-003 Stage 1: does the collapse actually concentrate the weights?
+"""EXP-003 Stage 1: spectral concentration of the adjusted matrices.
 
-Pre-registered in `experiments/output_exp003/PREREGISTRATION.md`. This tests the
-mechanism `MEA_ANALOGUE.md` proposes for EXP-002's collapse, and it is the stage
-most likely to refute this project's own explanation, which is why it runs early.
+Protocol and thresholds: `experiments/output_exp003/PREREGISTRATION.md`.
+Results: `experiments/output_exp003/STAGE1_RESULTS.md`.
 
-THE CLAIM UNDER TEST. Register row C-10 establishes that each Hebbian update is
-rank one, so it writes along a single direction. The proposal is that repeating
-that concentrates each adjusted matrix onto one direction until the site emits
-roughly the same output whatever arrives, and that twelve such sites in series
-confine the loop's output toward a line, which can support only one resting point.
-That would explain C-62.
+WHAT IT MEASURES. Participation-ratio effective rank and top singular share, on
+each of the twelve adjusted matrices, before and after EXP-002's reinforcing
+episode. The effective rank measure is the one `experiments/step_size_map.py`
+already uses, so the number is comparable with what the project has recorded.
 
-WHY IT MAY WELL BE WRONG, STATED BEFORE THE RUN. A rank one update does not make
-the matrix rank one. The matrices start full, with a stable rank of about 31 out of
-768 (register row C-11), and EXP-002's reinforcing arm moved them by only 1.31
-percent in aggregate. A one percent addition does not obviously dominate anything.
-The argument also ignores the nonlinearities and two normalisation steps. So this
-is a real test with a real chance of failing.
+REGISTERED THRESHOLDS.
 
-THE REGISTERED THRESHOLDS. The measure is the participation-ratio effective rank
-that `experiments/step_size_map.py` already uses, so the number is comparable with
-what the project has already recorded.
+  Supported     mean effective rank falls by >= 10%.
+  Refuted       it falls by < 2%.
+  Inconclusive  anything between.
 
-  Supported   mean effective rank across the twelve matrices falls by >= 10%.
-  Refuted     it falls by < 2%.
-  Inconclusive anything between, reported as such rather than argued either way.
+The 10% figure was set against the largest movement anywhere in the committed
+step-size map, a rise of about 0.6 percent from 642.6 to 646.7.
 
-Ten percent is registered against a stated baseline: the largest movement anywhere
-in the committed step-size map is an INCREASE of about 0.6 percent, from 642.6 to
-646.7, across every ceiling-silent cell. A ten percent fall would therefore be more
-than an order of magnitude larger than anything this project has yet seen, which is
-what the proposed mechanism requires.
-
-REPRODUCING EXP-002 RATHER THAN APPROXIMATING IT. The per-layer step sizes below
-are taken verbatim from EXP-002's committed record
-(`experiments/output_exp002/exp002_uncapped.jsonl`, the `step2_episode` unit for
-`hebb`) on branch `claude/find-voice-md-m7r40k`. The driven prompt, the step count
-and the lifted ceiling are that experiment's. If the aggregate drift this run
-produces does not match EXP-002's 0.013111766434820447, the reproduction has failed
-and the run says so rather than reporting effective ranks from a different episode.
+REPRODUCTION RATHER THAN APPROXIMATION. The per-block step sizes below are taken
+verbatim from EXP-002's committed record (`output_exp002/exp002_uncapped.jsonl`,
+the `step2_episode` unit for `hebb`), as are the driven input, the step count and
+the lifted ceiling. If the aggregate drift does not match EXP-002's
+0.013111766434820447 within 5 percent, the run reports a failed reproduction
+rather than reporting figures from a different episode.
 
 Usage:
     .venv/bin/python experiments/exp003_stage1.py

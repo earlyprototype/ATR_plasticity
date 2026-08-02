@@ -1,31 +1,24 @@
-# EXP-003 Stage 2 results: the test did not run cleanly, and its own guard said so
+# EXP-003 Stage 2 results
 
-*Pre-registered in `PREREGISTRATION.md`, as amended by Amendment 1 there, both
-written before this ran. The run is `stage2.jsonl`. Nothing here enters the claim
+*Measurements only. Registered in `PREREGISTRATION.md` and amended by Amendment 1 there,
+both before this run. Run artifact: `stage2.jsonl`. Nothing here enters the claim
 register.*
 
-## The answer first
+## What was run
 
-The experiment asked whether the collapse is caused by adjusting the weights too
-fast, by delivering the same total adjustment in fewer, larger steps.
+Three settings of how often the weights are adjusted, at a fixed 120-iteration episode,
+with the step size multiplied by the cadence so that the total adjustment would be equal.
+Driven input `A01_physics`, 12 MLP sites, reinforcing rule, ceiling lifted, per-block step
+sizes from EXP-002's committed record.
 
-**It did not deliver the same total adjustment.** The three settings produced
-drifts of 1.31, 2.99 and 7.91 percent, a spread of 6.03 times across a ladder that
-was supposed to be matched. The pre-registration set a tolerance of two times and
-said that beyond it the comparison is qualitative only and the falsifier is not
-invoked. That guard fired, so **the falsifier is not invoked and the timescale
-question is unanswered.**
+After each episode the weights were frozen and 31 fresh inputs were run, stratified over
+the five committed end states.
 
-The reason is written in the pre-registration, one paragraph above the guard:
-multiplying the step size by the cadence holds the total adjustment equal only if
-the rule's effect is linear in step size, and EXP-002 already recorded that it is
-not. That caution was correct and the correction is now known: the step sizes have
-to be re-anchored per cadence to hit a common drift, exactly as EXP-002 had to
-anchor per layer.
+**Census agreement** counts how many of those 31 settle where the frozen model puts them,
+counting only inputs that settled. **Settled** means a fixed point or a two-step cycle, by
+the committed baseline's classifier and thresholds.
 
-What can be said without the matching is narrow and is set out below.
-
-## What was run, and what came out
+## Results
 
 | Cadence | Adjustments | Drift | Census agreement | Settled | Settled words |
 |---|---|---|---|---|---|
@@ -34,87 +27,49 @@ What can be said without the matching is narrow and is set out below.
 | every 4th | 30 | 2.9909% | **0 / 31** | 31 / 31 | `observer` 31 |
 | every 12th | 10 | 7.9112% | **0 / 31** | 31 / 31 | `.` 31 |
 
-Nothing clipped at any setting.
+Nothing clipped at any setting. The non-finite flag was not recorded in this run, because
+the runner gained that field afterwards, so no claim is made about it.
 
-**The non-finite flag was not recorded in this run and no claim is made about it.**
-The runner gained that field after the run, so the committed `stage2.jsonl` does not
-carry it and an earlier version of this sentence asserted something the artifact
-cannot support. The claim is withdrawn rather than back-filled. The re-run described
-below will record it.
+## The registered guard fired
 
-**The reference gate passed at 31 of 31**, which is the check that matters most
-here: before any weight moves, the census machinery reproduces the committed
-baseline exactly. Every number below is therefore attributable to the drift rather
-than to the instrument.
+| Registered rule | Measured | Result |
+|---|---|---|
+| Drift across the ladder must match within a factor of 2 | spread **6.03x** (1.3112% to 7.9112%) | **not matched** |
+| If not matched, the comparison is qualitative only and the falsifier is not invoked | — | falsifier not invoked |
+| Falsifier, had it been invoked: agreement at cadence 12 must exceed cadence 1 by 5 or more | difference **0** | not evaluated |
 
-**The every-iteration cell reproduces EXP-002.** Its drift is 0.013111766434820447
-against that experiment's committed 0.013111766434820447, and its driven input
-settles on `Rousse`, which is what EXP-002 records for the same arm.
+The step size was multiplied by the cadence on the assumption that drift scales linearly
+with step size. It did not. EXP-002's committed record already states that this rule's
+drift is non-linear in step size.
 
-## What can be said, and what cannot
+## Reference gate
 
-**Cannot be said: anything about timescale.** The settings differ in total drift by
-six times, so a difference between them is not attributable to how often the
-adjustment was applied. This is the whole question the stage exists to answer and
-it remains open.
+The 31 fresh inputs reproduce the committed baseline at 31 of 31 before any weight moves.
 
-**Can be said, weakly: slowing the adjustment did not rescue anything here.**
-Census agreement is zero out of thirty one at every setting, including the slowest.
-If slowing the adjustment twelvefold were sufficient on its own to preserve
-structure, one would not expect zero at every point. That is weak evidence because
-the slowest setting also carries six times the drift, and more drift should destroy
-more, so the two effects push the same way and cannot be separated.
+## Reproduction of EXP-002
 
-**Can be said: the direction of the confounded effect is opposite to the
-prediction.** Slower adjustment produced *more* complete collapse, from three
-distinct end states down to one, not less. That is fully explained by the larger
-drift and is reported as an observation rather than as evidence against the
-timescale reading.
+The every-iteration cell matches EXP-002's committed drift of 0.013111766434820447 and its
+driven input settles on `Rousse`, as that experiment records for the same arm.
 
-**Worth noting for its own sake: every input settled at every setting.** Thirty one
-of thirty one reached a fixed point or a two-step cycle in all three cells.
-
-**That is a statement about settling and not about attraction, and an earlier version
-of this paragraph overstated it.** This stage classifies unperturbed trajectories by
-their own lag agreement. It never perturbs a settled state and never measures whether
-it returns, so it cannot say the resulting states are attractors. EXP-002 ran a return
-test for this rule and found 5 of 5, but that test was run on its own cells and does
-not validate these. What is licensed here is that every trajectory came to rest, which
-is still a real contrast with the eroding rule's behaviour in EXP-002, where most did
-not.
-
-## A small discrepancy against EXP-002, recorded rather than smoothed
-
-The every-iteration cell should match EXP-002's closed reinforcing arm and nearly
-does, but not exactly. This run gives `Rousse` 25, `anarchism` 5, `comrade` 1; that
-experiment reports `Rousse` 27, `anarchism` 3, `comrade` 1. Two inputs differ.
-
-The drift matches to sixteen significant figures, so the episode is identical. The
-likely cause is the census draw: both stage runners select thirty one inputs
-stratified over the five end states, but they are separate implementations of that
-selection and may not pick the same thirty one. This was not checked before the run
-and should be. Until it is, the two figures are close but not the same measurement,
-and neither is quoted as confirming the other.
-
-## What to do instead
-
-The clean version of this experiment anchors the step size per cadence to hit a
-common drift, rather than assuming a linear scaling that the rule does not obey.
-That is one calibration pass per setting, of the kind EXP-002 ran across layers, and
-it turns a six times spread into a matched comparison. Cost is roughly one extra
-short episode per cadence, so about ten minutes added to a run that took just under
-fifty.
-
-The re-run should also fix the census draw so it is shared with EXP-002's rather
-than reimplemented.
+Its fresh-input distribution differs: `Rousse` 25, `anarchism` 5, `comrade` 1 here against
+`Rousse` 27, `anarchism` 3, `comrade` 1 there. Two inputs differ. The drift matches to
+sixteen significant figures. The two runners select their 31 inputs by separate
+implementations of the same stratified rule and may not select the same 31; this was not
+checked before the run.
 
 ## Limits
 
 One driven input, one seed, one rule, twelve sites, all MLP output projections, no
-external signal anywhere in this stage. Three cadence settings spanning a factor of
-twelve, which Amendment 1 already records is weaker than the hundredfold originally
-registered, so even a matched version of this experiment would not exclude an effect
-that needs two orders of magnitude.
+injected signal anywhere in this stage. Ceiling lifted, so nothing here is continuous with
+results taken under the former 5% cap.
+
+Three cadence settings spanning a factor of 12. Amendment 1 records that this is weaker
+than the factor of 100 originally registered, which was dropped because the slowest
+setting would have required 12,000 iterations.
+
+The settled classification is taken on unperturbed trajectories. No state was perturbed
+and no return was measured, so these results say the trajectories came to rest and say
+nothing about whether the resting states attract.
 
 ## Files
 

@@ -1,46 +1,34 @@
-"""EXP-003 Stage 0: does the grid measurement work at all?
+"""EXP-003 Stage 0: validation of the grid measurement.
 
-Pre-registered in `experiments/output_exp003/PREREGISTRATION.md`. This is the
-kill gate for the whole series: it asks whether the centre-of-activity statistic
-adapted from Chao, Bakkum and Potter (2007) can reproduce structure that is
-already known, on the frozen model, where the answer is committed and cannot be
-argued with afterwards.
+Protocol and thresholds: `experiments/output_exp003/PREREGISTRATION.md`.
+Results: `experiments/output_exp003/STAGE0_RESULTS.md`.
 
-It needs no plasticity, no external signal, and nothing from EXP-002. That is why
-it runs first.
+WHAT IT MEASURES. The depth-weighted centroid over the 144-site grid, on the
+frozen model, against the committed 125-input baseline where the classifications
+are already recorded. No plasticity and no injected signal.
 
-WHAT IS BEING TESTED, AND THE THRESHOLDS, ALL REGISTERED BEFORE THE RUN
+REGISTERED GATES AND THRESHOLDS.
 
-  Gate 1, basins. The statistic must separate the five committed end states, with
-  a between-group over within-group ratio above 1.5. The baseline for that number
-  is 0.87, which is what the token labels themselves score (register row C-07:
-  nearest-label gap 2.874e-03 over within-label spread 3.319e-03). A value of 1.0
-  means groups are indistinguishable from their own internal scatter. A statistic
-  that cannot beat the labels is not worth adopting.
+  Gate 1  separates the five committed end states, ratio above 1.5.
+  Gate 2  separates the 34 two-step cycles from the 91 fixed points, above 1.5.
+  Gate 3  does NOT separate random halves of the largest group: below 1.2 in at
+          least nine of ten splits.
 
-  Gate 2, dynamical class. The statistic must separate the 34 committed period-2
-  inputs from the 91 committed fixed points, same threshold of 1.5.
+The 1.5 figure was set against 0.87, which is what the token labels score on the
+same scale, computed from register row C-07. A value of 1.0 means groups are
+indistinguishable from their own internal scatter.
 
-  Gate 3, the failure direction. Splitting the largest basin at random in half
-  must NOT look separated: the same ratio must fall below 1.2 in at least nine of
-  ten random splits. A statistic that separates arbitrary halves of a homogeneous
-  group is inventing structure.
+CONTROLS.
 
-  Control A, layer shuffle. Chao's CAT-ELS control on the axis that has a metric.
-  Permuting layer labels should destroy gate 1. If the shuffled statistic scores
-  as well as the true one, the apparent power came from summarising activity size
-  rather than from where in the stack it was, and the statistic is discarded.
+  A  permuting block labels must score below the true statistic.
+  B  permuting head labels must change nothing, threshold 1e-9. Head indices are
+     arbitrary, so this control has a known correct answer.
 
-  Control B, head shuffle. The control whose correct answer is known in advance:
-  head labels are arbitrary, so permuting them must change nothing at all. This
-  is a test of the implementation, not of the model.
-
-Every number is written to `output_exp003/stage0.jsonl` as it is produced, so a
-run that dies part way is still evidence.
+Every record is written to `output_exp003/stage0.jsonl` as it is produced.
 
 Usage:
     .venv/bin/python experiments/exp003_stage0.py --limit 8      # smoke
-    .venv/bin/python experiments/exp003_stage0.py                # the whole census
+    .venv/bin/python experiments/exp003_stage0.py                # whole census
 """
 
 from __future__ import annotations

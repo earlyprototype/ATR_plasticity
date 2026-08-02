@@ -1,9 +1,7 @@
-"""The 12x12 grid: per-head activity, and the centre of activity taken from it.
+"""Per-head activity over the 12x12 grid, and the centroid taken from it.
 
-This module ports one measurement from Chao, Bakkum and Potter (2007), J Neural
-Eng 4(3):294-308, where it was used to detect network plasticity in cultured
-cortical networks that firing-rate statistics could not detect. Their equation 1,
-quoted from the reprint:
+Adapted from Chao, Bakkum and Potter (2007), J Neural Eng 4(3):294-308. Their
+equation 1, quoted from the reprint:
 
     [CA_X(n), CA_Y(n)] = ( sum_k FRH_Ek(n) * [Col(E_k) - R_col, Row(E_k) - R_row] )
                          / ( sum_k FRH_Ek )
@@ -12,57 +10,36 @@ quoted from the reprint:
 electrode location is determined by the recorded FR. CAT is the sequence of CAs
 over successive time intervals."
 
-WHY THIS IS PORTABLE AT ALL. Their array was 60 electrodes on an 8 by 8 grid with
-real physical geometry, which is what makes an average position meaningful. A
-transformer's residual stream has no comparable geometry across its width, and a
-centroid over d_model would be meaningless because that basis is arbitrary. But
-GPT-2 small has 12 blocks of 12 attention heads, which is a 12 by 12 grid of 144
-addressable sites, and the same sites both carry activity and can be stimulated,
-exactly as an electrode both records and stimulates.
+Their array had 60 electrodes with physical positions. GPT-2 small has 12 blocks
+of 12 attention heads, 144 sites. Full source record in `MEA_SOURCES.md`.
 
-THE ONE ASYMMETRY, STATED UP FRONT BECAUSE IT LIMITS WHAT MAY BE CLAIMED. Only
-one axis of the grid has a metric. Layer index is ordered and means something:
-layer 3 really does sit between layer 2 and layer 4, and activity really does
-flow along that axis. Head index does not. Heads within a layer have no canonical
-order and permuting their labels changes nothing about the model, so a centroid
-along the head axis has no fixed value.
+THE ASYMMETRY, WHICH LIMITS WHAT THIS MODULE REPORTS. Only one axis has a metric.
+Block index is ordered and activity flows along it. Head index has no canonical
+order and permuting the labels changes nothing about the model, so a centroid
+along that axis has no fixed value.
 
-This module therefore computes both and treats them differently:
+  - `ca_depth` weights block index by how much each block writes. Used.
+  - `ca_head` is computed only so the head-shuffle control has something to act
+    on. It has no interpretation.
 
-  - `ca_depth` is the load-bearing quantity. Layer index weighted by how much each
-    layer writes. Meaningful.
-  - `ca_head` is computed only as an internal consistency check. It has no
-    interpretation, and the check is that shuffling head labels must leave every
-    downstream statistic unchanged. If it does not, the implementation is wrong.
-
-That second use is the honest version of Chao's own shuffle control (their
-CAT-ELS, supplement S2), which randomised electrode positions to test whether the
-spatial embedding was doing the work or whether the statistic merely benefited
-from compressing many channels into few well-conditioned numbers. Their reported
-effect: detectable change roughly doubled and sensitivity fell from 88.7% to
-35.4%. Here the layer shuffle is the real version of that test, and the head
-shuffle has a known correct answer (no change), which makes it a control that
-cannot silently pass.
-
-WHAT THE MASS IS. For head h of layer L, the mass is the length of what that head
-writes into the residual stream on that forward pass:
+WHAT THE MASS IS. For head h of block L:
 
     w[L, h] = || z[L][:, h, :] @ W_O[L][h] ||
 
 where z is `blocks.L.attn.hook_z`, the per-head output before the output
-projection, and W_O[L][h] is that head's slice of the projection. This is the
-head's actual contribution to the stream, not a proxy for it. The MLP write per
-layer is captured separately by `mlp_mass` because the MLPs are twelve further
-sites that are not part of the head grid, and every published result in this
-repository so far moved an MLP rather than a head.
+projection. `tests/test_mea_grid.py` asserts that the twelve per-head
+contributions of a block reconstruct that block's attention output. The MLP write
+per block is captured separately by `mlp_mass`.
 
 BIT-EXACTNESS. `grid_step` must produce the same trajectory as
 `atr_bridge.make_atr_step`. It is the same loop body with a wider `names_filter`
-on the cache, so the arithmetic that produces the next state is untouched.
-`tests/test_mea_grid.py` asserts equality tensor for tensor against the bridge,
-max deviation exactly 0.0. If that test fails, this module is measuring a
-different trajectory from the one the rest of the project studies and nothing it
-reports is comparable.
+on the cache. `tests/test_mea_grid.py` asserts equality tensor for tensor, max
+deviation exactly 0.0.
+
+RECORDED LIMITATION OF THE SOURCE MEASURE, carried because this adapts it: the
+centre of activity is not information-preserving, since many different activity
+distributions map to the same value, and it is normalised by total activity so it
+is blind to overall level.
 """
 
 from __future__ import annotations

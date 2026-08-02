@@ -1,42 +1,31 @@
-"""EXP-003 Stage 2: is the collapse caused by adjusting the weights too fast?
+"""EXP-003 Stage 2: adjustment cadence.
 
-Pre-registered in `experiments/output_exp003/PREREGISTRATION.md`, as amended by
-Amendment 1 in that file, which was written before this ran and which explains why
-the cadence ladder is 1, 4, 12 rather than the 1, 10, 100 originally registered.
+Protocol and thresholds: `experiments/output_exp003/PREREGISTRATION.md`, as
+amended by Amendment 1 there. Results:
+`experiments/output_exp003/STAGE2_RESULTS.md`.
 
-THE QUESTION. In living tissue connections change far more slowly than activity
-passes through them. In EXP-002 they changed on every iteration, so the fast
-variable never settled before the slow one moved again. If the collapse is a
-consequence of that mismatch rather than of the rule itself, then delivering the
-same total weight change in fewer, larger increments should let the state settle
-between moves and should recover some of the lost structure.
+WHAT IT VARIES. How often the weights are adjusted, at a fixed 120-iteration
+episode, with the step size multiplied by the cadence. Cadences 1, 4 and 12 give
+120, 30 and 10 adjustments.
 
-This is the cheapest experiment in the series that could remove a whole branch of
-the argument, which is why it runs before the expensive one.
+WHAT IS HELD EQUAL, AND THE GUARD ON IT. The intent is equal total adjustment with
+only its granularity changing. The achieved drift is reported at every setting,
+and if it varies by more than a factor of two across the ladder the comparison is
+qualitative only and the falsifier is not invoked.
 
-WHAT IS HELD EQUAL. The episode is 120 iterations at every setting and the step
-size is multiplied by `k`, so the total adjustment is matched and only its
-granularity changes: 120 small moves, or 30 medium, or 10 large. The achieved
-drift is reported at every setting, and if it varies by more than a factor of two
-across the ladder the comparison is qualitative only and the falsifier is not
-invoked, exactly as registered.
+THE MEASUREMENT. Census agreement: of 31 fresh inputs, how many settle where the
+frozen model puts them, counting only those that settled.
 
-THE MEASUREMENT. Census agreement: of 31 fresh inputs the drifting never saw, how
-many settle where the frozen model puts them, counting only those that settled.
+SETTLED MEANS FIXED POINT OR TWO-STEP CYCLE, by the committed baseline's
+classifier. A criterion built on consecutive steps alone would score the census's
+eight `Divine` inputs as unsettled, because that end state is a two-step cycle
+with consecutive-step agreement near 0.68, and would set the baseline at 23 of 31
+rather than 31 of 31.
 
-SETTLED MEANS FIXED POINT OR TWO-STEP CYCLE. This is the committed baseline's
-classification and not a new one. It matters more than it sounds: the end state
-labelled `Divine` is a two-step cycle whose consecutive-step agreement sits near
-0.68, so a criterion built on consecutive steps alone would score all eight of the
-census's `Divine` inputs as unsettled and would silently set the baseline at 23 of
-31 rather than 31 of 31. That error is recorded in the pre-registration and this
-runner does not repeat it.
-
-THE FALSIFIER, restated by Amendment 1. If census agreement at `k` equal to 12
-does not exceed that at `k` equal to 1 by at least five out of thirty one, the
-timescale reading is not supported at this resolution. A twelvefold change failing
-to move anything does not exclude an effect needing two orders of magnitude, and
-the result says so rather than claiming a clean refutation.
+THE FALSIFIER, as restated by Amendment 1. If census agreement at cadence 12 does
+not exceed cadence 1 by at least 5 of 31, the result is recorded as not supported
+at this resolution rather than as a refutation, because the ladder spans a factor
+of 12 rather than the 100 originally registered.
 
 Usage:
     .venv/bin/python experiments/exp003_stage2.py --reprompts 31

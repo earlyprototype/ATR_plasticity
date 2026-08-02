@@ -1,51 +1,36 @@
-"""Stimulation on the 12x12 grid: current delivered at chosen sites.
+"""Signal injection at sites on the 12x12 grid.
 
-The companion to `mea_grid.py`. That module reads the 144 sites; this one writes
-to them. In an electrode array the same electrodes do both, which is why Wagenaar
-and Potter had to write a separate paper on suppressing the artefact of recording
-through an electrode you have just stimulated (J Neurosci Methods, real-time
-artifact suppression by local curve fitting). The same hazard exists here and is
-handled the same way: a site that was stimulated on an iteration must not have its
-activity read naively on that iteration, because the reading would include the
-injection. `stimulated_sites` is carried on every step so the measurement side can
-exclude them.
+The companion to `mea_grid.py`: that module reads the 144 sites, this one writes to
+them. Source record in `MEA_SOURCES.md`.
 
-WHY THE LOOP IS NOT REIMPLEMENTED HERE. The project's standing rules forbid a
-second ATR implementation. This module builds a step whose body is
+SITES ARE BOTH READ AND WRITTEN, so a site injected into on an iteration must not
+have its activity read naively on that iteration. `stimulated_sites` is carried on
+every step so the measurement side can exclude them.
+
+THE LOOP IS NOT REIMPLEMENTED. This builds a step whose body is
 `atr_bridge.make_atr_step`'s, with additional hooks installed alongside the
-injection the bridge already performs. With no stimulation configured it must
-produce a bit-identical trajectory, and `tests/test_mea_stim.py` asserts exactly
-that against the bridge, max deviation 0.0. That test is the gate: if it fails,
-this module is not studying the same loop.
+injection the bridge already performs. With no plan configured, or zero strength,
+it must produce a bit-identical trajectory; `tests/test_mea_stim.py` asserts that
+against the bridge, max deviation 0.0.
 
-THE TWO PLACES CURRENT CAN BE DELIVERED
+TWO PLACES CURRENT CAN BE DELIVERED
 
-  A head site, written `(layer, head)`. The vector is added to that head's output
-  before the output projection, at `blocks.{L}.attn.hook_z`, index `head`. This is
-  the faithful analogue of an electrode: a signal introduced at one location, which
-  then propagates through whatever the network does next.
+  A head site, `(layer, head)`. Added to that head's output before the output
+  projection, at `blocks.{L}.attn.hook_z` indexed by the head.
 
-  A stream site, written `(layer, None)`. The vector is added to the whole residual
-  stream arriving at that block, at `blocks.{L}.hook_resid_pre`. This is what an
-  earlier draft of the pre-registration assumed was the only option.
+  A stream site, `(layer, None)`. Added to the whole residual stream arriving at
+  that block, at `blocks.{L}.hook_resid_pre`.
 
-STRENGTH IS ALWAYS RELATIVE TO LOCAL ACTIVITY. `beta` multiplies a unit vector that
-is then scaled by the length of whatever is already at that site on that forward
-pass. A `beta` of 0.01 means the injected signal is one percent as large as the
-activity already there, wherever there is. This matters because the blocks differ
-substantially in activation scale: EXP-002 found more than a 200x spread across
-layers and had to anchor its step sizes per layer to cope. A single absolute scale
-would repeat that problem, and would silently make "the same strength" mean
-different things at different depths.
+STRENGTH IS RELATIVE TO LOCAL ACTIVITY. `beta` multiplies a unit vector scaled by
+the length of whatever is already at that site on that forward pass, so a `beta`
+of 0.01 is one percent of local activity wherever it is delivered. EXP-002 records
+more than a 200x spread of activation scale across blocks, so a single absolute
+scale would mean different things at different depths.
 
-MATCHING SPREAD-OUT AGAINST CONCENTRATED. When one total strength is divided among
-several sites, each site receives `beta / sqrt(n_sites)`, so that the sum of
-squares is held equal rather than the plain sum. Sum of squares is the right
-invariant because vectors drawn independently in a high-dimensional space are close
-to orthogonal, so their combined length grows as the square root of their number
-rather than linearly. `plan_sites` implements this and the alternative is available
-through `match="sum"` so the choice can be reported as a sensitivity check rather
-than buried.
+MATCHING SPREAD-OUT AGAINST CONCENTRATED. One total strength divided among n sites
+gives each `beta / sqrt(n)`, holding the sum of squares equal rather than the plain
+sum, because vectors drawn independently in a high-dimensional space are close to
+orthogonal. `plan_sites` implements this; `match="sum"` gives the alternative.
 """
 
 from __future__ import annotations
