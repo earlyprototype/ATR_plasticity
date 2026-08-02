@@ -158,3 +158,48 @@ which say whether it rests or cycles.
 Roughly one and a half to two hours on CPU. Records append per unit of work to
 `exp002.jsonl`; `--resume` skips completed units, since the environment has killed long
 runs in this repository before.
+
+---
+
+## Amendment 1, made before the main run, on calibration data only
+
+**When and on what.** Written after a three-step probe of the twelve-site driver and
+**before any arm, any reprompt, or any outcome was run or read**. The probe is
+calibration, which this pre-registration already declared to be non-evidence. No result
+informed this change.
+
+**What the probe showed.** At one shared step size, per-site drift after three steps
+ranges from 0.019 at `blocks.2.mlp` to 0.00008 at `blocks.8.mlp`, a spread of more than
+two hundred to one. Layers do not respond alike to the same step size, because their
+activation scales differ.
+
+**Why that breaks the registered design.** A single step size has to be small enough that
+the fastest site stays under the ceiling, which leaves the slowest sites moving by
+essentially nothing. The registered selection rule would then either abort (no candidate
+leaves every site ceiling-silent) or pick a value at which "plasticity at all twelve
+sites" is really plasticity at two or three of them. Either way the experiment would not
+be testing what it says it tests.
+
+**The change.** The primary configuration becomes **per-site step sizes anchored to a
+common target drift**, rather than one shared step size:
+
+1. Probe every site for a full episode at a low shared step size and read per-site drift.
+2. Set each site's step size so it reaches a target drift of **1.12%**, the drift the
+   single-site working point produced at `blocks.6.mlp`, which is the one setting known
+   to move this repository's settled state (C-21, C-58). Every layer therefore gets the
+   amount of movement that mattered at one layer.
+3. Re-run the probe with those step sizes and record achieved drift per site. Any site
+   that clips voids the run under standing rule 2, unchanged.
+
+This is calibrated separately for each rule arm, since `hebb` and `anti_hebb` need not
+drift at the same rate.
+
+**What is kept.** Everything else is unchanged: the arms, the gates, the offline control,
+the thirty reprompts, the discriminator, and every interpretation rule above. The
+uniform-step-size probe is retained in the record as a comparison, so the per-layer
+imbalance is visible rather than quietly corrected.
+
+**One consequence to state plainly.** Anchoring the step sizes is itself a choice about
+what "the same amount of plasticity everywhere" means. Equal relative drift is not the
+only defensible definition, and a different anchor could give a different result. The
+anchor is named here so the claim can be read against it.
