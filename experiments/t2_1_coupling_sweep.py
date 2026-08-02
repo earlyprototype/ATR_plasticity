@@ -166,6 +166,8 @@ def run_cell(model, cell: dict) -> dict:
         "clipped_offline_recorded": res.offline.report["clipped"],
         "clipped_offline_recomputed": res.offline_recomputed_y.report["clipped"],
         "nonfinite_closed": res.closed.report["nonfinite"],
+        "nonfinite_offline_recorded": res.offline.report["nonfinite"],
+        "nonfinite_offline_recomputed": res.offline_recomputed_y.report["nonfinite"],
         "n_updates": res.closed.config.n_updates,
         "rel_weight_change_closed": res.closed.report["delta_frac"],
         "rel_weight_change_offline_recomputed":
@@ -194,8 +196,48 @@ def run_cell(model, cell: dict) -> dict:
     rec["arms_basin_margins"] = [ro_c["top_logit_margin"],
                                  ro_o["top_logit_margin"]]
 
+    # Standing rule 2, made a field instead of a reader's judgement: a cell is
+    # quotable in a conclusion only if no arm clipped and no arm went
+    # non-finite. Clipped/non-finite cells stay in the record as diagnostics.
+    rec["admissible"] = not (
+        rec["clipped_closed"] or rec["clipped_offline_recorded"]
+        or rec["clipped_offline_recomputed"] or rec["nonfinite_closed"]
+        or rec["nonfinite_offline_recorded"]
+        or rec["nonfinite_offline_recomputed"]
+    )
+
     rec["seconds"] = round(time.time() - t0, 2)
     return rec
+
+
+# The base cell must reproduce EXP-001's measured share; a drifted instrument
+# invalidates every other cell, so the run dies rather than recording on.
+EXP001_BASE_SHARE = 0.1203852
+BASE_SHARE_RTOL = 0.02
+
+
+def enforce_gates(rec: dict) -> None:
+    """Raise before a record is written if a declared validity gate fails.
+
+    The severed cell's recomputed floor must be exactly zero and bit-identical
+    (the instrument's null), and the base-point cell must reproduce EXP-001's
+    share. `run_matched_arms` already enforces the 17-axis match by raising.
+    """
+    w = rec["weight_recomputed_y"]
+    if rec["kind"] == "severed":
+        if not w["bit_identical"] or w["diff_over_drift"] != 0.0:
+            raise RuntimeError(
+                "severed-floor gate failed: bit_identical="
+                f"{w['bit_identical']} diff_over_drift={w['diff_over_drift']!r}"
+                " -- the instrument's zero is broken; nothing may be recorded"
+            )
+    if rec["cell_id"] == "eta_1.0x" and rec["axis"] == "eta":
+        share = w["diff_over_drift"]
+        if abs(share - EXP001_BASE_SHARE) / EXP001_BASE_SHARE > BASE_SHARE_RTOL:
+            raise RuntimeError(
+                f"base-point reproduction gate failed: share {share!r} vs "
+                f"EXP-001's {EXP001_BASE_SHARE} (rtol {BASE_SHARE_RTOL})"
+            )
 
 
 def main() -> None:
@@ -257,6 +299,7 @@ def main() -> None:
             continue
         print(f"[cell] {cell['cell_id']} starting", flush=True)
         rec = run_cell(model, cell)
+        enforce_gates(rec)
         with open(jsonl, "a") as f:
             f.write(json.dumps(rec) + "\n")
         w = rec["weight_recomputed_y"]

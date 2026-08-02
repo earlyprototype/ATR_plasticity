@@ -1,4 +1,4 @@
-# T2.1 results — the feedback share grows with coupling; the outcome never depends on it
+# T2.1 results — the feedback share grows with coupling; within this grid the outcome never depends on it
 
 Issue #48. Answers the open row C-35; durable claim **C-58**. Interpretation was fixed in
 `PREREGISTRATION.md`, committed before the run. All numbers below are recomputed from
@@ -47,19 +47,22 @@ Along the eta ladder it slightly outpaces proportionality (0.25x, 0.5x, 1x, 2x o
 give 0.22x, 0.46x, 1x, 2.26x of the base share). Cadence mirrors eta with striking
 precision: firing every 2nd step lands within 1.2% of half eta (0.05427 vs 0.05488), and
 every 4th step within 3.1% of quarter eta (0.02539 vs 0.02618). Episode length compounds
-fastest: each doubling multiplies the share by about 4.5 (0.0266 at 60 steps, 0.1204 at
-120, 0.3422 at 240), which is faster than proportional and consistent with feedback
-feeding on its own accumulated effect.
+fastest: the first doubling multiplies the share by 4.52 (0.0266 at 60 steps to 0.1204 at
+120) and the second by 2.84 (to 0.3422 at 240). Both doublings exceed a factor of 2, which
+is faster than proportional and consistent with feedback feeding on its own accumulated
+effect; the two ratios differ, so no single per-doubling constant is claimed.
 
-## 5. Answer 2: the outcome never depends on feedback, anywhere tested safely
+## 5. Answer 2: within the T2.1 grid, the outcome never depends on feedback
 
 In every ceiling-silent cell the two arms settle in the same basin, including the two
 cells where the settled state changes **dynamical class** into the period-2 `Divine`
 cycle (2x eta, and 240 steps at the working eta): lag-1 approx 0.67 to 0.69 with lag-2 =
 1.0 in **both** arms, margins 2.0 to 2.4 logits, ceiling silent. Whatever the rule alone
 does offline, the connected loop does too. So C-33's "feedback changes no visible
-outcome" survives a 10x range of coupling: the share grows from 2.5% to 34% of drift and
-never once buys a different destination.
+outcome" survives throughout this grid, up through 2x eta and 240 steps: the share grows
+from 2.5% to 34% of drift without buying a different destination. **This clause is bounded,
+not universal**: the follow-up probe T2.1b (same PR, `T2_1B_RESULTS.md`, claim C-59) finds
+the first ceiling-silent disagreement at 2.5x eta, outside this grid.
 
 Two observations that travel with this, stated as observations rather than claims:
 
@@ -72,9 +75,8 @@ Two observations that travel with this, stated as observations rather than claim
 2. **The one arms-disagreement sits in the saturated cell.** At 4x eta both arms hit the
    0.05 drift ceiling exactly and then part ways (closed: `Divine`; offline: a junk token
    outside the 5 baseline families). Under standing rule 2 this is a diagnostic, not a
-   result. If a genuine feedback-dependent outcome exists, the place to look is the
-   ceiling-silent gap between 2x and 4x, and that would be a pre-registered follow-up,
-   not a reading of this cell.
+   result. The pre-registered follow-up T2.1b probed the ceiling-silent gap and found the
+   disagreement onset at 2.5x eta (see `T2_1B_RESULTS.md`, C-59).
 
 ## 6. Caveats
 
