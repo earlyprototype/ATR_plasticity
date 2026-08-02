@@ -201,12 +201,13 @@ def offline_weights(model, r0, step, sites, mode, eta, n_steps: int):
                              max_delta_frac=MAX_DELTA_FRAC, seed=SEED,
                              apply_every=1, y_source="recomputed")
         out.append((site, arm.weight.detach().clone()))
+        r = arm.report           # ArmResult.report is a dict, not a method
         diag.append({
             "site": site,
             "eta": eta_i,
-            "delta_frac": arm.report()["delta_frac"],
-            "clipped": arm.report()["clipped"],
-            "nonfinite": arm.report()["nonfinite"],
+            "delta_frac": r["delta_frac"],
+            "clipped": r["clipped"],
+            "nonfinite": r["nonfinite"],
             "n_updates": arm.config.n_updates,
         })
     return out, diag
