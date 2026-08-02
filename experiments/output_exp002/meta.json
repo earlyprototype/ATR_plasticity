@@ -40,7 +40,7 @@
   "anti_hebb"
  ],
  "eta_star": 7.065171428571429e-05,
- "max_delta_frac": 0.05,
+ "max_delta_frac": 1000000000.0,
  "seed": 0,
  "n_episode": 120,
  "n_reprompt": 120,
@@ -85,5 +85,5 @@
  "torch_version": "2.13.0+cpu",
  "python_version": "3.11.15",
  "transformer_lens_version": "3.6.0",
- "started": "2026-08-02T13:01:55Z"
+ "started": "2026-08-02T13:11:35Z"
 }
