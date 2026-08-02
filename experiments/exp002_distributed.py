@@ -398,13 +398,26 @@ def main() -> None:
         for line in open(JSONL):
             d = json.loads(line)
             if d.get("unit") == key:
+                if d.get("etas") is None:
+                    print(f"[calib {mode}] recorded earlier: no ceiling-silent "
+                          f"step size; arm dropped", flush=True)
+                    return None, d
                 return d["etas"], d
         probe_eta = None
         probe_per = None
+        attempts = []
         for mult in PROBE_MULTS:
             rep, _, _ = run_closed_episode(model, s0.tensor, step, SITES_ALL,
                                            mode, mult * ETA_STAR, N_EPISODE,
                                            keep_states=False)
+            attempts.append({
+                "eta_mult": mult, "eta": mult * ETA_STAR,
+                "clipped": bool(rep["clipped"]),
+                "nonfinite": bool(rep["nonfinite"]),
+                "aggregate_delta_frac": rep["delta_frac"],
+                "per_site": [{"site": r["site"], "delta_frac": r["delta_frac"],
+                              "clipped": r["clipped"]} for r in rep["per_site"]],
+            })
             print(f"[calib {mode}] probe {mult}x: clip={rep['clipped']} "
                   f"agg={rep['delta_frac']:.5f}", flush=True)
             if not rep["clipped"] and not rep["nonfinite"]:
@@ -414,7 +427,22 @@ def main() -> None:
                              for r in rep["per_site"]]
                 break
         if probe_eta is None:
-            raise RuntimeError(f"[{mode}] every probe step size clipped a site")
+            # Not a failure to work around: under standing rule 2 a rule with no
+            # ceiling-silent operating point cannot be quoted in any conclusion,
+            # so "there is no such operating point here" IS the recorded outcome
+            # for this rule. It is written down with the evidence, and the arms
+            # that do calibrate carry on.
+            append({"unit": key, "kind": "calibration_no_clean_point",
+                    "mode": mode, "n_steps": N_EPISODE,
+                    "probe_mults": PROBE_MULTS, "attempts": attempts,
+                    "etas": None,
+                    "note": ("every probe step size drove at least one site into "
+                             "the ceiling; drift is near-invariant to the step "
+                             "size across the probed range, which is the "
+                             "bounded-fixed-point behaviour C-12 describes")})
+            print(f"[calib {mode}] NO ceiling-silent step size at {N_EPISODE} "
+                  f"steps; recorded and this arm is dropped", flush=True)
+            return None, None
 
         # Scale each site to the target. Drift is close to linear in the step
         # size at fixed step count, so this is one Newton step from the probe,
@@ -450,7 +478,15 @@ def main() -> None:
 
     ETAS = {}
     for mode in MODES:
-        ETAS[mode], _ = calibrate(mode)
+        etas, _ = calibrate(mode)
+        if etas is not None:
+            ETAS[mode] = etas
+    if not ETAS:
+        raise RuntimeError("no rule had a ceiling-silent operating point")
+    arms = [m for m in MODES if m in ETAS]
+    print(f"[arms] running: {arms}"
+          f"{' (dropped: ' + ','.join(m for m in MODES if m not in ETAS) + ')' if len(arms) < len(MODES) else ''}",
+          flush=True)
     # The severed gate drives only blocks.4..11, so it takes that slice of the
     # calibrated step sizes -- the same value each of those sites gets in the
     # main run, so the floor is measured on the configuration that is used.
@@ -502,7 +538,7 @@ def main() -> None:
                 "readout": rd, "seconds": round(time.time() - t0, 1)})
         print(f"[reprompt original] {row['prompt_id']}: {rd['basin']!r}", flush=True)
 
-    for mode in MODES:
+    for mode in arms:
         print(f"[arm] {mode} starting", flush=True)
         t0 = time.time()
         rep, wc, traj = run_closed_episode(model, s0.tensor, step, SITES_ALL,
