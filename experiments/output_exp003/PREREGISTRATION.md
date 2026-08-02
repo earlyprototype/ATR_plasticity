@@ -710,3 +710,52 @@ and T1.1 already characterise, which gives the result an existing point of conta
 twelve sites, same reinforcing rule, same lifted ceiling, and the achieved drift is
 reported at every setting so that a spread of more than a factor of two across the
 ladder demotes the comparison to qualitative, as registered above.
+
+---
+
+## Amendment 2: three gaps a review found, closed before Stage 3 runs
+
+All three are places where this file left a choice open that could otherwise have been
+made after seeing results. Recorded here rather than edited in above, so the change is
+visible.
+
+**The reflection control did not say which census it reads.** Every setting produces two
+censuses, one with the signal applied and one without, and the control discards data, so
+reading a different one could discard different points. **It reads the signal-on census
+only.** That is the census the recovery prediction lives in, so it is the one where a
+reflected signal would masquerade as a result. The signal-off census is never used to
+discard.
+
+For a settled state that is a two-step cycle rather than a fixed point, the representative
+state is **the mean of the last two iterates**. Taking either single iterate would make the
+value depend on which phase the run happened to stop in, which is the aliasing error the
+project's standing prohibitions already name.
+
+**Neither arm's sites were pinned.** The distributed arm said 24 sites under a fixed seed
+without giving the seed, and the focal arm said one site without saying which. Site depth
+and local activity both matter, so both are now fixed:
+
+- **Distributed:** 24 of the 144 sites, drawn without replacement by
+  `torch.Generator().manual_seed(20260802)` over the sites ordered `(block, head)` with
+  block varying slowest. The realised list is written into the run record so it can be
+  checked rather than trusted.
+- **Focal:** the single site `(block 6, head 8)`. Block 6 is where every committed
+  single-site result in this repository was measured, which makes it the least arbitrary
+  choice available, and head 8 is the median head index. **A second focal arm at the
+  distributed draw's own median site is run alongside**, so that a focal result cannot be
+  dismissed as an unlucky site. If the two focal arms disagree by more than five out of
+  thirty one on census agreement, the focal condition is reported as site-dependent and no
+  distributed-versus-focal claim is made at that setting.
+
+**Stage 1's scope was overstated here.** This file described Stage 1 as also reporting the
+depth-weighted centre of the weight change and a smallest-detectable-change sensitivity.
+The runner does neither: it reproduces EXP-002's episode and measures spectral
+concentration on the twelve matrices, which is the concentration gate and nothing more.
+Those two further measurements are **not run** and are not reported. The gate that was
+registered is the one that was tested, and its result stands; the additional measurements
+move to the follow-up list.
+
+**One consequence of the reproduction requirement, made explicit.** If the episode fails
+to reproduce EXP-002 within five percent, the concentration verdict describes a different
+episode and is **invalid rather than merely caveated**. The runner now prints that
+alongside the verdict so it cannot be read out of context from the console.

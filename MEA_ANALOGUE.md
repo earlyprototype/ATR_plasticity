@@ -412,13 +412,20 @@ all, retracing its own path exactly when a parameter is swept up and then down a
 the adjusting system does show history dependence, that is a genuine difference between
 the two, not a restatement of something already known.
 
-**More adjustable sites should collapse sooner.** The developmental finding is that
-denser cultures, with more cells and more connections, began bursting earlier than sparse
-ones. The corresponding quantity here is the number of sites allowed to adjust. EXP-002
-used twelve. Work currently in progress uses the model's small internal mixing units
-instead, of which there are one hundred and forty four. That work should collapse in
-fewer adjustment steps than EXP-002 needed, and if it collapses no faster, the density
-reading is wrong.
+**More adjustable sites may collapse sooner, and this one cannot be a test.** The
+developmental finding is that denser cultures, with more cells and more connections, began
+bursting earlier than sparse ones. The corresponding quantity here is the number of sites
+allowed to adjust: EXP-002 used twelve, and work in progress uses the model's small
+internal mixing units instead, of which there are one hundred and forty four.
+
+**No falsifier is offered, and an earlier version of this document wrongly gave one.**
+Those two runs differ in how many sites adjust and in what kind of part each site is, both
+at once, so neither outcome can be attributed to density. Collapsing sooner is equally
+consistent with the mixing units simply mattering more individually; not collapsing sooner
+is equally consistent with a density effect masked by a site-type effect pulling the other
+way. The pre-registration struck this falsifier for that reason and this paragraph now
+matches it. What would make it a test is holding the site type fixed and varying only the
+count, which is a run nobody has done.
 
 ## What would falsify the analogy
 

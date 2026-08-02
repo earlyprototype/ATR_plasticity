@@ -46,6 +46,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import random
@@ -130,7 +131,11 @@ def run_one(model, row: dict) -> dict:
 
     # The shuffled versions are computed from the SAME activity tensors, so the
     # comparison isolates the permutation and not a second forward pass.
-    gen = torch.Generator().manual_seed(SEED + hash(row["prompt_id"]) % 10_000)
+    # A stable digest, not Python's `hash`. String hashing is randomised per
+    # process unless PYTHONHASHSEED is fixed, so the shuffle draws would not be
+    # reproducible from SEED alone.
+    digest = int.from_bytes(hashlib.sha256(row["prompt_id"].encode()).digest()[:4], "big")
+    gen = torch.Generator().manual_seed((SEED + digest) % (2**31))
     layer_shuffled, head_shuffled = [], []
     for _ in range(N_SHUFFLES):
         layer_shuffled.append(statistics.fmean(
@@ -241,7 +246,7 @@ def analyse(rows: list[dict]) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--limit", type=int, default=0, help="run only the first N prompts")
+    ap.add_argument("--limit", type=int, default=0, help="run a stratified sample of N prompts drawn across all end states")
     ap.add_argument("--out", default=str(OUT_DIR / "stage0.jsonl"))
     args = ap.parse_args()
 

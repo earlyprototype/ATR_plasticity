@@ -262,7 +262,7 @@ def shuffle_layers(activity: GridActivity, generator: torch.Generator) -> GridAc
     summarising activity size rather than from where in the stack that activity
     was, and it must be discarded.
     """
-    perm = torch.randperm(activity.n_layers, generator=generator)
+    perm = torch.randperm(activity.n_layers, generator=generator).to(activity.heads.device)
     return GridActivity(heads=activity.heads[perm], mlp=activity.mlp[perm])
 
 
@@ -274,7 +274,7 @@ def shuffle_heads(activity: GridActivity, generator: torch.Generator) -> GridAct
     change here means the depth statistic is picking up a labelling that carries
     no information.
     """
-    perm = torch.randperm(activity.n_heads, generator=generator)
+    perm = torch.randperm(activity.n_heads, generator=generator).to(activity.heads.device)
     return GridActivity(heads=activity.heads[:, perm], mlp=activity.mlp)
 
 

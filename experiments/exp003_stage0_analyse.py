@@ -88,10 +88,10 @@ def euclidean_separation(vectors: dict[str, list[list[float]]]) -> float:
     near 1 means groups are indistinguishable from their own internal scatter.
     """
     def centre(vs):
-        return [statistics.fmean(c) for c in zip(*vs)]
+        return [statistics.fmean(c) for c in zip(*vs, strict=True)]
 
     def dist(a, b):
-        return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+        return sum((x - y) ** 2 for x, y in zip(a, b, strict=True)) ** 0.5
 
     centres, within = {}, []
     for name, vs in vectors.items():
@@ -119,11 +119,11 @@ def standardise(rows: list[dict], key: str) -> dict[str, list[float]]:
     removes that common component so what remains is how each input differs.
     """
     mats = [r[key] for r in rows]
-    cols = list(zip(*mats))
+    cols = list(zip(*mats, strict=True))
     means = [statistics.fmean(c) for c in cols]
     sds = [statistics.pstdev(c) or 1.0 for c in cols]
     return {
-        r["prompt_id"]: [(v - m) / s for v, m, s in zip(r[key], means, sds)]
+        r["prompt_id"]: [(v - m) / s for v, m, s in zip(r[key], means, sds, strict=True)]
         for r in rows
     }
 

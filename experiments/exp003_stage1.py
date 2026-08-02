@@ -139,7 +139,7 @@ def main() -> int:
     # --- frozen reference, before anything moves -------------------------------
     driver = MultiSitePlasticity(model, [
         SiteSpec(s, mode="hebb", eta=e, max_delta_frac=CEILING)
-        for s, e in zip(SITES, ETAS)
+        for s, e in zip(SITES, ETAS, strict=True)
     ])
     # `W0` is each sub-instance's own frozen copy, taken at construction. Using it
     # rather than re-reading the live weight means the reference is the same object
@@ -250,7 +250,13 @@ def main() -> int:
     print(f"drifted mean erank   {drifted_mean:.3f}")
     print(f"fractional fall      {fall:+.5f}   "
           f"(supported >= {GATE_SUPPORTED_FALL}, refuted < {GATE_REFUTED_FALL})")
-    print(f"VERDICT              {verdict.upper()}")
+    if reproduced:
+        print(f"VERDICT              {verdict.upper()}")
+    else:
+        print(f"VERDICT              {verdict.upper()}  <-- NOT VALID")
+        print("                     the episode did not reproduce EXP-002, so these "
+              "effective ranks\n                     describe a different episode and "
+              "the verdict must not be quoted")
     print(f"top singular share   {top_frozen:.5f} -> {top_drifted:.5f}")
     print(f"\nwritten to {out_path}")
     return 0

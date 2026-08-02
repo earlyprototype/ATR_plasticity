@@ -141,6 +141,16 @@ def test_a_site_at_the_loop_injection_point_is_rejected_not_silently_dropped(tl_
     with pytest.raises(ValueError, match="collides"):
         stim(model, s0.tensor.clone(), iteration=0)
 
+    # AND the hooks must be gone afterwards. An earlier version raised the
+    # collision outside the try block, so the loop's own injection hook survived
+    # the exception and silently corrupted every later forward pass on this
+    # model. Asserting only that the error was raised did not catch that.
+    after = base(model, s0.tensor.clone())
+    clean = base(model, s0.tensor.clone())
+    assert torch.equal(after, clean), (
+        "a hook leaked from the collision-rejection path; later passes are poisoned"
+    )
+
 
 # ------------------------------------------------------------- strength is local
 

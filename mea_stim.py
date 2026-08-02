@@ -186,14 +186,16 @@ def make_stim_step(
         def head_hook(z, hook):
             # z is (batch, pos, head, d_head)
             slice_ = z[0, :, site.head, :]
-            unit = plan.vector_for(site, slice_.shape[0], slice_.shape[1]).to(z.dtype)
+            unit = plan.vector_for(site, slice_.shape[0], slice_.shape[1]).to(
+                device=z.device, dtype=z.dtype)
             z[0, :, site.head, :] = slice_ + plan.beta_per_site * slice_.norm() * unit
             return z
 
         def stream_hook(resid, hook):
             # resid is (batch, pos, d_model)
             cur = resid[0, :, :]
-            unit = plan.vector_for(site, cur.shape[0], cur.shape[1]).to(resid.dtype)
+            unit = plan.vector_for(site, cur.shape[0], cur.shape[1]).to(
+                device=resid.device, dtype=resid.dtype)
             resid[0, :, :] = cur + plan.beta_per_site * cur.norm() * unit
             return resid
 
@@ -216,22 +218,29 @@ def make_stim_step(
             return resid
 
         model.add_hook(hook_point_write, injection_hook)
-        # --- the only addition: current at the planned sites ----------------
-        if fires(iteration):
-            for site in plan.sites:
-                name = _hook_name(site)
-                if name == hook_point_write:
-                    # The loop's own injection overwrites this tensor wholesale,
-                    # so a stimulation hook registered at the same point would be
-                    # silently erased. Refusing is better than a silent no-op.
-                    raise ValueError(
-                        f"stimulation site {site} collides with the loop's "
-                        f"injection point {hook_point_write}; the loop overwrites "
-                        f"that tensor, so the stimulation would be discarded. "
-                        f"Use hook_resid_post of the same block, or a head site."
-                    )
-                model.add_hook(name, _stim_hook_for(site))
         try:
+            # --- the only addition: current at the planned sites ------------
+            # INSIDE the try, and that placement is load-bearing. An earlier
+            # version raised the collision error here but outside it, so the
+            # injection hook registered on the line above survived the exception
+            # and poisoned every later forward pass on this model. `atr_bridge`
+            # documents that exact hazard at its own teardown and this module
+            # reproduced it anyway.
+            if fires(iteration):
+                for site in plan.sites:
+                    name = _hook_name(site)
+                    if name == hook_point_write:
+                        # The loop's own injection overwrites this tensor
+                        # wholesale, so a stimulation hook registered at the same
+                        # point would be silently erased. Refusing beats a silent
+                        # no-op.
+                        raise ValueError(
+                            f"stimulation site {site} collides with the loop's "
+                            f"injection point {hook_point_write}; the loop "
+                            f"overwrites that tensor, so the stimulation would "
+                            f"be discarded. Use a head site, or a different block."
+                        )
+                    model.add_hook(name, _stim_hook_for(site))
             with torch.no_grad():
                 _, cache = model.run_with_cache(
                     prompt,

@@ -108,7 +108,8 @@ def pick_reprompts(rows: list[dict], n: int) -> list[dict]:
         added = False
         for b in sorted(by_basin):
             if i < len(by_basin[b]) and len(picked) < n:
-                picked.append(by_basin[b][i]); added = True
+                picked.append(by_basin[b][i])
+                added = True
         if not added:
             break
         i += 1
@@ -199,7 +200,8 @@ def main() -> int:
     t0 = time.time()
     ref = run_census(model, reprompts)
     ref["kind"] = "reference"
-    out.write(json.dumps(ref) + "\n"); out.flush()
+    out.write(json.dumps(ref) + "\n")
+    out.flush()
     print(f"[gate] reference census agreement {ref['census_agreement']}/{ref['n']}, "
           f"settled {ref['n_settled']}/{ref['n']}  {time.time()-t0:.0f}s", flush=True)
     if ref["census_agreement"] != ref["n"]:
@@ -211,7 +213,7 @@ def main() -> int:
         tk = time.time()
         driver = MultiSitePlasticity(model, [
             SiteSpec(s, mode="hebb", eta=e * k, max_delta_frac=CEILING)
-            for s, e in zip(SITES, BASE_ETAS)
+            for s, e in zip(SITES, BASE_ETAS, strict=True)
         ])
         s0 = atr_bridge.initial_state(model, driven["prompt"])
         step = atr_bridge.make_atr_step(model, driven["prompt"],
@@ -222,22 +224,26 @@ def main() -> int:
             for i in range(N_ITER):
                 x = step(model, x)
                 if (i + 1) % k == 0:
-                    driver.apply(); n_applied += 1
+                    driver.apply()
+                    n_applied += 1
             rep = driver.report()
             drift = float(rep.get("delta_frac", float("nan")))
             clipped = bool(rep.get("clipped"))
+            nonfinite = bool(rep.get("nonfinite"))
             # Weights stay where they drifted for the census, then are reverted.
             cen = run_census(model, reprompts)
         # `with` exit reverts every matrix bit-exactly.
 
         rec = {"kind": "cell", "k": k, "n_applied": n_applied,
                "aggregate_drift": drift, "clipped": clipped,
+               "nonfinite": nonfinite,
                "driven_word": basin_of(model, x),
                "census_agreement": cen["census_agreement"],
                "n_settled": cen["n_settled"], "n": cen["n"],
                "rows": cen["rows"], "seconds": round(time.time() - tk, 1)}
         results[k] = rec
-        out.write(json.dumps(rec) + "\n"); out.flush()
+        out.write(json.dumps(rec) + "\n")
+        out.flush()
         print(f"[k={k:3d}] applied {n_applied:3d}  drift {drift:.6f}  "
               f"clip={clipped}  agreement {cen['census_agreement']}/{cen['n']}  "
               f"settled {cen['n_settled']}/{cen['n']}  "
