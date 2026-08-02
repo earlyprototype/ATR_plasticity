@@ -74,9 +74,11 @@ class StimSite:
 
     @property
     def is_head(self) -> bool:
+        """True when this site is one head rather than the whole residual stream."""
         return self.head is not None
 
     def __str__(self) -> str:
+        """A short label for logs and run records, for example L6.H8."""
         return f"L{self.layer}.H{self.head}" if self.is_head else f"L{self.layer}.stream"
 
 
@@ -175,6 +177,7 @@ def make_stim_step(
     active = plan is not None and plan.beta_total != 0.0 and len(plan.sites) > 0
 
     def fires(iteration: int) -> bool:
+        """Whether current is delivered on this iteration, given the plan's rate."""
         return active and (iteration % plan.every == 0)
 
     def _stim_hook_for(site: StimSite):
@@ -184,6 +187,7 @@ def make_stim_step(
         `beta` always means a fraction of local activity.
         """
         def head_hook(z, hook):
+            """Add current to one head's output, scaled by that head's own activity."""
             # z is (batch, pos, head, d_head)
             slice_ = z[0, :, site.head, :]
             unit = plan.vector_for(site, slice_.shape[0], slice_.shape[1]).to(
@@ -192,6 +196,7 @@ def make_stim_step(
             return z
 
         def stream_hook(resid, hook):
+            """Add current to the whole stream at this block, scaled by its own length."""
             # resid is (batch, pos, d_model)
             cur = resid[0, :, :]
             unit = plan.vector_for(site, cur.shape[0], cur.shape[1]).to(
@@ -202,10 +207,12 @@ def make_stim_step(
         return head_hook if site.is_head else stream_hook
 
     def _hook_name(site: StimSite) -> str:
+        """The hook point current is delivered at for this site."""
         return (f"blocks.{site.layer}.attn.hook_z" if site.is_head
                 else f"blocks.{site.layer}.hook_resid_pre")
 
     def step(model, r: torch.Tensor, iteration: int = 0) -> torch.Tensor:
+        """One ATR iteration, with current delivered at the planned sites if it fires."""
         # --- atr_bridge.make_atr_step body, unchanged -----------------------
         current_norm = r.norm().item()
         if current_norm > 0:
@@ -214,6 +221,7 @@ def make_stim_step(
         inject_tensor = r.clone()
 
         def injection_hook(resid, hook, tensor=inject_tensor):
+            """Write the loop's carried state into the stream, overwriting what was there."""
             resid[0, :, :] = tensor
             return resid
 

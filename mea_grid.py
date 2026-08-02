@@ -101,10 +101,12 @@ class GridActivity:
 
     @property
     def n_layers(self) -> int:
+        """How many blocks the grid spans, the row count."""
         return int(self.heads.shape[0])
 
     @property
     def n_heads(self) -> int:
+        """How many heads per block, the column count."""
         return int(self.heads.shape[1])
 
 
@@ -169,6 +171,7 @@ def grid_step(
         wanted.add(f"blocks.{layer}.hook_mlp_out")
 
     def step(model, r: torch.Tensor):
+        """One ATR iteration, returning the next state and this pass's grid activity."""
         current_norm = r.norm().item()
         if current_norm > 0:
             r = r * (initial_norm / current_norm)
@@ -176,6 +179,7 @@ def grid_step(
         inject_tensor = r.clone()
 
         def injection_hook(resid, hook, tensor=inject_tensor):
+            """Write the loop's carried state into the stream, overwriting what was there."""
             resid[0, :, :] = tensor
             return resid
 

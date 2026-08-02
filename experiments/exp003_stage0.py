@@ -88,6 +88,7 @@ SEED = 20260802
 
 
 def load_census() -> list[dict]:
+    """The committed 125-input baseline census, one record per input."""
     with open(BASELINE) as f:
         return [json.loads(line) for line in f]
 
@@ -168,6 +169,7 @@ def run_one(model, row: dict) -> dict:
 
 
 def group(rows: list[dict], key: str, value: str = "settled_ca_depth") -> dict[str, list[float]]:
+    """Collect one measured value per input, bucketed by the named field."""
     out: dict[str, list[float]] = {}
     for r in rows:
         out.setdefault(r[key], []).append(r[value])
@@ -245,6 +247,7 @@ def analyse(rows: list[dict]) -> dict:
 
 
 def main() -> int:
+    """Run the census, write every record as it is produced, then report the gates."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0, help="run a stratified sample of N prompts drawn across all end states")
     ap.add_argument("--out", default=str(OUT_DIR / "stage0.jsonl"))

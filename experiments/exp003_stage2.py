@@ -88,6 +88,7 @@ FALSIFIER_MARGIN = 5
 
 
 def load_census() -> list[dict]:
+    """The committed 125-input baseline census, one record per input."""
     with open(BASELINE) as f:
         return [json.loads(line) for line in f]
 
@@ -168,6 +169,7 @@ def run_census(model, reprompts: list[dict]) -> dict:
 
 
 def main() -> int:
+    """Run the reference gate, then each cadence cell, then report whether drift matched."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--reprompts", type=int, default=31)
     ap.add_argument("--out", default=str(OUT_DIR / "stage2.jsonl"))

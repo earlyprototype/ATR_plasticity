@@ -119,6 +119,7 @@ def top_singular_share(m: torch.Tensor) -> float:
 
 
 def main() -> int:
+    """Reproduce EXP-002's episode, then measure spectral concentration on the twelve matrices."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = OUT_DIR / "stage1.jsonl"
 

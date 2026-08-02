@@ -75,6 +75,7 @@ SEED = 20260802
 
 
 def load(path: Path) -> list[dict]:
+    """Every JSON record from a run file, in order."""
     with open(path) as f:
         return [json.loads(line) for line in f]
 
@@ -88,9 +89,11 @@ def euclidean_separation(vectors: dict[str, list[list[float]]]) -> float:
     near 1 means groups are indistinguishable from their own internal scatter.
     """
     def centre(vs):
+        """The componentwise mean of a set of vectors."""
         return [statistics.fmean(c) for c in zip(*vs, strict=True)]
 
     def dist(a, b):
+        """Euclidean distance between two vectors."""
         return sum((x - y) ** 2 for x, y in zip(a, b, strict=True)) ** 0.5
 
     centres, within = {}, []
@@ -129,6 +132,7 @@ def standardise(rows: list[dict], key: str) -> dict[str, list[float]]:
 
 
 def gates(values_by_group: dict, sep_fn, rows: list[dict], label: str) -> dict:
+    """Score one measurement against all three registered gates and return the verdicts."""
     basin_ratio = sep_fn(values_by_group["basin"])
     class_ratio = sep_fn(values_by_group["class"])
 
@@ -160,6 +164,7 @@ def gates(values_by_group: dict, sep_fn, rows: list[dict], label: str) -> dict:
 
 
 def main() -> int:
+    """Re-derive every gate from the saved records, for all three measurements."""
     recs = load(STAGE0)
     rows = [r for r in recs if r.get("kind") == "prompt"]
     if not rows:
@@ -231,6 +236,7 @@ def main() -> int:
     OUT.write_text(json.dumps(result, indent=1))
 
     def show(g):
+        """Print one measurement's gate results, or note that it was not computed."""
         if g is None:
             print("  (per-layer profile not saved in this run)")
             return
