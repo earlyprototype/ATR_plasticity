@@ -203,3 +203,54 @@ imbalance is visible rather than quietly corrected.
 what "the same amount of plasticity everywhere" means. Equal relative drift is not the
 only defensible definition, and a different anchor could give a different result. The
 anchor is named here so the claim can be read against it.
+
+---
+
+## Amendment 2 — the ceiling is lifted, by operator decision
+
+**When.** After the safety gates, the `hebb` calibration, and the `anti_hebb`
+calibration failure; **before any arm episode, any reprompt, and any outcome measurement
+was run or read**. Nothing in the record at the time of this amendment is a result. The
+capped attempt's records are kept in `exp002.jsonl` and are not deleted; the lifted-cap
+run writes to `exp002_uncapped.jsonl` so the two are never mixed.
+
+**The decision.** The operator, who is the project's final authority, directed that the
+drift ceiling be removed. The ceiling was always a chosen guardrail (`max_delta_frac`,
+5%, documented in `plasticity.py` as "the guard against silently destroying the model"),
+never a derived quantity, and every prior result was taken beneath it.
+
+**What is lifted, and how.** `max_delta_frac` is set to 1e9, the value `controls.py`'s C3
+demonstration already uses to run a rule as written. The ceiling then never fires, so no
+update is ever scaled down and what is measured is the rule rather than the guardrail.
+
+**A correction this makes possible, recorded now so it is not quietly absorbed.** The
+capped `anti_hebb` calibration showed drift close to invariant across a twentyfold range
+of step sizes (3.31%, 2.77%, 2.49%), and it was read on this page's Amendment-1 reasoning
+and in conversation as the bounded-fixed-point behaviour C-12 describes. **That reading
+may be an artefact of the ceiling itself**: sites pinned at a 5% per-site cap report a
+drift near that cap whatever step size drives them, which would produce the same
+near-invariance with no fixed point involved. The lifted-cap run is what separates the two
+explanations, and whichever it shows will be stated plainly, including if it overturns
+the earlier reading.
+
+**What replaces the ceiling.** Not another silent scaler. Two things that either measure
+or stop, and never shrink an update:
+
+1. **Non-finite check**, unchanged: any run with a non-finite value is void, recorded as
+   void, and quoted nowhere.
+2. **An abort threshold**: if relative drift exceeds **200%** of the starting weight norm,
+   the unit stops and is recorded as aborted rather than scaled. At that scale the object
+   under test is no longer usefully the pretrained model, and a basin readout from it is
+   not measuring what the rest of the project measures.
+
+**What changes in interpretation.** Standing rule 2 ("never quote a ceiling-fired cell")
+becomes inapplicable rather than violated: with the ceiling lifted, no cell fires it. It
+is replaced, for this run only, by a reporting duty: **every number carries the drift it
+was taken at**, and any comparison with a prior result states that the prior result was
+taken under a 5% cap and this one was not. A large drift is not automatically a poor
+measurement, but it is a different regime, and nothing here may be quoted as continuous
+with the capped results without that stated.
+
+**What does not change.** The sequence, the arms, the offline control, the severed floor,
+the thirty-one reprompts, the return test, the discriminator, and every interpretation
+rule for C-60 through C-63.
