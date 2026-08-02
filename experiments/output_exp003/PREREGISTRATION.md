@@ -668,3 +668,45 @@ activity, so this choice is a departure from the thing being copied and is flagg
 
 The comparison between rules is qualitative only, following EXP-002, because the two rules
 cannot be matched on how far they move the weights.
+
+---
+
+## Amendment 1: the cadence ladder, written before Stage 2 runs
+
+**What changes.** Stage 2 was registered above as applying adjustments once every
+`k` iterations for `k` in 1, 10 and 100, with the episode lengthened so that the
+largest setting still applied one hundred and twenty adjustments.
+
+**Why that is not runnable.** Holding the adjustment count at one hundred and
+twenty means the `k` equal to 100 cell needs twelve thousand iterations. At the
+measured rate of roughly 0.44 seconds per iteration on the processor available,
+that single cell is about ninety minutes, and the ladder as registered costs more
+than the whole rest of the experiment. The figure comes from the committed
+baseline, which records 132 seconds for a three hundred iteration run.
+
+**What it becomes.** The episode is held at one hundred and twenty iterations and
+the ladder is `k` in 1, 4 and 12, giving one hundred and twenty, thirty and ten
+adjustments. The step size is multiplied by `k` so that the total adjustment is
+held equal across the ladder, which is what the comparison needs.
+
+**What this costs in what can be concluded, stated plainly.** The extreme settings
+now differ by a factor of twelve rather than one hundred, so the falsifier
+registered above is restated: **if census agreement at `k` equal to 12 does not
+exceed census agreement at `k` equal to 1 by at least five out of thirty one, the
+timescale reading is not supported at this resolution.** That is a weaker statement
+than the original. A twelvefold change failing to move anything does not exclude an
+effect that needs two orders of magnitude, and the result must say so rather than
+being reported as a clean refutation.
+
+**A second consequence, which is a gain rather than a loss.** At `k` equal to 12
+the episode applies ten adjustments rather than one hundred and twenty, so the
+ladder now spans from many small increments to few large ones at equal total
+change. That is the timescale separation question in its clearest form: the fast
+variable has twelve times longer to settle between moves of the slow one. It also
+places the far end of the ladder near the single large edit that register rows C-56
+and T1.1 already characterise, which gives the result an existing point of contact.
+
+**The registered comparison is unchanged otherwise**: same driven prompt, same
+twelve sites, same reinforcing rule, same lifted ceiling, and the achieved drift is
+reported at every setting so that a spread of more than a factor of two across the
+ladder demotes the comparison to qualitative, as registered above.

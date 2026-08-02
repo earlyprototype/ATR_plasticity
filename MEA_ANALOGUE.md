@@ -97,6 +97,56 @@ For scale: five distinct end states falling to one is the entire measured struct
 this system disappearing. The baseline is not "a few inputs moved". The baseline is that
 before the change, the system distinguished its inputs, and afterwards it did not.
 
+## The array, which turns out to be the closest correspondence of all
+
+Everything above compares what the two systems *do*. There is a closer
+correspondence in what they *are*, and it was pointed out by the operator rather
+than found here.
+
+A cultured network is studied through an array of electrodes laid out on a grid.
+Potter's was sixty electrodes arranged eight by eight. The electrodes are how the
+network is both listened to and stimulated, and their positions are the only
+geometry the experiment has.
+
+GPT-2 small is twelve blocks of twelve attention heads. That is a twelve by twelve
+grid of 144 sites, slightly denser than the array and of the same order. Each site
+can be read, because a head's contribution to the model's internal state is a
+well defined quantity, and each site can be written to, because a signal can be
+added to that head's output. So the grid is not a way of speaking about the model.
+It is the same kind of object the biological work was built around.
+
+Two consequences follow, and the second is the useful one.
+
+The first is that the measurement described later in this document can use the
+original equation rather than a reduction of it, because that equation was written
+for a two dimensional array and now there is one.
+
+The second is a problem inherited along with the apparatus. In an electrode array
+the electrode that delivers current is the same electrode that records, which is
+why the same laboratory had to develop a method for suppressing the artefact of
+recording through an electrode just stimulated. The identical hazard exists here:
+reading a site's activity on an iteration when a signal was injected into it would
+be reading the injection back rather than the network's response. That has to be
+handled, it is handled by excluding stimulated sites from the measurement on the
+iterations they fire, and it is the sort of thing that would have been discovered
+late and expensively if the grid had not made it obvious early.
+
+**One limit, because the correspondence is not perfect and pretending otherwise
+would be the failure this document keeps warning about.** In the array, position
+means the same thing everywhere: two electrodes two hundred micrometres apart are
+two hundred micrometres apart wherever they sit. In the grid only one axis is like
+that. Block index is ordered and meaningful, and activity really does flow along
+it. Head index is a label with no canonical order, and permuting the labels changes
+nothing about the model. So the grid is a genuine array in one direction and an
+unordered set in the other.
+
+That is worked around rather than hidden. Choosing where to stimulate needs only a
+set to sample from, so the grid serves fully for that. The measurement uses only
+the axis that has a metric. And the arbitrariness of the other axis becomes the
+most reliable control available here, because permuting head labels must leave
+every result exactly unchanged, which is a control whose correct answer is known
+before it is run.
+
 ## The one result that is not collapse, and why it is the more important one
 
 One arm of EXP-002 produced nineteen distinct end states rather than one, which reads at
