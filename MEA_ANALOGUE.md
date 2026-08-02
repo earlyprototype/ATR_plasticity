@@ -75,15 +75,23 @@ matters: many locally adjustable elements, closed on themselves, with nothing co
 
 It then did the thing the cultures do.
 
-**A note on the status of that experiment, because two documents in this repository
-currently disagree about it.** `HANDOVER.md` lists EXP-002 under work that has not been
-run, and that file is correct about the state of the main branch. The experiment has been
-run and its results and register rows are committed, but on an unmerged branch under review
-as pull request 57. Everything this document says about EXP-002 therefore depends on that
-review concluding and those rows entering the register. Until it does, the collapse result
-should be read as measured and committed but not yet accepted, and if the review changes
-the numbers this document changes with them. The experiment plan that accompanies this file
-does not begin until that pull request lands, for the same reason.
+**A note on the status of that experiment.** An earlier version of this paragraph said
+EXP-002 sat on an unmerged branch and that everything here depended on that review
+concluding. It has since concluded: pull request 57 merged, so the results and rows C-60
+to C-63 are on the main branch and in the register. The dependency is discharged and the
+collapse result is accepted rather than pending.
+
+One thing did change during that review and is carried here. The results document defined
+its at-rest column as counting fixed points by consecutive-step agreement, while reporting
+a figure that only the phase-aware reading produces. Recomputed from the committed data,
+the reference arm is 23 of 31 under the stated definition and 31 of 31 under the
+phase-aware one, the eight differing inputs being exactly the `Divine` ones, which are a
+two-step cycle. The reported number was right and the sentence was wrong; the sentence is
+corrected. The reading that matters was unaffected, because the eroding rule's closed arm
+counts 4 of 31 under both definitions.
+
+`HANDOVER.md` may still list EXP-002 as not run. That file describes the state before the
+merge and has not been revisited here.
 
 Before any adjustment, thirty one test inputs settled into five distinguishable
 end states, distributed as thirteen, eight, five, four and one. After the adjustment,
