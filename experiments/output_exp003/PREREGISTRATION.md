@@ -71,30 +71,64 @@ injection is predicted on the rate axis, because that is where the source measur
 crossing found on the strength axis is a new hypothesis belonging to this system, is
 labelled as such, and may not be quoted as agreement with the biology.
 
-**Where it enters, and what has to be built.** For concentrated injection this is a change
-of a single line at `atr_bridge.py:194`, where the tensor to be injected is prepared, and
-it does not reimplement the loop, which the project's standing rules forbid.
+## The grid, which is where both the stimulation and the measurement live
 
-**Spread out injection needs code that does not exist**, and the first draft of this
-document wrongly implied otherwise. `make_atr_step` installs one injection hook at one
-block, fixed at construction, so injecting at several depths in one forward pass requires
-a second hook installation path. What must be built is an extension that accepts a list of
-blocks and a per block vector, installs one hook on each, and reduces to the present
-behaviour exactly when the list has one entry. **The zero strength gate applies to the
-extension too**: with `beta` zero it must reproduce the existing loop to the last bit, and
-with one injection point it must reproduce single point injection to the last bit.
+**GPT-2 small is twelve blocks of twelve attention heads, which is a twelve by twelve grid
+of 144 addressable sites.** Potter's array was sixty electrodes on an eight by eight grid.
+So the grid is not a figure of speech in this experiment, it is the same kind of object at
+a comparable and slightly denser scale, and it replaces the twelve injection points an
+earlier version of this document assumed were all that was available.
 
-**Distributed versus focal, and what is held equal.** Focal means the whole signal enters
-at the block where the loop closes. Distributed means it enters at three blocks spread
-through the depth, specifically blocks 0, 4 and 8. The biological protocol used ten to
-twenty electrodes out of sixty, so the fraction here of three out of twelve sits inside
-the same range.
+**Operator instruction, adopted: for choosing where to stimulate, the forward direction is
+ignored.** The 144 sites are treated as a spatial array to sample from rather than as a
+causal chain to reason about. This copies the constraint the original experiments worked
+under, since an experimenter choosing electrodes on a plate cannot choose which way signal
+propagates through the tissue either, and it has a consequence worth stating plainly: it
+removes the temptation to design the stimulation pattern around the mechanism this project
+has hypothesised. An earlier draft chose injection points by arguing about what sits before
+and after the concentrated sites. That built the conclusion into the design. Choosing by
+position instead leaves the depth asymmetry to appear in the results, where it can be
+measured, and where the measurement is the effective depth of the stimulation against the
+depth it was aimed at.
+
+**The same sites record and stimulate, and that inherits a problem with a known solution.**
+In an electrode array the electrode that delivers current is also the electrode that
+records, which is why Wagenaar and Potter had to publish a method for suppressing the
+artefact of recording through an electrode just stimulated. The same hazard is exact here:
+reading the activity of a site on an iteration when current was delivered to it would be
+reading the injection back. **Any site stimulated on an iteration is excluded from the
+activity measurement for that iteration**, and the number excluded is reported so that a
+reader can see how much of the grid the measurement was blind to.
+
+**Where current enters.** A site is a pair of a block and a head. The signal is added to
+that head's output before the output projection, at `blocks.{L}.attn.hook_z` indexed by the
+head, which is the faithful analogue of current delivered at one location. A whole stream
+variant, adding to `blocks.{L}.hook_resid_pre`, is also implemented for comparison with the
+earlier design. Strength is always relative to what is already at the site on that pass, so
+a `beta` of 0.01 means one percent of local activity wherever it is delivered. That
+normalisation matters because EXP-002 found more than a two hundredfold spread of
+activation scale across blocks, and a single absolute scale would silently mean different
+things at different depths.
+
+**Distributed versus focal, with the fraction taken from the source.** Wagenaar's protocol
+used ten to twenty electrodes of sixty, which is a sixth to a third of the array. The same
+fraction of 144 is **24 to 48 sites**, and the registered distributed condition is **24
+sites drawn at random across the grid** under a fixed seed. Focal is **one site**. That is a
+far sharper contrast than the three points out of twelve an earlier version proposed.
+
+**What has to be built, stated because an earlier draft implied it was already there.**
+`atr_bridge.make_atr_step` installs one injection hook at one block, fixed at construction,
+so grid stimulation needs its own path. It is built in `mea_stim.py` as a step that adds
+hooks alongside the loop's existing injection rather than reimplementing the loop, which
+the standing rules forbid. **Its gates**: with no plan, or with strength exactly zero, the
+trajectory must be bit-identical to the bridge's, and a site colliding with the loop's own
+injection point must raise rather than be silently overwritten.
 
 The quantity held equal between the two shapes is **the total injected length, measured in
 units of the receiving state's own length at each injection point.** Concretely, each
 injection point `j` receives `beta_j` times a unit vector, and the two arms are matched
-when the sum of squares of the `beta_j` is equal, so distributed injection at three points
-uses `beta` divided by the square root of three at each. Sum of squares rather than plain
+when the sum of squares of the `beta_j` is equal, so distributed injection at 24 sites
+uses `beta` divided by the square root of 24, which is 4.9, at each. Sum of squares rather than plain
 sum is chosen because the injected vectors at different depths are close to orthogonal,
 being unrelated directions in a high dimensional space, so their combined length grows as
 the square root rather than linearly. **This choice is registered here because it decides
@@ -102,8 +136,8 @@ the comparison**, and an alternative matching on the plain sum is reported along
 sensitivity check rather than being selected after seeing which one favours the
 prediction.
 
-The normalisation of `beta_j` is against the length of the residual stream arriving at
-block `j` on the same forward pass, so that strength always means the same thing relative
+The normalisation of `beta_j` is against the length of the activity already present at
+site `j` on the same forward pass, so that strength always means the same thing relative
 to local activity regardless of depth. Blocks differ substantially in activation scale,
 which is why EXP-002 had to anchor its step sizes per layer, and a shared absolute scale
 would repeat that problem.
@@ -402,8 +436,10 @@ about six hours.
 
 **What it is.** The main experiment. Under the reinforcing rule at all twelve blocks,
 with the loop closed, the signal is injected during the adjustment. Two shapes are
-compared at matched total strength: all of it at the point where the loop closes, against
-the same total divided among three points spread through the depth of the model.
+compared at matched total strength: all of it at a single site, against the same total
+divided among 24 sites drawn at random across the 144-site grid under a fixed seed. Sites
+are chosen by position and not by depth, per the operator instruction recorded above, so
+the forward direction is ignored in the design and measured in the result.
 
 **The grid.** The rate ladder `m` in 1, 2, 4, 8, 16 is run at the fixed strength 0.032,
 which is the middle of the strength ladder. The strength ladder 0.003, 0.010, 0.032,
