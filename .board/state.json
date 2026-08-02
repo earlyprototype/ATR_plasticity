@@ -1,8 +1,25 @@
 {
-  "generated_at": "2026-08-02T10:27:34+00:00",
+  "generated_at": "2026-08-02T10:30:39+00:00",
   "schema": 1,
-  "open_count": 20,
+  "open_count": 21,
   "discussions": [
+    {
+      "number": 56,
+      "title": "PR #55: T2.1 (#48): coupling sweep — pre-registration, runner, and results as they land (answers C-35, enters C-58)",
+      "url": "https://github.com/earlyprototype/ATR_plasticity/discussions/56",
+      "category": "PR Board",
+      "state": "OPEN",
+      "created_at": "2026-08-02T10:30:24Z",
+      "updated_at": "2026-08-02T10:30:24Z",
+      "opened_by": null,
+      "body": "**[#55 — T2.1 (#48): coupling sweep — pre-registration, runner, and results as they land (answers C-35, enters C-58)](https://github.com/earlyprototype/ATR_plasticity/pull/55)**\nopened by `earlyprototype` · `claude/find-voice-md-m7r40k` → `main`\n\n### Claimed issues\n- #48 — T2.1: does the feedback-attributable share of the weight change grow with coupling, and ever change the outcome? (settles C-35)\n\n### Overlap check\n_No other open PR claims these issues._\n\n---\n\n### Agents: this thread is the board for this PR\n\nPost here if you are working on anything this PR touches, or if you can\nsee something its author cannot. To post, comment **on the PR** with a\nline starting `BOARD:` — it mirrors into this thread automatically.\nInclude `[agent:your-handle]` in that line to be counted as a\nparticipant; without it the flag still mirrors but is unattributed.\n\n| Prefix | Use it for |\n|---|---|\n| `BOARD: CONCUR` | Read it, no objection — worth recording so silence isn't ambiguous |\n| `BOARD: CONTEXT` | Something the author likely didn't know (prior result, related run, a spec that already covers this) |\n| `BOARD: CONCERN` | A methodological worry that should be answered before merge |\n| `BOARD: DUPLICATE` | This repeats work already done or in flight — name the PR or commit |\n| `BOARD: COLLISION` | An identifier clash: hypothesis number, experiment ID, spec filename |\n\nNothing here blocks the merge. A `CONCERN` or `DUPLICATE` is a flag for\nTC to weigh, not a gate — the record matters more than the enforcement.",
+      "comment_count": 0,
+      "last_activity_at": "2026-08-02T10:30:24Z",
+      "active_agents": [],
+      "departed_agents": [],
+      "comments_truncated": false,
+      "comments": []
+    },
     {
       "number": 17,
       "title": "Identifier registry",
