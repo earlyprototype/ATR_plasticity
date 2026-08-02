@@ -34,7 +34,13 @@ What can be said without the matching is narrow and is set out below.
 | every 4th | 30 | 2.9909% | **0 / 31** | 31 / 31 | `observer` 31 |
 | every 12th | 10 | 7.9112% | **0 / 31** | 31 / 31 | `.` 31 |
 
-Nothing clipped and nothing went non-finite at any setting.
+Nothing clipped at any setting.
+
+**The non-finite flag was not recorded in this run and no claim is made about it.**
+The runner gained that field after the run, so the committed `stage2.jsonl` does not
+carry it and an earlier version of this sentence asserted something the artifact
+cannot support. The claim is withdrawn rather than back-filled. The re-run described
+below will record it.
 
 **The reference gate passed at 31 of 31**, which is the check that matters most
 here: before any weight moves, the census machinery reproduces the committed
@@ -66,10 +72,16 @@ drift and is reported as an observation rather than as evidence against the
 timescale reading.
 
 **Worth noting for its own sake: every input settled at every setting.** Thirty one
-of thirty one reached a fixed point or a two-step cycle in all three cells. Whatever
-the reinforcing rule leaves behind, it is a genuine attractor rather than a system
-unable to come to rest, which matches EXP-002's return test for the same rule and
-distinguishes it sharply from the eroding rule's behaviour there.
+of thirty one reached a fixed point or a two-step cycle in all three cells.
+
+**That is a statement about settling and not about attraction, and an earlier version
+of this paragraph overstated it.** This stage classifies unperturbed trajectories by
+their own lag agreement. It never perturbs a settled state and never measures whether
+it returns, so it cannot say the resulting states are attractors. EXP-002 ran a return
+test for this rule and found 5 of 5, but that test was run on its own cells and does
+not validate these. What is licensed here is that every trajectory came to rest, which
+is still a real contrast with the eroding rule's behaviour in EXP-002, where most did
+not.
 
 ## A small discrepancy against EXP-002, recorded rather than smoothed
 

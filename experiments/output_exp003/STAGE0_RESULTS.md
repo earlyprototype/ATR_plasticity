@@ -140,7 +140,7 @@ Both were computed from the same run.
 | The same number, whitened | 12.2035 |
 | The full twelve-block profile, standardised, Euclidean | **1.4303** |
 
-The faithful method scores nine times worse and falls below the registered
+The source-inspired variant scores nine times worse and falls below the registered
 threshold, though it still beats the token labels. The likely reason is that
 standardising each block's contribution separately amplifies blocks whose variation
 is mostly noise, and the Euclidean distance then spends most of its dimensions on

@@ -739,13 +739,20 @@ and local activity both matter, so both are now fixed:
   `torch.Generator().manual_seed(20260802)` over the sites ordered `(block, head)` with
   block varying slowest. The realised list is written into the run record so it can be
   checked rather than trusted.
-- **Focal:** the single site `(block 6, head 8)`. Block 6 is where every committed
-  single-site result in this repository was measured, which makes it the least arbitrary
-  choice available, and head 8 is the median head index. **A second focal arm at the
-  distributed draw's own median site is run alongside**, so that a focal result cannot be
-  dismissed as an unlucky site. If the two focal arms disagree by more than five out of
-  thirty one on census agreement, the focal condition is reported as site-dependent and no
-  distributed-versus-focal claim is made at that setting.
+- **Focal, primary:** the single site `(block 6, head 8)`. Block 6 is where every
+  committed single-site result in this repository was measured, which makes it the least
+  arbitrary choice available. Head 8 is a fixed choice with no further justification. An
+  earlier version of this line called it the median head index, which is simply wrong:
+  with twelve heads indexed 0 to 11 there is no single median, and 8 is not it under
+  either convention. The claim is withdrawn and the coordinate stands as an arbitrary but
+  pinned one.
+- **Focal, second arm:** the lower median of the realised distributed draw, defined
+  exactly so it is reproducible. Sort the 24 drawn sites ascending by `(block, head)` and
+  take element 11, the lower of the two middle entries of an even-sized list. This arm
+  exists so that a focal result cannot be dismissed as an unlucky site. If the two focal
+  arms disagree by more than five out of thirty one on census agreement, the focal
+  condition is reported as site-dependent and no distributed-versus-focal claim is made at
+  that setting.
 
 **Stage 1's scope was overstated here.** This file described Stage 1 as also reporting the
 depth-weighted centre of the weight change and a smallest-detectable-change sensitivity.

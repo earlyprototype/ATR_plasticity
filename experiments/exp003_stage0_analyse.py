@@ -18,8 +18,13 @@ vector and taking plain Euclidean distance in that space. No bespoke trajectory
 metric, no curve registration; principal components were used for pictures only.
 In simulation that vector ran to 22,920 dimensions.
 
-So the faithful port keeps the profile rather than collapsing it, and that matters
-here for a specific reason the same authors ran into. Bakkum, Chao and Potter
+A faithful port would keep the whole trajectory rather than collapsing it. **What
+this script computes is not that**, and the label is corrected here: it uses the
+twelve-number per-layer profile at settle, which is a summary of the trajectory's
+endpoint rather than the trajectory. Persisting the full per-iteration activity for
+125 inputs was not done, so the full-trajectory comparison cannot be computed from
+this run and is not claimed. What follows is a source-inspired variant, and it
+matters for a specific reason the same authors ran into. Bakkum, Chao and Potter
 (2008) had to apply a whitening transform to the centre of activity because an
 uneven distribution of cells across the array biased it in a fixed direction for
 every preparation. The identical bias exists in this substrate and is larger:
@@ -37,10 +42,13 @@ This script therefore reports three measurements, and says which is which:
                 affine rescaling of a scalar. It is computed and reported anyway
                 so that the invariance is visible rather than assumed, and so no
                 later reader thinks whitening was skipped.
-  3. `profile`  the full twelve-number per-layer mass profile, standardised per
-                layer across the population, compared by Euclidean distance. This
-                is the source's method, and it is the one to believe if the three
-                disagree.
+  3. `profile`  the twelve-number per-layer mass profile at settle, standardised
+                per layer across the population, compared by Euclidean distance.
+                This is a source-INSPIRED variant, not the source's method: it keeps
+                a vector rather than a scalar and uses their distance measure, but
+                over an endpoint summary rather than over the whole trajectory. It
+                is not privileged over measurement 1 on grounds of faithfulness,
+                because it is not faithful.
 
 Measurement 3 is a departure from the registered protocol and is labelled a
 post-registration addition wherever it appears. It is not a replacement for
@@ -191,7 +199,7 @@ def main() -> int:
     g_white = gates({"basin": wb, "class": wc}, separation_ratio, rows,
                     "whitened scalar")
 
-    # ---- 3. the source's method: the whole profile, Euclidean --------------
+    # ---- 3. source-inspired variant: the settle profile, Euclidean ---------
     have_profile = "settled_mass_per_layer" in rows[0]
     g_profile = None
     if have_profile:
@@ -201,7 +209,7 @@ def main() -> int:
             pb.setdefault(r["basin"], []).append(z[r["prompt_id"]])
             pc.setdefault(r["dyn_class"], []).append(z[r["prompt_id"]])
         g_profile = gates({"basin": pb, "class": pc}, euclidean_separation, rows,
-                          "per-layer profile (post-registration)")
+                          "settle profile, source-inspired (post-registration)")
 
     # ---- controls ----------------------------------------------------------
     n_shuf = len(rows[0]["ca_depth_layer_shuffled"])

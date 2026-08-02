@@ -252,6 +252,10 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0, help="run a stratified sample of N prompts drawn across all end states")
     ap.add_argument("--out", default=str(OUT_DIR / "stage0.jsonl"))
     args = ap.parse_args()
+    if args.limit < 0:
+        # A negative limit silently produces an empty selection and a run over zero
+        # inputs, which would report gates computed from nothing.
+        ap.error("--limit must be 0 (the whole census) or a positive count")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 

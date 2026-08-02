@@ -186,8 +186,16 @@ from 0.00777 to 0.00780, very slightly the wrong way. No site shows the effect; 
 largest fall anywhere is 0.244 percent.
 
 **So the weights come out of the collapse with essentially the character they went in
-with.** Whatever destroys this model's ability to tell its inputs apart, it is not a
-loss of capacity in the matrices. Full numbers in
+with, on the two measures that were taken.** Whatever destroys this model's ability to
+tell its inputs apart, it is not **the spectral concentration this stage tested**.
+
+**That is narrower than an earlier version of this sentence claimed**, which said the
+collapse was not a loss of capacity in the matrices at all. Effective rank and the
+dominant direction's share are two specific quantities. They do not measure how well a
+matrix separates the inputs it actually receives, and a matrix can lose the ability to
+distinguish the states this loop visits while its spectrum barely moves. Other
+capacity-loss mechanisms are untested, and the honest statement is that the proposed
+one is refuted rather than that the whole family is. Full numbers in
 `experiments/output_exp003/STAGE1_RESULTS.md`.
 
 **What this costs the argument, stated rather than absorbed.** The
@@ -207,7 +215,7 @@ states, and row C-55 records that arbitrary directions at matched displacement
 usually move the settled end state. Together they suggest a landscape on a knife edge
 that almost any coherent push of sufficient size will topple, in which case the
 collapse is not plasticity degrading the model but a barely separated structure being
-displaced wholesale by a small change that leaves capacity intact.
+displaced wholesale by a small change that leaves the matrices spectrally intact.
 
 ---
 
