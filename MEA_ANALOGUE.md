@@ -75,6 +75,16 @@ matters: many locally adjustable elements, closed on themselves, with nothing co
 
 It then did the thing the cultures do.
 
+**A note on the status of that experiment, because two documents in this repository
+currently disagree about it.** `HANDOVER.md` lists EXP-002 under work that has not been
+run, and that file is correct about the state of the main branch. The experiment has been
+run and its results and register rows are committed, but on an unmerged branch under review
+as pull request 57. Everything this document says about EXP-002 therefore depends on that
+review concluding and those rows entering the register. Until it does, the collapse result
+should be read as measured and committed but not yet accepted, and if the review changes
+the numbers this document changes with them. The experiment plan that accompanies this file
+does not begin until that pull request lands, for the same reason.
+
 Before any adjustment, thirty one test inputs settled into five distinguishable
 end states, distributed as thirteen, eight, five, four and one. After the adjustment,
 under the reinforcing rule with the loop closed, twenty seven of the thirty one settled
@@ -118,22 +128,48 @@ writes along a single direction rather than adjusting many independent things.
 Repeat that. An adjustment that always writes along a direction determined by the
 activity, applied to a matrix that then shapes the activity, is a process that
 concentrates. Its effect is to make one direction inside the matrix grow relative to all
-the others. Once that has gone far enough, the site no longer performs a varied
-transformation on what arrives. It emits roughly the same direction regardless of input,
-scaled by how much the input happens to overlap with one particular pattern.
+the others. If that goes far enough, the site stops performing a varied transformation on
+what arrives, and instead emits roughly the same direction regardless of input, scaled by
+how much the input happens to overlap with one particular pattern. A site behaving that way
+is closer to a valve than to a map, and a series of such valves would confine what the loop
+can produce toward a line, which can support only one resting point.
 
-A site behaving that way is no longer a map from many possibilities to many
-possibilities. It is closer to a valve. Put twelve such valves in series, which is what
-EXP-002 did, and the set of states the whole loop can produce shrinks toward a line. A
-system whose output is confined to a line can support only one stable resting point.
+**That chain is a hypothesis with a substantial obstacle in front of it, and an earlier
+version of this document presented it far too confidently.** Four things have to be said
+against it, and the fourth is serious.
 
-So the collapse is not a surprise given C-10, and the two have simply never been joined
-up. Marking the epistemic status plainly: C-10 is measured and supported, C-62 is
-measured and supported, and the argument connecting them in the preceding three
-paragraphs is inference which has not itself been tested. The test is cheap and is listed
-in the experiment plan as the first thing to do, because this repository already records
-a measurement of how concentrated a matrix has become, and the prediction is simply that
-this quantity should move sharply in the runs that collapsed.
+The first is that a rank one *adjustment* does not make the *matrix* rank one. The matrix
+being adjusted starts full, and register row C-11 records its stable rank as about 31 on a
+scale where 768 would be the maximum, so it has real structure to begin with. What the
+adjustments add is small by comparison.
+
+The second is how small. EXP-002's reinforcing arm moved the weights by 1.31 percent of
+their own size in aggregate. **A one percent addition does not dominate a matrix**, and the
+valve picture requires domination, not presence. On the face of it the arithmetic does not
+support the story.
+
+The third is that the argument treats the model as though it were linear. Each block
+contains nonlinearities and a normalisation step, and the loop applies a further
+normalisation on every iteration. A fixed point argument that ignores all of these is a
+sketch of a mechanism rather than a derivation.
+
+The fourth is that the successive adjustments need not point the same way. The
+concentration story requires them to align, so that they accumulate rather than cancelling.
+Whether they do is a measurable property of the run and has not been measured.
+
+**So the honest position is that this is the leading candidate explanation and it is
+currently in tension with its own arithmetic.** Marking the status plainly: C-10 is measured
+and supported, C-62 is measured and supported, and the connection between them proposed
+here is untested inference which the numbers do not obviously favour.
+
+That tension is the reason Stage 1 of the experiment is worth running first rather than
+being a formality. This repository already measures how concentrated a matrix has become,
+and the prediction is specific: the concentration measure should fall by at least ten
+percent in the runs that collapsed, where the largest movement anywhere in the committed
+step size map is an increase of about 0.6 percent. If it does not move by even two percent,
+this explanation is wrong, the collapse needs a different account, and one of the two
+independent routes to the main prediction of this document disappears. The cost of finding
+out is zero, because the runs already exist.
 
 ## What the Potter laboratory did about it
 
@@ -242,18 +278,29 @@ the signal across many electrodes was slightly worse than concentrating it in on
 above that rate it was much better.
 
 Two independent routes arrive at the upper half of that prediction. The biological route
-is the measurement just quoted. The mathematical route is the argument given above: if
-each adjustable site has become a valve emitting a fixed direction, then a signal injected
-before the first site is converted into that fixed direction immediately and contributes
-only a change of scale, whereas a signal entering between sites is not. Neither route is
-obvious from the other, and they agree about the strong signal case.
+is the measurement just quoted. The mathematical route is the argument given above, with
+the obstacles recorded there attached to it: if each adjustable site has become a valve
+emitting a fixed direction, then a signal injected before the first site is converted into
+that fixed direction immediately and contributes only a change of scale, whereas a signal
+entering between sites is not. Neither route is obvious from the other, and they agree
+about the strong signal case.
+
+**The crossing is in rate, not in strength, and getting that wrong would have invalidated
+the prediction.** The biological measurement is expressed in stimuli per second, which is
+how often pulses arrive, and not in the voltage of each pulse. Those are two separate
+settings in that laboratory's protocol and both were varied. An earlier version of this
+document proposed sweeping only the strength of the injected signal and then claimed the
+crossing as its prediction, which compares a result about rate against an experiment about
+amplitude. The corrected experiment sweeps how often the signal is injected as a separate
+setting, and the crossing prediction is registered on that setting alone. A crossing found
+in strength would be a new observation about this system rather than agreement with the
+biology, and the pre-registration says so.
 
 Neither route predicts the crossing point, and that is what makes it the most valuable
 thing to look for. A crossing point is a specific and unlikely shape. If the experiment
-here shows spread out injection losing at low strength and winning at high strength, that
-is a quantitative agreement nobody designed for. If it shows spread out injection simply
-winning everywhere, the agreement is weaker and more easily explained by the mathematics
-alone.
+here shows spread out injection losing at low rate and winning at high rate, that is a
+quantitative agreement nobody designed for. If it shows spread out injection simply winning
+everywhere, the agreement is weaker and more easily explained by the mathematics alone.
 
 **The signal should have to respond to the system, not merely be present.** The only
 comparison in the 2005 paper that holds the overall rate fixed found that adjusting the

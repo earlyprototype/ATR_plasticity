@@ -48,24 +48,102 @@ layer, rescaled to a fixed size, and written back into the first layer, repeated
 pass through the model is one iteration. Written as a formula, with `f` standing for the
 model and `N` for the rescaling, the loop is `r` becomes `f(N(r))`.
 
-**The signal, and how it enters.** The proposed change adds a fixed vector `e`, scaled by
-a number `beta`, at the point where the state is written back in. The loop becomes `r`
-becomes `f(N(r) + beta e)`, with `e` scaled to size one, so that `beta` is the strength of
-the injected signal measured against the size of the system's own activity. A `beta` of
-0.01 means the injected signal is one percent as large as the state it is added to. This
-is a change of a single line at `atr_bridge.py:194`, where the tensor to be injected is
-prepared, and it does not reimplement the loop, which the project's standing rules forbid.
+**The signal has two independent settings, and confusing them was an error in the first
+draft of this document.** The biological protocol varies both how strong each pulse is,
+set by a voltage, and how often pulses arrive, set in stimuli per second. These are
+separate knobs and the finding that matters most is expressed in the second of them. An
+earlier version of this file swept only strength and then claimed the biological result
+about rate as its prediction. That is a category error and it is corrected here.
 
-**Distributed versus focal.** Focal means the whole signal enters at one place, the point
-where the loop closes. Distributed means the same total signal is divided among several
-depths of the model, entering at several points along one forward pass. The biological
-protocol being copied used ten to twenty electrodes out of sixty, so the corresponding
-fraction here is roughly one sixth to one third of the twelve available blocks, which is
-two to four injection points.
+**Strength.** A fixed vector `e` scaled to size one is added, multiplied by a number
+`beta`, at the point where the state is written back in. The loop becomes `r` becomes
+`f(N(r) + beta e)`. A `beta` of 0.01 means the injected signal is one percent as large as
+the state it is added to. The strength sweep is the fixed ladder
+0.003, 0.010, 0.032, 0.100, 0.316, which is five values in half order of magnitude steps.
 
-**At rest.** A trajectory counts as at rest if consecutive iterations agree above 0.9999
-on a scale where one means identical. This is the definition EXP-002 used and it is
-carried unchanged.
+**Rate.** The signal is injected on one iteration in every `m`, and is absent on the
+others. `m` equal to 1 means every iteration. The rate ladder is `m` in 1, 2, 4, 8, 16.
+**This is the axis carrying the biological crossing**, because the measurement it copies
+is stated in stimuli per second, and a rate is what stimuli per second is.
+
+**Which axis carries which prediction.** The crossing between concentrated and spread out
+injection is predicted on the rate axis, because that is where the source measured it. Any
+crossing found on the strength axis is a new hypothesis belonging to this system, is
+labelled as such, and may not be quoted as agreement with the biology.
+
+**Where it enters, and what has to be built.** For concentrated injection this is a change
+of a single line at `atr_bridge.py:194`, where the tensor to be injected is prepared, and
+it does not reimplement the loop, which the project's standing rules forbid.
+
+**Spread out injection needs code that does not exist**, and the first draft of this
+document wrongly implied otherwise. `make_atr_step` installs one injection hook at one
+block, fixed at construction, so injecting at several depths in one forward pass requires
+a second hook installation path. What must be built is an extension that accepts a list of
+blocks and a per block vector, installs one hook on each, and reduces to the present
+behaviour exactly when the list has one entry. **The zero strength gate applies to the
+extension too**: with `beta` zero it must reproduce the existing loop to the last bit, and
+with one injection point it must reproduce single point injection to the last bit.
+
+**Distributed versus focal, and what is held equal.** Focal means the whole signal enters
+at the block where the loop closes. Distributed means it enters at three blocks spread
+through the depth, specifically blocks 0, 4 and 8. The biological protocol used ten to
+twenty electrodes out of sixty, so the fraction here of three out of twelve sits inside
+the same range.
+
+The quantity held equal between the two shapes is **the total injected length, measured in
+units of the receiving state's own length at each injection point.** Concretely, each
+injection point `j` receives `beta_j` times a unit vector, and the two arms are matched
+when the sum of squares of the `beta_j` is equal, so distributed injection at three points
+uses `beta` divided by the square root of three at each. Sum of squares rather than plain
+sum is chosen because the injected vectors at different depths are close to orthogonal,
+being unrelated directions in a high dimensional space, so their combined length grows as
+the square root rather than linearly. **This choice is registered here because it decides
+the comparison**, and an alternative matching on the plain sum is reported alongside as a
+sensitivity check rather than being selected after seeing which one favours the
+prediction.
+
+The normalisation of `beta_j` is against the length of the residual stream arriving at
+block `j` on the same forward pass, so that strength always means the same thing relative
+to local activity regardless of depth. Blocks differ substantially in activation scale,
+which is why EXP-002 had to anchor its step sizes per layer, and a shared absolute scale
+would repeat that problem.
+
+**Settled, and why the obvious definition is wrong here.** A first draft of this document
+defined a trajectory as at rest if consecutive iterations agreed above 0.9999 on a scale
+where one means identical, following the wording EXP-002 uses. **That definition is
+unusable for this experiment and would have silently destroyed the primary measurement.**
+
+The reason is that one of the five end states in the census is not a resting point. The
+committed baseline classifies 34 of its 125 inputs as a two step cycle rather than a fixed
+point, all of them in the end state labelled `Divine`, and their consecutive step agreement
+sits near 0.68 rather than near 1. Their two step agreement is what reaches 1. The thirty
+one input census contains eight such inputs. A criterion built on consecutive steps would
+therefore have marked all eight as not settled, and the baseline for the primary
+measurement would have been twenty three out of thirty one rather than thirty one out of
+thirty one, with the eight discarded inputs being precisely the ones whose behaviour is
+most distinctive.
+
+**The definition used here is the committed baseline's, which classifies in two stages.**
+A trajectory is a fixed point if the agreement between successive iterations exceeds 0.999
+on three consecutive checks taken every ten iterations after iteration 100. It is a two
+step cycle if that test fails while the same test on iterations two apart passes. It is
+unsettled if neither passes. **Settled means either of the first two.** Both are legitimate
+end states, both count toward census agreement, and a change from one class to the other
+is itself reported, since register row C-24 treats exactly that change as the strongest
+result in the repository.
+
+The thresholds above are the parent's and are used unchanged rather than tightened, so
+that a number produced here is comparable with the committed census.
+
+**A discrepancy in EXP-002 that this definition exposes, raised on that experiment's own
+review thread rather than resolved here.** EXP-002's reference row reports all thirty one
+untouched inputs as at rest while also reporting eight of them in the `Divine` end state,
+and its prose defines at rest by agreement between successive steps. Those two statements
+cannot both hold under the committed baseline, which puts `Divine` at a consecutive step
+agreement near 0.68. Either that experiment's measurement is phase aware and its prose
+describes it wrongly, or the count is wrong. This experiment does not depend on which,
+because it fixes its own definition above, but the answer changes a number inside claim
+C-62 and so belongs with that claim.
 
 ## The primary measurement, and why it is not diversity
 
@@ -145,14 +223,53 @@ as the length of the difference between the state after that block and the state
 it. The result is a single number between 0 and 11 saying where in the depth of the model
 the work is being done, and following it across iterations gives a trajectory.
 
-This is basis free, meaning it does not depend on any arbitrary choice of coordinates, it
-is unaffected by the rescaling step, and it never consults a label.
+**The invariance claim, stated precisely rather than loosely.** An earlier version of this
+file called the quantity basis free, which is too strong. What is true is narrower. The
+lengths are ordinary Euclidean lengths in the model's own coordinates, so the quantity is
+unchanged under rotations and reflections of those coordinates but not under an arbitrary
+change of coordinates that stretches some directions more than others. That restricted
+invariance is the relevant one here, because the objection it answers is that the residual
+stream has no privileged set of coordinates, and a rotation is exactly the ambiguity that
+objection refers to.
 
-**The gate, which this stage must pass before any of it is used.** Measured on the frozen
-model, where the answer is already known, the quantity must separate the five known end
-states, and it must distinguish the one end state known to be a two step cycle from the
-four known to be resting points. It must also be shown to fail where it should fail: on
-inputs the register records as sharing an end state, it must not separate them.
+The claim about the rescaling step is also narrower than stated earlier. The quantity is a
+ratio of lengths measured within one forward pass, so multiplying the injected state by a
+constant leaves it unchanged to the extent that the model's blocks respond proportionally
+to their input. They do not respond exactly proportionally, because of the nonlinearities
+and the layer normalisation inside each block. **The registered form of the claim is
+therefore that the quantity is invariant under rotation exactly, and insensitive to overall
+rescaling only approximately**, with the size of that insensitivity measured rather than
+assumed: it is checked by recomputing the quantity on states scaled by one half and by two
+and reporting how far it moves. If it moves by more than five percent of its range across
+that fourfold change in scale, the quantity is reported as scale dependent and is used only
+within runs that share a scale.
+
+The quantity never consults a label, which is the property that matters most and which does
+hold without qualification.
+
+**The gate, which this stage must pass before any of it is used, stated as a number rather
+than as a word.** Measured on the frozen model, where the answer is already known, compute
+the quantity for all 125 committed baseline inputs. The test statistic is the ratio of the
+spread of the quantity between end states to its spread within them, in the form the
+project already uses for exactly this purpose: the mean distance between the group centres
+divided by the mean distance of members to their own centre. **The gate is passed if that
+ratio exceeds 1.5.**
+
+The threshold of 1.5 is registered here and is chosen against a stated baseline: the token
+labels themselves score 0.87 on the same scale, from the numbers in row C-07, and a value
+of 1.0 means the groups are indistinguishable from their own internal scatter. A quantity
+that does not beat the labels is not worth adopting, and 1.5 asks it to beat them by a
+clear margin rather than a marginal one.
+
+**A second gate on dynamical class.** The quantity must separate the 34 inputs the baseline
+classifies as a two step cycle from the 91 it classifies as fixed points, with the same
+ratio exceeding 1.5.
+
+**The failure direction, which must also be demonstrated.** Within the largest end state
+group, the quantity must **not** separate inputs into subgroups: the same ratio computed on
+a random split of that group in half must fall below 1.2 in at least nine of ten random
+splits. A quantity that separates arbitrary halves of a homogeneous group is finding
+structure that is not there.
 
 **The control that decides whether depth is doing the work, taken directly from the
 source.** Chao, Bakkum and Potter faced the identical objection, that their statistic
@@ -199,11 +316,28 @@ concentrated a matrix has become, and EXP-002's runs are already committed.
 moved sharply from its frozen value. In the arm that did not collapse but failed to
 settle, it should behave differently.
 
-**The gate.** If concentration has not moved appreciably in the collapsed runs, the
-explanation is wrong. That does not stop the series, because the collapse is a measured
-fact whatever explains it, but it removes the mathematical route to the distributed
-versus focal prediction and that prediction then rests on the biology alone. This must be
-recorded if it happens, because it changes how much weight the analogy is carrying.
+**The gate, stated as a number.** The measure is the participation ratio effective rank
+that `experiments/step_size_map.py` already computes, applied to each of the twelve
+adjusted matrices. The frozen reference for the single site the project has measured most
+is 642.6 out of a possible 768. **The explanation is supported if the mean effective rank
+across the twelve adjusted matrices falls by at least ten percent from its frozen value in
+the arms that collapsed, and is not supported if it falls by less than two percent.** A
+fall between two and ten percent is reported as inconclusive rather than being argued
+either way.
+
+Ten percent is registered against a stated baseline: the largest movement in effective rank
+anywhere in the committed step size map is an increase of about 0.6 percent, from 642.6 to
+646.7, across every ceiling silent cell. So a ten percent fall would be more than an order
+of magnitude larger than anything this project has yet seen, which is what the explanation
+requires, and two percent is comfortably above the noise that map establishes.
+
+**Stop behaviour.** A failure here does not stop the series, and this is deliberate rather
+than an oversight. The collapse is a measured fact whatever explains it, so the later
+stages remain meaningful. What a failure removes is the mathematical route to the
+distributed versus focal prediction, leaving that prediction resting on the biology alone.
+That is recorded prominently if it happens, because it changes how much weight the analogy
+is carrying, and it makes the Stage 3 result correspondingly more informative rather than
+less.
 
 **Also computed here, at no extra cost.** The depth weighted centre of the weight change,
 defined in Stage 0, is reported for each arm of EXP-002 from that experiment's committed
@@ -230,15 +364,32 @@ on that number rather than on whether each individually reached significance.
 **What it is.** In living tissue, connections change far more slowly than activity passes
 through them. Here they change at comparable speed: EXP-002 adjusted the weights on every
 iteration. This stage slows the adjustment down, holding the total amount of adjustment
-fixed, by applying larger changes less often. The project already supports this as a
-setting and has previously used values of one, two and four.
+fixed, by applying proportionally larger changes proportionally less often.
+
+**The settings, enumerated.** Adjustments are applied once every `k` iterations for `k` in
+1, 10 and 100, with the step size multiplied by `k` so that the total adjustment over the
+episode is held equal. The episode is lengthened so that the largest setting still applies
+one hundred and twenty adjustments, matching EXP-002. The ratio between the extreme
+settings is one hundred, which is what the falsifier below refers to. The values 2 and 4
+that the project has used before are not included, because they span a factor of two and
+the question here is whether two orders of magnitude changes anything.
 
 **The prediction.** Collapse should recede as the adjustment is slowed. Census agreement
-should rise.
+should rise monotonically with `k`.
 
-**The falsifier, stated numerically.** If census agreement stays below five out of thirty
-one across a hundredfold change in how often adjustments are applied, the timescale
-reading is dead and will be recorded as dead.
+**The falsifier, stated numerically.** If census agreement at `k` equal to 100 does not
+exceed census agreement at `k` equal to 1 by at least five out of thirty one, the
+timescale reading is dead and will be recorded as dead. Five is chosen because it is the
+smallest difference that exceeds the count of any single minority end state in the
+untouched census apart from the largest two, so a difference below it could be produced by
+one end state moving.
+
+**The confound that must be reported with the result.** Multiplying the step size by `k`
+holds the total adjustment equal only if the rule's effect is linear in step size, and
+EXP-002 recorded that it is not for the eroding rule, whose drift spanned twelve times
+across layers at one anchored setting. The achieved drift at each `k` is therefore
+reported, and if it varies by more than a factor of two across the three settings, the
+comparison is qualitative only and the falsifier above is not invoked.
 
 **Why this is second.** It is the cheapest experiment that could remove a whole branch of
 the argument, and it needs no new code beyond what exists.
@@ -254,10 +405,19 @@ with the loop closed, the signal is injected during the adjustment. Two shapes a
 compared at matched total strength: all of it at the point where the loop closes, against
 the same total divided among three points spread through the depth of the model.
 
-The strength is swept, because the biological protocol was deliberately weak and the
-correct strength here is unknown. The sweep runs in half order of magnitude steps from a
-strength of 0.003, meaning three tenths of one percent of the system's own activity, up
-to 0.3, meaning thirty percent, or until the reflection control below fires.
+**The grid.** The rate ladder `m` in 1, 2, 4, 8, 16 is run at the fixed strength 0.032,
+which is the middle of the strength ladder. The strength ladder 0.003, 0.010, 0.032,
+0.100, 0.316 is run at the fixed rate `m` equal to 1. Both ladders are run for both
+shapes. This is a cross rather than a full grid, twenty settings rather than fifty, and
+the cross is centred on the setting the two ladders share so that the two axes are
+anchored to a common point.
+
+**What happens when the reflection control fires part way up a ladder.** Every setting at
+or above the firing point is discarded. If that leaves fewer than three admissible
+settings on the strength ladder, the crossing test on that ladder is reported as
+inconclusive rather than as a null, because a crossing cannot be located in two points.
+The rate ladder is unaffected by strength driven reflection, since strength is fixed
+along it, and this is one reason the rate axis carries the primary prediction.
 
 **The census is taken twice at every setting, once with the signal still being applied and
 once with it removed.** This is not a robustness check, it is the experiment. The
@@ -269,6 +429,17 @@ experiment that measured only the second would be predicted by the very source i
 copying to find nothing, and reporting that as a refutation would be an error. This
 paragraph exists so that the error is not available.
 
+**The exact procedure for the two censuses, because the order could otherwise contaminate
+the comparison.** One adjustment episode is run per setting with the signal applied. At
+the end of that episode the weights are frozen and copied, and **all adjustment is
+disabled for everything that follows**. Both censuses then run from that single frozen copy
+of the weights, so neither can affect the other and the order they are run in cannot
+matter. The only difference between them is whether the signal is injected during the
+census itself. Each census input starts from its own clean initial state, exactly as the
+committed reference census does, and is run for the same one hundred and twenty
+iterations. No re-equilibration period is used, and none is needed, because nothing is
+adapting during either census.
+
 **The predictions.** With the signal still applied, distributed injection should recover
 census agreement. Focal injection at matched total strength should recover substantially
 less at high strength, because a signal entering before the first concentrated site is
@@ -278,25 +449,32 @@ converted to that site's fixed direction immediately.
 worth the most.** The biological measurement does not say spread out is simply better. It
 records a crossing point: below roughly ten stimuli per second, spreading the signal
 across many electrodes gave slightly worse burst reduction than concentrating it in one,
-and above that rate spreading it gave much better reduction. The corresponding prediction
-here is that focal injection wins at low strength and distributed injection wins at high
-strength, with a crossing in between. Nothing in the mathematical account predicts a
-crossing, so finding one would be an agreement that no part of this design was built to
-produce.
+and above that rate spreading it gave much better reduction.
+
+**That crossing is in rate, so the prediction is registered on the rate ladder and not the
+strength ladder.** Concentrated injection should give higher census agreement than spread
+out injection at low rate, meaning large `m`, and spread out injection should give higher
+agreement at high rate, meaning `m` equal to 1, with a crossing between. Nothing in the
+mathematical account predicts a crossing, so finding one would be an agreement that no
+part of this design was built to produce.
+
+Any crossing observed on the strength ladder is recorded as a separate and new hypothesis
+about this system. It is not agreement with the biology, because the biological
+measurement is not about strength, and it may not be quoted as such.
 
 **The falsifiers, stated numerically.**
 
-The distributed advantage at high strength is claimed only if distributed injection
-reaches a census agreement at least ten out of thirty one higher than the best focal
-result at the same total strength. Ten is roughly a third of the census and is well above
+The distributed advantage is claimed only if distributed injection reaches a census
+agreement at least ten out of thirty one higher than the best focal result at the same
+setting, on the signal on census. Ten is roughly a third of the census and is well above
 the one point difference that separated the two collapsed arms of EXP-002. If focal
-matches distributed within that margin at every strength tested, the central prediction
-of `MEA_ANALOGUE.md` has failed and that document is withdrawn.
+matches distributed within that margin at every admissible setting on both ladders, the
+central prediction of `MEA_ANALOGUE.md` has failed and that document is withdrawn.
 
-The crossing is claimed only if focal exceeds distributed by at least five out of thirty
-one at the lowest strength that produces any recovery, and distributed exceeds focal by at
-least ten at the highest admissible strength. Absence of a crossing is not a refutation,
-because the crossing was not predicted by both routes, but its presence is strong
+The crossing is claimed only if, on the rate ladder, focal exceeds distributed by at least
+five out of thirty one at `m` equal to 16 and distributed exceeds focal by at least ten at
+`m` equal to 1. Absence of a crossing is not a refutation, because the crossing was not
+predicted by both routes, but its presence is strong
 confirmation and its absence must be reported as the weaker outcome rather than passed
 over.
 
@@ -311,28 +489,49 @@ The *no signal* arm is the same run with strength zero, and it must reproduce EX
 collapse. If it does not, something other than the signal is being measured.
 
 The *signal without adjustment* arm applies the signal to the frozen model with nothing
-adjusting. It must leave the census at or near thirty one out of thirty one. If injecting
-the signal changes the frozen model's behaviour on its own, then any recovery seen in the
-main arm may be the signal reorganising the system rather than protecting it, and the
-result cannot be read as intended.
+adjusting. **It must leave census agreement at twenty eight out of thirty one or above.**
+Twenty eight allows three inputs to move, which is a tenth of the census, against a
+baseline of thirty one out of thirty one. If a setting drops this arm below twenty eight,
+then at that setting the signal is reorganising the frozen model on its own, any recovery
+seen in the main arm at that setting cannot be read as protection, and **that setting is
+excluded from the main analysis and reported as excluded.**
 
-The *reflection* control is the one that catches the trap described earlier. At each
-strength, the settled states are compared against the injected vectors. If the settled
-states are predicted by the injected signals better than they are predicted by the frozen
-model's own arrangement, the system is reflecting rather than expressing, and every
-result at that strength and above is discarded. This control exists specifically because a
-strong enough signal will always produce a diverse looking result.
+The *reflection* control is the one that catches the trap described earlier, and its rule
+is written out in full here because it decides which data are analysed and a vague rule
+would let that decision be made after seeing the results.
+
+For each setting, form two matrices of pairwise distances across the thirty one census
+inputs. The first holds the distances between the settled states, measured as one minus
+the cosine between them. The second holds the same distances between the injected vectors.
+A third matrix holds the distances between the settled states of the frozen model, which is
+the committed reference. Compute the Spearman rank correlation between the settled state
+distances and each of the other two, using the 465 unordered pairs. Call these `s_signal`
+and `s_frozen`.
+
+**The rule: if `s_signal` exceeds `s_frozen` by more than 0.10, the setting is judged
+reflection dominated, and that setting and every stronger one on the same ladder are
+discarded.** The threshold of 0.10 on a correlation scale running from minus one to one is
+registered here rather than chosen later. Rank correlation is used rather than a
+correlation on the raw values because only the ordering of the distances is meaningful.
+Ties are broken toward discarding, so an exact difference of 0.10 discards.
 
 The *zero strength* gate is the same shape as the project's existing first control: at
 strength exactly zero the trajectory must be identical to the existing loop to the last
-bit. If it is not, the injection has changed something it should not have.
+bit, and the spread out injection path with one injection point must be identical to the
+single point path to the last bit. If either fails, the injection has changed something it
+should not have.
 
-**Cost.** Two shapes, roughly five strengths, one rule, with two censuses at each because
-of the signal on and signal off requirement above: on the order of eighty hours. This is
-by far the expensive stage, which is why three cheaper ones precede it, and it is the
-stage most likely to need cutting down. If it must be cut, the strengths are thinned
-rather than the two censuses, because dropping the signal on census would remove the only
-condition the biology predicts will work.
+**Cost, corrected.** The cross described above is twenty settings, being two shapes times
+ten ladder points, less the two shared centre points, so eighteen distinct settings. Each
+needs one adjustment episode of about three minutes and two censuses of about ninety
+minutes, giving about three hours per setting and **about fifty five hours in total**.
+
+An earlier version of this file said eighty hours, which was wrong: it was an estimate made
+before the grid was reduced from a full grid to a cross, and it was not recomputed when the
+grid changed. This is by far the most expensive stage, which is why three cheaper ones
+precede it. If it must be cut, the strength ladder is thinned first, because the primary
+prediction lives on the rate ladder, and the two censuses are never cut, because dropping
+the signal on census would remove the only condition the biology predicts will work.
 
 ### Stage 4: does the signal have to arrive during the damage?
 
@@ -349,11 +548,19 @@ path exactly when a setting is swept up and then back down. If the adjusting sys
 show history dependence, that is a real difference between the frozen and adjusting
 systems rather than a restatement, and it is worth having on the record.
 
-**The falsifier.** If applying the signal afterwards recovers census agreement as well as
-applying it during, then the collapse is not carried in the weights in the way claimed,
-and the account in `MEA_ANALOGUE.md` is wrong about the mechanism.
+**The falsifier.** If applying the signal afterwards recovers census agreement to within
+five out of thirty one of what applying it during achieves, then the collapse is not
+carried in the weights in the way claimed, and the account in `MEA_ANALOGUE.md` is wrong
+about the mechanism.
 
-**Cost.** Two conditions at the single best strength from Stage 3, about four hours.
+**The setting used, fixed in advance so it is not chosen to suit the result.** Both
+conditions run at the shape and setting that gave the highest signal on census agreement in
+Stage 3, with ties broken toward the lower strength and then the larger `m`. If Stage 3
+produced no setting whose signal on census agreement exceeded its no signal arm by at least
+five out of thirty one, Stage 4 does not run at all, because there is no recovery whose
+timing could be tested.
+
+**Cost.** Two conditions, about six hours.
 
 ### Stage 5, conditional: does density decide how fast collapse arrives?
 
@@ -365,12 +572,24 @@ development than sparse ones.
 **The prediction.** Collapse should arrive in fewer adjustment steps with one hundred and
 forty four adjustable sites than with twelve.
 
-**The caution that must be attached.** The two runs differ in what kind of part is being
-adjusted, not only in how many, so a difference in speed has an alternative explanation
-and this comparison cannot settle it alone. It is recorded as suggestive at best.
+**This stage carries no falsifier, and an earlier version of this file wrongly gave it
+one.** The two runs differ in two ways at once, in how many sites are adjustable and in
+what kind of part each site is, so neither outcome can be attributed to density. If
+collapse arrives sooner with one hundred and forty four sites, that is consistent with
+density and equally consistent with the mixing units simply being more consequential
+individually. If it does not arrive sooner, that is consistent with density being wrong and
+equally consistent with a density effect being masked by a site type effect in the opposite
+direction. **A comparison that cannot distinguish its own alternatives is not a test**, and
+this project's standing rules say that a control which cannot fail is worse than none.
 
-**The falsifier.** If collapse arrives no sooner with one hundred and forty four sites
-than with twelve, the density reading is wrong.
+The stage is therefore reported as an observation and is explicitly non falsifying. The
+earlier version stated the confound in one paragraph and then invoked a falsifier in the
+next, which was a contradiction inside a single section.
+
+**What would make it a test**, recorded so that it is available later: hold the site type
+constant and vary only the count, by running the twelve block configuration against a
+random subset of four blocks and against all twelve, at matched total adjustment. That is a
+new run and is not part of this experiment.
 
 ## What is not being claimed
 
