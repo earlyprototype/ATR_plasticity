@@ -476,10 +476,21 @@ The analogy is worth abandoning entirely if it never generates a prediction that
 mathematics did not already supply. That is the honest risk here and it is not small. The
 argument in the section above on why collapse happens is a mathematical argument, and a
 critic is entitled to say that everything predicted below follows from it without any
-need for cultured neurons. The reply this document offers is the second prediction, where
-the biology and the mathematics arrive independently at the same non obvious protocol,
-and the fourth, where the biology supplies a prediction about density that the
-mathematics does not. If both of those fail, the framing was decoration and should go.
+need for cultured neurons.
+
+**Both replies this document originally offered have since been withdrawn, and that is
+the single most important thing on this page.** The first was that the biology and the
+mathematics arrive independently at the same non obvious protocol. Stage 1 refuted the
+mathematical route, so there is now only one route and the agreement it rested on is
+gone. The second was that the biology supplies a prediction about density the mathematics
+does not, and that prediction has been stripped of its falsifier because the only
+available comparison varies two things at once.
+
+So the honest position is that **the analogy currently earns its keep on exactly one
+untested prediction**: that spreading the signal across the grid beats concentrating it,
+crossing over as the rate changes. Nothing else in this document is now doing work that
+plain dynamics could not do. If that prediction fails, the framing was decoration and
+this file should be retired rather than patched.
 
 ## Where the analogy stops holding
 
