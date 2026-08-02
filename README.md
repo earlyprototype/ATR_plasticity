@@ -53,6 +53,68 @@ of a trained artifact or something the loop can reshape:
 - Does the `Divine` period-2 limit cycle become a fixed point, or survive?
 - Does GPT-2 Medium's single `D` funnel open, or tighten?
 
+## What the project can say so far
+
+This section states the claim the project leads with, and the frame around it. It
+cites the claim register, [CLAIMS.md](CLAIMS.md), which is the file that decides what
+each measurement is allowed to be called. The reasoning behind the choice of frame is
+in [ALIGNMENT_REVIEW.md](ALIGNMENT_REVIEW.md) section 6, which is marked there as
+interpretation rather than measurement.
+
+**The project is a characterisation study.** The question it leads with is: what does
+an unconstrained local learning rule, given no task and no target, do to a pretrained
+model's iterated dynamics? "Iterated dynamics" is the behaviour of the loop that feeds
+the model's output back in as its next input, hundreds of times, until the internal
+state settles. That question carries no externally specified objective, unlike the
+fine-tuning and model-editing work it sits next to. Whether that makes it unoccupied
+ground is **not** settled here: the register holds the novelty claim at `provisional`
+(C-42), because it rests on a literature search rather than on the literature, and
+eleven of its absence claims have no preserved search artifact. C-43, on how the work
+compares to model editing, is still `open`. Treat this as a description of the setup,
+not as a claim to priority.
+
+**The standing result is about editability.** A frozen transformer's settled-state
+landscape is editable by a near-rank-1 weight change of about 1% of the matrix's own
+size, derived from the model's own activation statistics, with no target and no
+externally specified objective. "Near-rank-1" means the change is dominated by a single
+direction: 96% to 100% of it in the routed and severed control cells, and 81% to 84% in
+the two live-episode cells, so "rank-1" is an approximation rather than an exact
+description. At one site (`blocks.6.mlp`) of one model (GPT-2 small), that edit changes
+which word the loop settles on (claim C-20, three prompts), and in one case it changes
+the trajectory's dynamical class, turning a fixed point into a two-step cycle (claim
+C-24, one prompt). These are the supported rows, and each carries its sample size, which
+is small, and its single site.
+
+**What the random-direction control settled.** An arbitrary near-rank-1 direction of the
+same size usually moves the settled word too, in 4 of the 6 cases that could be
+size-matched, so the edit is not special merely for having structure (claim C-55, which
+retired the earlier "the right sign is required" claim, C-22). But no random direction
+ever reaches the Hebbian rule's own destination, 0 of 10 random seeds, and matching its
+effect costs 66 to 172 times as much weight change. So direction does not decide whether
+the landscape moves; it decides where it moves to, and how cheaply.
+
+**Coupling is reported as a refinement, not the headline.** The project's founding
+interest is coupling: the weights changing while the activations they change feed back
+into them. That has been measured (claim C-31): the feedback-attributable part of the
+weight change is 12% of the total, against a severed-path control whose floor is exactly
+zero, not a small number. But at the operating point tested, feedback changes the weights
+without changing the outcome, since the connected and disconnected runs settle on the
+same word (claim C-33). The honest one-line form is that feedback measurably steers the
+update and does not, at this operating point, change the result. Whether that holds as
+coupling grows is the highest-value open experiment, T2.1 (issue #48).
+
+**Two honest limits on the lead.** First, on what the edit actually does: the
+"created attractor" reading is retired (claim C-26). The coexistence test (T1.1, issue
+#45) shows the edit displaces the single settled state rather than creating a second one
+beside it, and the hysteresis sweep (T1.2, issue #46) retraces cleanly, corroborating
+the same reading by an independent route (claim C-56). The edit relocates the one
+settled state; it does not add another.
+Second, on novelty: model editing, in particular ROME, already makes near-rank-1 edits to
+a mid-stack GPT-2 projection, so the new element is not "a rank-1 edit changes
+behaviour." It is that this edit is derived with no target, from the model's own
+activity, and is read out on the iterated map's settled-state structure rather than on
+next-token output. Stated any other way, the comparison to prior work is lost.
+
 ## Where this sits
 
 | Rung | Weights | Status in the literature |
@@ -67,8 +129,39 @@ middle, and it is cheap to reach.
 
 ## Why Oja rather than Hebb
 
-Raw Hebbian updates diverge immediately — no fixed point, unbounded weight
-growth. Oja's rule adds a decay term proportional to post-synaptic activity:
+**Corrected 2026-08-01.** This section used to open by saying that raw Hebbian
+updates diverge immediately, with no fixed point and unbounded weight growth.
+That was wrong at the step size this project actually runs at, and the register
+retires it as row C-15. What the committed sweep records is below.
+
+Raw Hebb is bounded and finite everywhere it has been measured here. At the
+working point (step size 7.07e-05, 120 updates, one update per iteration) it
+gives zero non-finite values, a clip rate of 0.0% meaning the safety ceiling
+never fired, and a weight-norm change of +0.03%. Across all ten `hebb` cells of
+the step-size map the non-finite count is zero in every one
+([STEP_SIZE_MAP.md](STEP_SIZE_MAP.md)). At the larger step sizes total drift
+stops at the 5% ceiling with the clip rate climbing to 99.2%, so those cells
+measure the ceiling and say nothing either way about unbounded growth.
+
+The divergence claim survives only in a narrower regime, and there it is real:
+with the ceiling lifted (control C3 runs at `max_delta_frac=1e9`) and a step
+size of 1e-3, roughly fourteen times the working point, the Hebb drift trace
+grows monotonically and super-linearly over a few applications while the Oja
+trace saturates. Note the limit of that evidence: C3 runs a fixed, small number
+of applications, so what it records is continued growth over the run measured,
+not an unbounded limit. Nothing here shows Hebb never levels off. The
+defensible statement is that at large step size with the ceiling removed,
+Hebb's drift keeps growing over the applications measured while Oja's settles,
+not that Hebb diverges immediately or without bound.
+
+One further correction from the same measurement, because it inverts the
+intuition: at every stable step size Oja's own update is about a hundred times
+**larger** than Hebb's in absolute terms, since at a real weight scale of
+`‖W‖_F = 164.9` the decay term dominates the reinforcement term rather than
+correcting it. "Hebb diverges, Oja does not" is a claim about growth across a
+run. It is false as a claim about which update is bigger at any single step.
+
+Oja's rule adds a decay term proportional to post-synaptic activity:
 
 ```
 Hebb:  dW = <x yᵀ>
@@ -85,6 +178,19 @@ is worth stating in any write-up.
 
 `mode="hebb"` is included so you can produce the divergence figure (control C3)
 rather than asserting it.
+
+**And the section title has not survived the experiments.** The theoretical
+argument above still stands, but it did not predict what happened. Oja's rule
+was run at eight step sizes spanning five orders of magnitude and moved the
+loop's settled word at none of them, including the ceiling-silent cells up to
+2.9% drift (register row C-13). Every result in which the loop's behaviour
+changed came from `hebb`, the mode included as a foil. The other rules are not
+absent from the record: the step-size map and the C3 traces record them, and
+what they record is that nothing moved. Why Oja is inert here is **not**
+established: the leading explanation, that the brake outweighs the
+reinforcement term by roughly 110 to 1 at this site, is row C-14 and has never
+been tested as an explanation. Read this section as the reason the project
+started with Oja, not as a finding.
 
 ## Hardware
 
@@ -140,7 +246,7 @@ In order. Do not skip.
 | **C0** | At `eta=0`, do the hooks perturb the trajectory? | **Stop.** Contamination; nothing downstream is interpretable |
 | **C1** | Does `revert()` restore the original trajectory? | Hidden state accumulating somewhere |
 | **C2** | Does a random update of matched norm do the same thing? | You've measured "perturbing weights changes things", not Hebbian learning |
-| **C3** | Does raw Hebb diverge and Oja not? | The decay term isn't doing its job |
+| **C3** | With the ceiling lifted and a large step size, does Hebb's drift keep growing where Oja's saturates? | The decay term isn't doing its job |
 
 ```python
 from controls import c0_identity, c1_revert, c2_random_direction, c3_divergence_demo

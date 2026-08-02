@@ -31,7 +31,8 @@ Basin `prolet`, lag-1 1.00000, lag-2 1.00000, ‖W‖_F 164.854073 (unchanged), 
 Geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)): **6.8e-05**. Nearest measured cell: 7.07e-05.
 
 - Nothing happens at or below **3.93e-06** (relative weight change < 0.001).
-- Ceiling audible / diverges at or above **0.00022**.
+- Ceiling audible at or above **0.00022** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ### `oja`
@@ -39,7 +40,8 @@ Geometric middle of the usable band 3.93e-05 … 0.000118 (3 cell(s)): **6.8e-05
 Geometric middle of the usable band 9.81e-07 … 9.81e-06 (3 cell(s)): **3.1e-06**. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
-- Ceiling audible / diverges at or above **2.94e-05**.
+- Ceiling audible at or above **2.94e-05** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ### `anti_hebb`
@@ -47,7 +49,8 @@ Geometric middle of the usable band 9.81e-07 … 9.81e-06 (3 cell(s)): **3.1e-06
 Geometric middle of the usable band 9.81e-07 … 2.94e-05 (4 cell(s)): **5.37e-06**. Nearest measured cell: 2.94e-06.
 
 - Nothing happens at or below **9.81e-08** (relative weight change < 0.001).
-- Ceiling audible / diverges at or above **9.81e-05**.
+- Ceiling audible at or above **9.81e-05** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ### `random`
@@ -55,7 +58,8 @@ Geometric middle of the usable band 9.81e-07 … 2.94e-05 (4 cell(s)): **5.37e-0
 Geometric middle of the usable band 2.94e-06 … 2.94e-05 (3 cell(s)): **9.31e-06**. Nearest measured cell: 9.81e-06.
 
 - Nothing happens at or below **9.81e-07** (relative weight change < 0.001).
-- Ceiling audible / diverges at or above **9.81e-05**.
+- Ceiling audible at or above **9.81e-05** (lowest eta with a clip rate above 2%).
+- No run went non-finite at any eta.
 - No hollowing-out: effective rank never fell by more than 5% with ‖W‖_F flat.
 
 ## What the map says
@@ -96,7 +100,9 @@ The frozen loop already runs at pre/post = 3.7098 — the rescaling divides by 3
 
 ### 5. No hollowing out anywhere in the sweep
 
-Effective rank starts at 642.6 (of 768) and over every cell in the map never falls below 640.5 (`hebb` at 0.0393, a 0.33% fall). Under `oja` and `anti_hebb` it *rises*, to 647.3 — the decay term flattens the spectrum, which is the opposite direction from rank-1 collapse. The largest singular value's energy share falls from 0.0323 to 0.0253, and max/mean |W| falls from 33.4 to 31.7.
+**Corrected 2026-08-01.** This section used to bound the effect with two cells in which the norm ceiling fired, at 99.2% and 60.8% clip. That breaks this repository's standing prohibition against quoting a ceiling-fired cell as evidence, since such a cell measures the ceiling rather than the rule. The conclusion is unchanged and the ceiling-silent cells carry it on their own; the numbers below are those cells only. The two withdrawn figures were an effective rank of 640.5 (`hebb` at eta 0.0393, 99.2% clip) and of 647.3 (`anti_hebb` at eta 9.81e-05, 60.8% clip). Both remain in the full table as diagnostics.
+
+Effective rank starts at 642.6 of a possible 768. Across the 23 cells in which the ceiling never fired, it never falls below 642.4 (`hebb` at eta 1.18e-04, a fall of 0.03%). Under `anti_hebb` it *rises*, reaching 646.7 at eta 2.94e-05 with the ceiling silent at 0.0% clip and drift at 4.58%, so the decay term flattens the spectrum, which is the opposite direction from rank-1 collapse. Max/mean |W| falls from 33.4 to 31.7, the latter also on a ceiling-silent cell.
 
 The ΔW effective-rank and top-0.1%-mass columns are reported for issue #27 item 11. Oja's accumulated update is near rank-1 (effective rank 2.2), while the noise arm's is isotropic (718.8). But Oja's mass is not concentrated in a handful of *entries*: its top 0.1% of entries hold 0.0263 of the total absolute mass against the noise arm's 0.0044.
 
@@ -106,7 +112,7 @@ The ΔW effective-rank and top-0.1%-mass columns are reported for issue #27 item
 |---|---|
 | 2 — no interesting middle | **Ruled out as a confound.** Every mode has a band where the weights move with the ceiling silent. For `oja`/`anti_hebb`/`random` nothing happens inside it; for `hebb` something does. |
 | 3 — we measure the rescaling | **Ruled out here.** The pre-rescale norm is flat wherever the loop is flat, so the homeostat is not absorbing a hidden weight effect. |
-| 11 — norm ceiling and rescaling destroy each other | **Not observed.** Effective rank flat or rising on every cell, max entry falling, ΔW mass spread rather than concentrated. |
+| 11 — norm ceiling and rescaling destroy each other | **Not observed on the ceiling-silent cells**, which are the ones this can be read from: effective rank flat or rising across all 23 of them, max entry falling, ΔW mass spread rather than concentrated. The ceiling-fired cells do show small falls (640.5 and 641.4 against a frozen 642.6) and are kept in the full table as diagnostics, not as evidence. See §5. |
 | 1 — the rule moves the weights and nothing else happens | **Consistent with, not established.** That claim needs the offline arm (#26); this map only shows the loop-on side. |
 | 5 — collapse is already the default | Untouched. This prompt is a fixed point under the frozen loop and stays one. |
 | 7 — depth | Untouched. |

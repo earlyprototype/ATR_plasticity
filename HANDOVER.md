@@ -20,7 +20,9 @@ Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 >   by the α-sweep, **not** by any argument about how far the `comrade` state sits from
 >   `prolet`. D1 returns the same verdict for any ΔW that displaces the fixed point, and the
 >   α-sweep shows one continuously-moving fixed point (lag-1 ≥ 0.999998 across α = 0→1.25).
->   The parsimonious reading is step 2. See C-26.
+>   The parsimonious reading is step 2. See C-26. *(Update: T1.1 has since settled this —
+>   C-26 is `retired`, refuted by its own decisive test. The step-2 displacement reading is
+>   now the supported claim, C-56.)*
 > - **§5.4, "issue #31 not yet started."** It was run. The measurement is in
 >   `experiments/output_baseline/BASELINE.md` and the answer is compression, one-dimensional,
 >   position-uniform across all basins. See C-04 – C-07.
@@ -231,7 +233,7 @@ Three things fall out:
 | `plasticity.py` | `OjaPlasticity` — one site, modes `off`/`hebb`/`oja`/`anti_hebb`/`random`, ceiling, bit-exact `revert()`, `report()`. **`TermSpec` / `terms=`** for composed rules (see below). Site adapters for HuggingFace `Conv1D`, TransformerLens `W_out`, and **per-head stripes** on both. `subspace_projector()` for aiming drift. `candidate_sites()` |
 | `multi_site.py` | **`MultiSitePlasticity`** — N sites at once (whole matrices and head stripes mixed, heterogeneous mode/eta/ceiling/projector per site). Rejects overlapping footprints at construction, keyed on live parameter identity |
 | `atr_bridge.py` | `make_atr_step(model, prompt) -> step(model, r)` — one iteration of the parent loop, **extracted verbatim**, bit-exactness CI-enforced. `initial_state`, `load_state` |
-| `controls.py` | C0 (eta=0 identity gate), C1 (revert), C2 (norm-matched random, multi-seed distribution), C3 (Hebb diverges / Oja does not) |
+| `controls.py` | C0 (eta=0 identity gate), C1 (revert), C2 (norm-matched random, multi-seed distribution), C3 (with the ceiling lifted at large eta, Hebb's drift keeps growing where Oja's saturates; the unqualified "Hebb diverges" is retired as C-15) |
 | `offline_control.py` | Matched closed-vs-offline arms, a **17-axis** mechanical match verifier, and the severed-path control |
 | `experiments/` | `baseline_basins.py` (the census + the canonical basin readout), `step_size_map.py`, `exp001_hebb.py`, `basin_bifurcation.py` — the last three take `--site` |
 
