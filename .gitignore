@@ -39,3 +39,5 @@ experiments/**/exp001.shard*.jsonl
 .DS_Store
 .idea/
 .vscode/
+experiments/output_exp002/run.log
+experiments/output_exp002/run_uncapped.log
