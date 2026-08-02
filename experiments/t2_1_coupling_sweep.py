@@ -59,6 +59,7 @@ MAX_LAG = 4
 
 OUT_DIR = os.path.join(_here, "output_t2_1")
 JSONL = os.path.join(OUT_DIR, "t2_1_coupling.jsonl")
+JSONL_B = os.path.join(OUT_DIR, "t2_1b_gap.jsonl")
 META = os.path.join(OUT_DIR, "meta.json")
 
 # The pre-registered grid: one axis moved per cell, base point included once.
@@ -77,6 +78,15 @@ CELLS: list[dict] = (
         "cadence": BASE_CADENCE, "n_steps": BASE_N_STEPS,
         "layer_end": LAYER_END_SEVERED}]
 )
+
+# T2.1b addendum (PREREGISTRATION_T2_1B.md): the ceiling-silent gap between
+# 2x and 4x eta*. Separate record file; the registered T2.1 artifact stays
+# frozen.
+CELLS_B: list[dict] = [
+    {"cell_id": f"eta_{m}x", "axis": "eta", "eta": m * ETA_STAR,
+     "cadence": BASE_CADENCE, "n_steps": BASE_N_STEPS, "layer_end": LAYER_END}
+    for m in (2.5, 3.0, 3.5)
+]
 
 
 def basin_of(model, r: torch.Tensor) -> dict:
@@ -191,12 +201,17 @@ def run_cell(model, cell: dict) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--cells", choices=["a", "b"], default="a",
+                    help="a: the registered T2.1 grid; b: the T2.1b gap probe")
     args = ap.parse_args()
+
+    cells = CELLS if args.cells == "a" else CELLS_B
+    jsonl = JSONL if args.cells == "a" else JSONL_B
 
     os.makedirs(OUT_DIR, exist_ok=True)
     done: set[str] = set()
-    if args.resume and os.path.exists(JSONL):
-        with open(JSONL) as f:
+    if args.resume and os.path.exists(jsonl):
+        with open(jsonl) as f:
             for line in f:
                 try:
                     done.add(json.loads(line)["cell_id"])
@@ -209,7 +224,7 @@ def main() -> None:
     model = HookedTransformer.from_pretrained("gpt2", device="cpu")
     model.eval()
 
-    if not (args.resume and os.path.exists(META)):
+    if args.cells == "a" and not (args.resume and os.path.exists(META)):
         meta = {
             "experiment": "T2.1 coupling sweep",
             "issue": 48,
@@ -237,12 +252,12 @@ def main() -> None:
         with open(META, "w") as f:
             json.dump(meta, f, indent=1)
 
-    for cell in CELLS:
+    for cell in cells:
         if cell["cell_id"] in done:
             continue
         print(f"[cell] {cell['cell_id']} starting", flush=True)
         rec = run_cell(model, cell)
-        with open(JSONL, "a") as f:
+        with open(jsonl, "a") as f:
             f.write(json.dumps(rec) + "\n")
         w = rec["weight_recomputed_y"]
         print(f"[cell] {cell['cell_id']} done in {rec['seconds']}s: "
