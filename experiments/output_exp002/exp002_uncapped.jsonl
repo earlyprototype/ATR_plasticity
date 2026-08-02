@@ -1,1 +1,3 @@
 {"unit": "collapse", "kind": "step1_collapse", "prompt_id": "A01_physics", "n_steps": 120, "readout": {"basin": "prolet", "basin_token_id": 22758, "top5_tokens": [" prolet", " bourgeois", " Anarch", " Marx", " comrade"], "top_logit_margin": 0.2303314208984375, "entropy": 5.053903579711914, "cos_lag1_mean": 0.9999998807907104, "cos_lag2_mean": 0.9999991059303284, "final_norm": 4782.778059649626}, "baseline_basin": "prolet", "matches_baseline": true, "seconds": 23.6}
+{"unit": "gate:eta0", "kind": "gate", "bit_identical_trajectory": true, "max_abs_diff": 0.0, "delta_frac": 0.0, "clipped": false, "nonfinite": false, "seconds": 16.8}
+{"unit": "gate:revert", "kind": "gate", "weights_moved_while_live": true, "revert_bit_exact_all_sites": true, "n_sites": 12, "seconds": 4.3}
