@@ -78,10 +78,23 @@ matrix rather than from the rule's structure.
 
 `eta` scales the update. Cadence is how many loop iterations pass between applications.
 
-A ceiling, `max_delta_frac`, caps total drift from the starting weight — 5% by default.
-Hebb has no brake of its own and will grow without limit otherwise. The ceiling is a
-chosen number, and the clipping rate is recorded on every run, because a run in which the
-ceiling is firing is a measurement of the ceiling rather than of the rule.
+A ceiling, `max_delta_frac`, caps total drift from the starting weight, 5% by default.
+Hebb has no brake of its own, so the ceiling is what bounds it at large step sizes. Note
+that at the step sizes these experiments run at, Hebb does not in fact run away: at the
+working point it records zero non-finite values, the ceiling never fires, and the weight
+norm moves 0.03%. The claim that raw Hebb diverges immediately is retired as register row
+C-15. What survives is narrower: at large step size with the ceiling lifted, Hebb's drift
+keeps growing over the applications control C3 measures, while Oja's settles. C3 runs a
+fixed, small number of applications, so that is continued growth in the regime tested and
+not a demonstration that the growth is unbounded.
+
+The ceiling is a chosen number, and a run in which it is firing is a measurement of the
+ceiling rather than of the rule, so the clip state has to be reported with every result.
+**The library does not give you a clipping rate.** `report()` returns `clipped`, a single
+latching boolean that goes true on the first clip and clears only on `revert()`. Register
+row C-46 retires the claim that a rate is recorded. The experiment scripts work around
+this: `step_size_map.py` synthesises a per-cell rate itself, and `exp001_hebb.py` records
+the boolean and documents the limitation.
 
 ### Two backends
 
@@ -153,13 +166,14 @@ From the loop: which basin a trajectory settles into, the lag-1 and lag-2 cosine
 distinguish a fixed point from a two-step cycle, position uniformity, and the margin
 between the top two tokens at the readout.
 
-From the weights: Frobenius norm over time, relative change from the start, clipping rate,
-non-finite count, largest entry, and effective rank.
+From the weights: Frobenius norm over time, relative change from the start, whether the
+ceiling clipped (a boolean from the library, or a rate the experiment script computes for
+itself, per C-46 above), non-finite count, largest entry, and effective rank.
 
 Effective rank is there for a specific failure: one entry runs away, the normaliser
-rescales, and the rest of the matrix is flattened — while the norm stays constant and the
-clipping rate stays low. It is tracked so that this failure mode is visible when norm and
-clipping rate are not.
+rescales, and the rest of the matrix is flattened, while the norm stays constant and the
+ceiling stays quiet. It is tracked so that this failure mode is visible when the norm and
+the clip state are not showing it.
 
 ## Reading order
 
