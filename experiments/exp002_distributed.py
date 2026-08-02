@@ -56,11 +56,18 @@ LAYER_END_SEVERED = 3
 
 ETA_STAR = 1.8e-2 * 164.854 / (120 * 350.0)       # 7.065171428571429e-05
 # Amendment 1: probe low and shared, then scale each site to a common target.
-PROBE_MULTS = [0.01, 0.002, 0.0005]
+# Wider ladder: with the ceiling gone, drift is a real function of the step size
+# again in both directions, so the search has to span further both ways.
+PROBE_MULTS = [0.01, 0.002, 0.0005, 0.1, 1.0]
 TARGET_DRIFT = 0.0112   # the drift the single-site working point produced (C-21)
 MAX_SCALE = 2000.0      # ceiling on the per-site scale-up, so an inert site
                         # cannot demand an absurd step size
-MAX_DELTA_FRAC = 0.05
+# Amendment 2: the ceiling is lifted by operator decision. 1e9 is the value
+# controls.py's C3 demonstration already uses to run a rule as written -- the
+# ceiling never fires, so no update is ever scaled and what is measured is the
+# rule and not the guardrail. What replaces it either measures or stops:
+MAX_DELTA_FRAC = 1e9
+ABORT_DRIFT = 2.0        # relative drift past which a unit is aborted, not scaled
 SEED = 0
 MODES = ["hebb", "anti_hebb"]
 
@@ -81,7 +88,10 @@ RETURN_ITERS = 40
 RETURN_TOL = 1e-9
 
 OUT_DIR = os.path.join(_here, "output_exp002")
-JSONL = os.path.join(OUT_DIR, "exp002.jsonl")
+# The lifted-cap run writes its own file; the capped attempt's records stay put
+# and the two are never mixed.
+JSONL = os.path.join(OUT_DIR, "exp002_uncapped.jsonl")
+JSONL_CAPPED = os.path.join(OUT_DIR, "exp002.jsonl")
 META = os.path.join(OUT_DIR, "meta.json")
 BASELINE = os.path.join(_here, "output_baseline", "basins.jsonl")
 
@@ -420,7 +430,10 @@ def main() -> None:
             })
             print(f"[calib {mode}] probe {mult}x: clip={rep['clipped']} "
                   f"agg={rep['delta_frac']:.5f}", flush=True)
-            if not rep["clipped"] and not rep["nonfinite"]:
+            usable = (not rep["nonfinite"]
+                      and rep["delta_frac"] < ABORT_DRIFT
+                      and rep["delta_frac"] > 0)
+            if usable:
                 probe_eta = mult * ETA_STAR
                 probe_mult = mult
                 probe_per = [{"site": r["site"], "delta_frac": r["delta_frac"]}
@@ -436,10 +449,9 @@ def main() -> None:
                     "mode": mode, "n_steps": N_EPISODE,
                     "probe_mults": PROBE_MULTS, "attempts": attempts,
                     "etas": None,
-                    "note": ("every probe step size drove at least one site into "
-                             "the ceiling; drift is near-invariant to the step "
-                             "size across the probed range, which is the "
-                             "bounded-fixed-point behaviour C-12 describes")})
+                    "note": ("no probe step size produced a finite run under the "
+                             "abort threshold; recorded as this rule's outcome "
+                             "rather than tuned around")})
             print(f"[calib {mode}] NO ceiling-silent step size at {N_EPISODE} "
                   f"steps; recorded and this arm is dropped", flush=True)
             return None, None
@@ -563,6 +575,9 @@ def main() -> None:
                 "sites": SITES_ALL,
                 "clipped": rep["clipped"], "nonfinite": rep["nonfinite"],
                 "aggregate_delta_frac": rep["delta_frac"],
+                "ceiling_lifted": True, "max_delta_frac": MAX_DELTA_FRAC,
+                "aborted_over_threshold": bool(rep["delta_frac"] >= ABORT_DRIFT),
+                "abort_threshold": ABORT_DRIFT,
                 "per_site": [{"site": r["site"], "delta_frac": r["delta_frac"],
                               "clipped": r["clipped"], "nonfinite": r["nonfinite"]}
                              for r in rep["per_site"]],
