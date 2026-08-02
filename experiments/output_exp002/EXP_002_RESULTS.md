@@ -80,7 +80,7 @@ single-site shares in C-31 or C-58.
 | Arm | untouched | with feedback | without feedback |
 |---|---|---|---|
 | `hebb` (drift 1.31%) | `prolet` (margin 0.230) | **`Rousse`** (0.582) | **`comrade`** (0.307) |
-| `anti_hebb` (drift 5.38%) | `prolet` (0.230) | **`arcane`** | **`Shiv`** |
+| `anti_hebb` (drift 5.38%) | `prolet` (0.230) | **`arcane`** (lag-1 0.999033, not at rest) | **`Shiv`** (lag-1 0.999565) |
 
 Distributed plasticity moves the driven prompt's settled word in both arms, at margins
 far above the pre-registered 0.05 threshold. In both arms the with-feedback and
@@ -92,20 +92,41 @@ interaction, per §3) decides the destination.
 The point of the whole design: the residual stream is destroyed when a new prompt
 arrives, so the weights are the only channel that can carry anything across.
 
-| Condition | prompts changed | distinct settled words | distribution |
-|---|---|---|---|
-| untouched (reference) | — | **5** | prolet 13, Divine 8, till 5, Anarch 4, solidarity 1 |
-| `hebb`, with feedback | **31 / 31** | 3 | **Rousse 27**, anarchism 3, comrade 1 |
-| `hebb`, without feedback | **30 / 31** | 2 | **comrade 30**, prolet 1 |
+| Condition | changed | distinct words | at rest | distribution |
+|---|---|---|---|---|
+| untouched (reference) | — | **5** | 31/31 | prolet 13, Divine 8, till 5, Anarch 4, solidarity 1 |
+| `hebb`, with feedback | **31 / 31** | 3 | 31/31 | **Rousse 27**, anarchism 3, comrade 1 |
+| `hebb`, without feedback | **30 / 31** | 2 | 31/31 | **comrade 30**, prolet 1 |
+| `anti_hebb`, with feedback | **31 / 31** | 19 | **4/31** | no word above 3; 9 words seen once |
+| `anti_hebb`, without feedback | **31 / 31** | **1** | 30/31 | **Shiv 31** |
 
-**Something carries across the prompt boundary, decisively** — every fresh prompt's
-outcome moved. **And it is collapse, not steering.** The untouched model spreads these
-prompts over five words; after the drift nearly all of them land on one, and that one is
-the word the driving episode settled on.
+"At rest" counts prompts whose trajectory is a fixed point (step-to-step agreement above
+0.9999). It is the column that makes the `anti_hebb` rows readable.
 
-**Collapse does not require feedback.** The no-feedback arm collapses just as hard, to a
-different word. What feedback changes is the destination, and it leaves marginally more
-residual structure (3 words against 2).
+**Something carries across the prompt boundary, decisively.** Every fresh prompt's
+outcome moved, in every arm. The weights are the only channel that survives a new prompt,
+and the drift reached far enough to change all 31 of them.
+
+**In the `hebb` arm it is collapse, not steering.** The untouched model spreads these
+prompts over five words; afterwards 27 of 31 land on one, and that one is the word the
+driving episode settled on. Collapse does not require feedback: the no-feedback arm
+collapses just as hard, to a different word (`comrade`, 30 of 31). What feedback changes
+is the destination.
+
+**The `anti_hebb` arm is destructive in a different way, and the two conditions are
+opposites.** Without feedback it is the most complete collapse in the experiment: every
+one of the 31 prompts lands on the single word `Shiv`, and 30 of them settle. With
+feedback it does not collapse — 19 distinct words, none appearing more than three times —
+**but almost nothing settles**: only 4 of 31 trajectories are fixed points. So that
+diversity is not preserved basin structure. It is 31 trajectories still in motion, read
+at iteration 120 wherever they happened to be. Nineteen words is a symptom of
+non-convergence, not of surviving landscape, and it must not be read as feedback
+protecting the model's structure.
+
+Stated plainly: at these drifts every arm destroys the basin census. `hebb` destroys it
+by pulling everything into one new attractor. `anti_hebb` without feedback destroys it by
+pulling everything into one word. `anti_hebb` with feedback destroys it by stopping the
+system settling at all.
 
 **A correction to the pre-registered criterion.** The registered rule said steering
 requires "more than one basin remains occupied". Two and three words remain occupied, so
@@ -139,6 +160,12 @@ result and not a failed run.
 So `anti_hebb` scoring 0/5 is not "no attraction": from a perturbation of 0.1 it comes
 back to within 0.00066, three orders closer. It is "no fixed point at the precision the
 criterion demands".
+
+The reprompt table confirms this is systemic rather than a property of the driven prompt
+alone: under `anti_hebb` with feedback only 4 of 31 fresh prompts reach a fixed point,
+against 31 of 31 under both `hebb` conditions and 30 of 31 under `anti_hebb` without
+feedback. **Feedback is what stops the eroding rule settling**, which is the clearest
+single-variable effect of feedback anywhere in this experiment.
 
 ## 6. What feedback contributed (C-63)
 
