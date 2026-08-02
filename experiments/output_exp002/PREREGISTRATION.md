@@ -254,3 +254,28 @@ with the capped results without that stated.
 **What does not change.** The sequence, the arms, the offline control, the severed floor,
 the thirty-one reprompts, the return test, the discriminator, and every interpretation
 rule for C-60 through C-63.
+
+
+---
+
+## What this run superseded, recorded against the rules above
+
+Three rules registered on this page did not survive the run. Listed here so the
+interpretation artifact does not contradict the results that cite it.
+
+1. **"Its recomputed-y floor must come out exactly 0.0, bit-identical"** (the severed
+   control section) is **false as registered**. It holds only at the lowest plastic layer;
+   every layer above it is non-zero. Amendment 2's line listing "the severed floor" among
+   the things it left unchanged is wrong for the same reason. The measurement and its
+   explanation are C-63 and §3 of the results.
+2. **"Steering requires more than one basin remains occupied"** (the C-62 interpretation
+   rule) was **replaced after the reprompt tables were read**, which is the one kind of
+   change a pre-registration exists to prevent, so it is flagged rather than quietly
+   applied. The registered wording would have scored 27 of 31 prompts on a single word as
+   steering. It should have compared the distribution against the baseline. C-62 carries
+   the replacement and the reason.
+3. **The step-size selection rule** as registered picked "the largest candidate at which
+   no site clips". Amendment 2 lifted the ceiling, so nothing clips and that rule became
+   inoperative. What executed was the probe ladder `[0.01, 0.002, 0.0005, 0.1, 1.0]`,
+   taking the first candidate that was finite and under the abort threshold, then scaling
+   each layer to the target drift.

@@ -141,9 +141,13 @@ result's.
 
 ### Does it return?
 
+Phase-aware over the last two iterates, five independent perturbation directions, as the
+pre-registration requires. (The first implementation was single-phase and reused one
+direction; both were corrected and the test re-run. Neither verdict changed.)
+
 | Arm | returned | detail |
 |---|---|---|
-| `hebb` | **5 / 5** | returns from every magnitude, in 1, 1, 8, 19 and 32 iterations |
+| `hebb` | **5 / 5** | returns from every magnitude, in 1, 1, 10, 19 and 30 iterations |
 | `anti_hebb` | **0 / 5** | approaches to ~1e-4 and no closer, at every magnitude |
 
 The two rules leave qualitatively different objects. `hebb` leaves a **genuine
@@ -151,7 +155,10 @@ attractor**: exact fixed points (lag-1 and lag-2 both 1.000000) that pull pertur
 states back, with return time growing sensibly with perturbation size. It is a real
 attractor that happens to swallow nearly everything.
 
-`anti_hebb` leaves something that is **not a fixed point at all**: lag-1 0.999033 and
+`anti_hebb` leaves something that is **not a resting state of either kind**. The
+phase-aware test rules out a two-step cycle being missed: its best match was the *last*
+iterate at all five magnitudes, never the previous one, so there is no opposite phase it
+was returning to. What it leaves: lag-1 0.999033 and
 lag-2 0.996163 (the two-step agreement being worse than the one-step rules out a
 period-2 cycle), and the return test floors at ~1e-4 *independent of how far the state
 was perturbed*, from 1e-7 to 1e-1. There was no resting point to return to; the
