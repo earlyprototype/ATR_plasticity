@@ -1,0 +1,36 @@
+{
+ "experiment": "T2.1 coupling sweep",
+ "issue": 48,
+ "answers": [
+  "C-35"
+ ],
+ "durable_claim": "C-58",
+ "model": "gpt2-small",
+ "site": "blocks.6.mlp",
+ "prompt_id": "A01_physics",
+ "mode": "hebb",
+ "eta_star": 7.065171428571429e-05,
+ "max_delta_frac": 0.05,
+ "seed": 0,
+ "n_cells": 10,
+ "cells": [
+  "eta_0.25x",
+  "eta_0.5x",
+  "eta_1.0x",
+  "eta_2.0x",
+  "eta_4.0x",
+  "cadence_2",
+  "cadence_4",
+  "steps_60",
+  "steps_240",
+  "severed_base"
+ ],
+ "device": "cpu",
+ "dtype": "float32",
+ "norms_dtype": "float64",
+ "torch_version": "2.13.0+cpu",
+ "python_version": "3.11.15",
+ "platform": "Linux 6.18.5 x86_64",
+ "transformer_lens_version": "3.6.0",
+ "started": "2026-08-02T10:29:22Z"
+}
