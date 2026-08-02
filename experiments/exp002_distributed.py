@@ -79,6 +79,9 @@ N_EPISODE = 120
 N_REPROMPT = 120
 LAG_WINDOW = 12
 MAX_LAG = 4
+# A target, not the returned count: the per-basin quota rounds and floors at one
+# per basin so the rarest basin is never dropped, so the draw can exceed this.
+# With the committed census minus the driven prompt, 30 yields 31.
 N_REPROMPTS_WANTED = 30
 DRIVEN_PROMPT_ID = "A01_physics"
 
@@ -91,6 +94,8 @@ OUT_DIR = os.path.join(_here, "output_exp002")
 # The lifted-cap run writes its own file; the capped attempt's records stay put
 # and the two are never mixed.
 JSONL = os.path.join(OUT_DIR, "exp002_uncapped.jsonl")
+# Record-keeping pointer only; nothing reads it. The capped attempt lives here
+# and is never mixed with the lifted-cap run above.
 JSONL_CAPPED = os.path.join(OUT_DIR, "exp002.jsonl")
 META = os.path.join(OUT_DIR, "meta.json")
 BASELINE = os.path.join(_here, "output_baseline", "basins.jsonl")
@@ -192,6 +197,8 @@ def offline_weights(model, r0, step, sites, mode, eta, n_steps: int):
     untouched model, and no replay can see another replay's drift.
     """
     etas = [eta] * len(sites) if isinstance(eta, (int, float)) else list(eta)
+    if len(etas) != len(sites):
+        raise ValueError(f"{len(etas)} step sizes for {len(sites)} sites")
     out = []
     diag = []
     for site, eta_i in zip(sites, etas):
@@ -221,6 +228,11 @@ def compare_weightsets(closed, offline, w0s) -> dict:
     drift. Reported per site as well, since an aggregate can hide one site doing
     all the work.
     """
+    names = [[p[0] for p in lst] for lst in (closed, offline, w0s)]
+    if not (names[0] == names[1] == names[2]):
+        raise ValueError(
+            "closed / offline / W0 site lists disagree, so a positional zip "
+            f"would mislabel the comparison: {names}")
     num2 = da2 = db2 = w02 = 0.0
     per = []
     for (s, wc), (_, wo), (_, w0) in zip(closed, offline, w0s):
@@ -262,7 +274,8 @@ def pick_reprompts(n: int) -> list[dict]:
     order inside a basin taken by prompt id so the draw is reproducible without
     an RNG.
     """
-    rows = [json.loads(l) for l in open(BASELINE)]
+    with open(BASELINE) as f:
+        rows = [json.loads(line) for line in f]
     rows = [r for r in rows if r["prompt_id"] != DRIVEN_PROMPT_ID]
     by: dict[str, list] = {}
     for r in sorted(rows, key=lambda r: r["prompt_id"]):
@@ -293,13 +306,17 @@ def main() -> None:
 
     os.makedirs(OUT_DIR, exist_ok=True)
     done: set = set()
+    recorded: list = []
     if args.resume and os.path.exists(JSONL):
         with open(JSONL) as f:
             for line in f:
                 try:
-                    done.add(json.loads(line)["unit"])
-                except (json.JSONDecodeError, KeyError):
-                    pass
+                    d = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                recorded.append(d)
+                if "unit" in d:
+                    done.add(d["unit"])
         print(f"[resume] {len(done)} units already recorded", flush=True)
 
     from transformer_lens import HookedTransformer
@@ -307,7 +324,8 @@ def main() -> None:
     model = HookedTransformer.from_pretrained("gpt2", device="cpu")
     model.eval()
 
-    rows = {r["prompt_id"]: r for r in (json.loads(l) for l in open(BASELINE))}
+    with open(BASELINE) as f:
+        rows = {r["prompt_id"]: r for r in (json.loads(line) for line in f)}
     driven = rows[DRIVEN_PROMPT_ID]
     prompt = driven["prompt"]
     s0 = initial_state(model, prompt, layer_end=LAYER_END)
@@ -366,8 +384,11 @@ def main() -> None:
         same = all(torch.equal(a, b) for a, b in zip(traj0, base))
         maxdiff = max(float((a.double() - b.double()).abs().max())
                       for a, b in zip(traj0, base))
+        w0_now = [_make_site(model, s_).weight.detach().clone() for s_ in SITES_ALL]
+        mats_same = all(torch.equal(a, b) for (_, a), b in zip(w0set, w0_now))
         append({"unit": "gate:eta0", "kind": "gate",
                 "bit_identical_trajectory": bool(same),
+                "matrices_bit_identical": bool(mats_same),
                 "max_abs_diff": maxdiff,
                 "delta_frac": rep0["delta_frac"],
                 "clipped": rep0["clipped"], "nonfinite": rep0["nonfinite"],
@@ -375,6 +396,9 @@ def main() -> None:
         print(f"[gate eta0] bit-identical={same} max_abs_diff={maxdiff}", flush=True)
         if not same:
             raise RuntimeError("eta=0 gate failed: plasticity at eta 0 changed the loop")
+        if not mats_same:
+            raise RuntimeError(
+                "eta=0 gate failed: a weight matrix moved at step size zero")
 
     # ---------------------------------------------------------- gate: revert
     if not unit_done(done, "gate:revert"):
@@ -396,6 +420,10 @@ def main() -> None:
                 "n_sites": len(SITES_ALL),
                 "seconds": round(time.time() - t0, 1)})
         print(f"[gate revert] moved={moved} restored_bit_exact={restored}", flush=True)
+        if not moved:
+            raise RuntimeError(
+                "revert gate is vacuous: no matrix moved while plasticity was "
+                "live, so restoring them proves nothing")
         if not restored:
             raise RuntimeError("revert gate failed: a matrix was not restored bit-exactly")
 
@@ -405,9 +433,11 @@ def main() -> None:
     # full episode; each site's step size is then scaled to reach TARGET_DRIFT.
     # Calibration only -- declared non-evidence in the pre-registration.
     def calibrate(mode: str) -> tuple[list, dict]:
+        # Reuse a recorded calibration only under --resume, like every other
+        # unit. Scanning the file unconditionally made a fresh run silently
+        # inherit leftover step sizes the operator never asked for.
         key = f"calib:{mode}"
-        for line in open(JSONL):
-            d = json.loads(line)
+        for d in (recorded if args.resume else []):
             if d.get("unit") == key:
                 if d.get("etas") is None:
                     print(f"[calib {mode}] recorded earlier: no ceiling-silent "
@@ -503,7 +533,8 @@ def main() -> None:
     # The severed gate drives only blocks.4..11, so it takes that slice of the
     # calibrated step sizes -- the same value each of those sites gets in the
     # main run, so the floor is measured on the configuration that is used.
-    severed_etas = [ETAS["hebb"][SITES_ALL.index(s_)] for s_ in SITES_SEVERABLE]
+    severed_mode = "hebb" if "hebb" in ETAS else arms[0]
+    severed_etas = [ETAS[severed_mode][SITES_ALL.index(s_)] for s_ in SITES_SEVERABLE]
 
     # ---------------------------------------------------------- gate: severed
     if not unit_done(done, "gate:severed"):
@@ -513,16 +544,17 @@ def main() -> None:
                               layer_end=LAYER_END_SEVERED,
                               initial_norm=s0s.initial_norm)
         rep, wc, _ = run_closed_episode(model, s0s.tensor, steps,
-                                        SITES_SEVERABLE, "hebb", severed_etas,
+                                        SITES_SEVERABLE, severed_mode, severed_etas,
                                         N_EPISODE, keep_states=False)
         wo, _ = offline_weights(model, s0s.tensor, steps, SITES_SEVERABLE,
-                                "hebb", severed_etas, N_EPISODE)
+                                severed_mode, severed_etas, N_EPISODE)
         # W0 read straight off the untouched model, never reconstructed
         w0s = [(s, _make_site(model, s).weight.detach().clone())
                for s in SITES_SEVERABLE]
         cmp = compare_weightsets(wc, wo, w0s)
         append({"unit": "gate:severed", "kind": "gate", "sites": SITES_SEVERABLE,
                 "read_at": f"blocks.{LAYER_END_SEVERED}.hook_resid_post",
+                "mode": severed_mode,
                 "etas": severed_etas, "n_steps": N_EPISODE,
                 "clipped": rep["clipped"], "nonfinite": rep["nonfinite"],
                 "comparison": cmp,
@@ -568,6 +600,18 @@ def main() -> None:
             ctraj = _frozen_trajectory(model, s0.tensor, step, N_REPROMPT)
             closed_rerun_stats = trajectory_stats(model, ctraj)
 
+        if rep["nonfinite"] or rep["delta_frac"] >= ABORT_DRIFT:
+            append({"unit": f"episode:{mode}", "kind": "step2_episode_aborted",
+                    "mode": mode, "etas": ETAS[mode],
+                    "aggregate_delta_frac": rep["delta_frac"],
+                    "nonfinite": bool(rep["nonfinite"]),
+                    "abort_threshold": ABORT_DRIFT,
+                    "note": ("Amendment 2's replacement for the ceiling: this "
+                             "either measures or stops, and it stopped")})
+            raise RuntimeError(
+                f"[{mode}] episode aborted: drift {rep['delta_frac']:.4f} "
+                f"(threshold {ABORT_DRIFT}), nonfinite={rep['nonfinite']}")
+
         if not unit_done(done, f"episode:{mode}"):
             append({
                 "unit": f"episode:{mode}", "kind": "step2_episode", "mode": mode,
@@ -604,25 +648,40 @@ def main() -> None:
         if not unit_done(done, f"return:{mode}"):
             t1 = time.time()
             settled = ctraj[-1]
+            # PHASE-AWARE, as the pre-registration requires. Comparing against
+            # the last iterate alone is a fixed-point test: a period-2 attractor
+            # (C-02 records that this system has one) would score every
+            # magnitude a failure, because the opposite phase can never reach
+            # the tolerance. Both phases are carried and the better match taken.
+            phases = [ctraj[-1].double().flatten(), ctraj[-2].double().flatten()]
             results = []
+            # One generator OUTSIDE the loop, so the five magnitudes are five
+            # independent directions rather than one direction at five scales.
+            gen = torch.Generator().manual_seed(SEED)
             with installed_weights(model, wc):
                 for mag in PERTURB_MAGS:
-                    g = torch.randn(settled.shape, generator=torch.Generator().manual_seed(SEED))
-                    p = settled + g * (mag * settled.norm() / g.norm())
-                    r = p.clone()
-                    best, ret_at = 1.0, None
+                    g = torch.randn(settled.shape, generator=gen)
+                    pert = settled + g * (mag * settled.norm() / g.norm())
+                    r = pert.clone()
+                    best, best_phase, ret_at = 1.0, None, None
                     for i in range(RETURN_ITERS):
                         r = step(model, r)
-                        a, b = r.double().flatten(), settled.double().flatten()
-                        c = 1.0 - float((a @ b) / (a.norm() * b.norm()))
-                        best = min(best, c)
+                        a = r.double().flatten()
+                        cs = [1.0 - float((a @ b) / (a.norm() * b.norm()))
+                              for b in phases]
+                        c = min(cs)
+                        if c < best:
+                            best, best_phase = c, int(cs.index(c))
                         if c < RETURN_TOL and ret_at is None:
                             ret_at = i + 1
                             break
                     results.append({"magnitude": mag, "returned": ret_at is not None,
-                                    "iterations": ret_at, "best_one_minus_cos": best})
+                                    "iterations": ret_at, "best_one_minus_cos": best,
+                                    "best_phase": best_phase})
             append({"unit": f"return:{mode}", "kind": "return_test", "mode": mode,
                     "tolerance": RETURN_TOL, "max_iters": RETURN_ITERS,
+                    "phase_aware": True, "n_phases": len(phases),
+                    "independent_directions": True,
                     "results": results,
                     "n_returned": sum(1 for r in results if r["returned"]),
                     "seconds": round(time.time() - t1, 1)})
