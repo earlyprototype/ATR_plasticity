@@ -98,6 +98,28 @@ can barely tell them apart: states sharing a label are spread further than the g
 the two nearest distinct labels, by a ratio of about 1.16 where 1.0 would mean the labels
 carry no information at all. Any result resting only on labels is exposed to that.
 
+**A note on C-07, because the same laboratory formalised the problem it describes and
+this project should adopt their framing rather than inventing a second one.** Faced with
+cultures whose connectivity drifted continuously on its own, Chao, Bakkum and Potter
+defined a ratio: the distance from one measurement period to the centre of another,
+divided by the scatter of that other period about its own centre. They state that a value
+near 1 means no detectable change, because the difference between the two periods is
+indistinguishable from the ordinary scatter inside one of them.
+
+Row C-07 is that quantity, arrived at independently. The gap between the two nearest end
+state labels is 2.874e-03 and the spread within one label is 3.319e-03, a ratio of 0.87,
+or 1.16 the other way up. Read through their framework, that is a system whose labelled
+categories sit right at the edge of being distinguishable from their own internal scatter.
+
+Two consequences follow and both are adopted here. First, every result in this experiment
+reports this ratio alongside the count, so that a change in the count is accompanied by
+whether the categories were separable at all. Second, the same ratio is the measure of
+whether any effect of the injected signal exceeds the drift the system shows without it,
+which is the control Potter describes as having been necessary in the wetware case: "It
+was necessary to develop analytical tools to deal with the large ongoing drift in
+functional connectivity of cultured networks, to reveal changes induced by external
+stimuli."
+
 ## The stages, in the order they will run
 
 The order is chosen so that the cheapest result that could stop the series comes first.
@@ -132,9 +154,37 @@ states, and it must distinguish the one end state known to be a two step cycle f
 four known to be resting points. It must also be shown to fail where it should fail: on
 inputs the register records as sharing an end state, it must not separate them.
 
-**If the gate fails**, the quantity is discarded and the series continues using labels
-alone, with row C-07's limitation attached to every subsequent result. This is recorded
-as a real possible outcome, not a formality.
+**The control that decides whether depth is doing the work, taken directly from the
+source.** Chao, Bakkum and Potter faced the identical objection, that their statistic
+might work merely because it compressed sixty channels into two well behaved numbers
+rather than because electrode position meant anything. Their answer was to shuffle the
+electrode positions at random and recompute. Their reported result is that the smallest
+change the statistic could detect roughly doubled under shuffling, from 4.68 percent to
+10.8 percent, that sensitivity fell from 88.7 percent to 35.4 percent, and that in living
+cultures the induced change exceeded ordinary drift for the true statistic at a
+significance below one in ten thousand but not for the shuffled version, which reached
+only 0.19 and is therefore indistinguishable from drift.
+
+The port is exact and cheap. The same quantity is recomputed with the block indices
+randomly permuted, ten permutations. If the shuffled version separates the five known end
+states as well as the true one does, then the ordering of the blocks is not carrying the
+information, the statistic is only a summary of activity size, and it is discarded no
+matter how well it performed on the gate above.
+
+**If the gate or the shuffle control fails**, the quantity is discarded and the series
+continues using labels alone, with row C-07's limitation attached to every subsequent
+result. This is recorded as a real possible outcome, not a formality.
+
+**A second quantity, free, computed on weights rather than activity.** The same source
+defines a companion measure over connection strengths rather than over activity, on the
+grounds that one describes how signals propagate and the other describes how the
+connections themselves are moving. Its port here is the depth weighted centre of the
+weight change: each block's index weighted by how far that block's matrix has moved,
+divided by the total movement. It says where in the depth of the model the adjustment is
+concentrating.
+
+This needs no new model time at all, because EXP-002 already records how far each of its
+twelve matrices moved. It is computed and reported in Stage 1.
 
 **Cost.** No new model time beyond one pass over the existing baseline states.
 
@@ -154,6 +204,24 @@ explanation is wrong. That does not stop the series, because the collapse is a m
 fact whatever explains it, but it removes the mathematical route to the distributed
 versus focal prediction and that prediction then rests on the biology alone. This must be
 recorded if it happens, because it changes how much weight the analogy is carrying.
+
+**Also computed here, at no extra cost.** The depth weighted centre of the weight change,
+defined in Stage 0, is reported for each arm of EXP-002 from that experiment's committed
+per layer movement figures. In the source this measure was used to confirm that stimulating
+at different places moved the connection strengths in different directions, which is what
+established that the conditions being compared were genuinely distinct rather than
+variations on one thing. The corresponding question here is whether the two rules, and the
+connected and disconnected conditions, concentrate their adjustment at different depths.
+No prediction is registered for this, because none is held. It is reported because it is
+free and because a later stage will want the baseline.
+
+**How sensitivity is quoted, following the source rather than inventing a convention.**
+Chao, Bakkum and Potter judged competing statistics by the smallest true change each could
+detect, having manufactured a situation where the true change was known. That situation
+exists here without any simulation, because the weight change is known exactly. Any
+statistic proposed in this experiment is therefore quoted with the smallest weight change
+at which it separates the drifted system from the frozen one, and statistics are compared
+on that number rather than on whether each individually reached significance.
 
 **Cost.** No new model time. This is a computation on committed artifacts.
 
