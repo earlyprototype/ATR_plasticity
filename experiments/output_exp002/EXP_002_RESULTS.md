@@ -103,9 +103,11 @@ arrives, so the weights are the only channel that can carry anything across.
 "At rest" counts prompts whose trajectory is a fixed point (step-to-step agreement above
 0.9999). It is the column that makes the `anti_hebb` rows readable.
 
-**Something carries across the prompt boundary, decisively.** Every fresh prompt's
-outcome moved, in every arm. The weights are the only channel that survives a new prompt,
-and the drift reached far enough to change all 31 of them.
+**Something carries across the prompt boundary, decisively.** Every fresh prompt changed
+under both closed arms and under `anti_hebb` without feedback; `hebb` without feedback
+changed 30 of 31, the exception being `A16_wittgenstein`, which stayed `prolet`. The
+weights are the only channel that survives a new prompt, and the drift reached far enough
+to change essentially every one of them.
 
 **In the `hebb` arm it is collapse, not steering.** The untouched model spreads these
 prompts over five words; afterwards 27 of 31 land on one, and that one is the word the
@@ -164,8 +166,10 @@ criterion demands".
 The reprompt table confirms this is systemic rather than a property of the driven prompt
 alone: under `anti_hebb` with feedback only 4 of 31 fresh prompts reach a fixed point,
 against 31 of 31 under both `hebb` conditions and 30 of 31 under `anti_hebb` without
-feedback. **Feedback is what stops the eroding rule settling**, which is the clearest
-single-variable effect of feedback anywhere in this experiment.
+feedback. Non-settling is **associated with the closed condition** under the eroding rule. It is
+not attributed to loop feedback alone: §3 shows the closed-versus-offline contrast here
+also carries within-pass interaction between layers, and this design cannot separate the
+two.
 
 ## 6. What feedback contributed (C-63)
 
