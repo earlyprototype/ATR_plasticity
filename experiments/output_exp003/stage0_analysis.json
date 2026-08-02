@@ -1,0 +1,104 @@
+{
+ "n_prompts": 125,
+ "basin_counts": {
+  "prolet": 55,
+  "Anarch": 16,
+  "Divine": 34,
+  "till": 19,
+  "solidarity": 1
+ },
+ "class_counts": {
+  "fixed-point": 91,
+  "period-2": 34
+ },
+ "scalar": {
+  "measurement": "scalar (registered)",
+  "basin_separation": 12.203538768161614,
+  "basin_pass": true,
+  "class_separation": 1.0036416928238894,
+  "class_pass": false,
+  "random_split_ratios": [
+   0.1652817785455394,
+   0.1387093460719383,
+   0.34175115104476966,
+   0.005067010437809981,
+   0.11512866795099,
+   0.042896836824177935,
+   0.188964644180279,
+   0.060372238609510846,
+   0.017899194732504592,
+   0.03326335235667284
+  ],
+  "n_splits_below": 10,
+  "failure_direction_pass": true,
+  "largest_group": "prolet",
+  "beats_token_labels": true
+ },
+ "whitened_scalar": {
+  "measurement": "whitened scalar",
+  "basin_separation": 12.203538768161614,
+  "basin_pass": true,
+  "class_separation": 1.0036416928238847,
+  "class_pass": false,
+  "random_split_ratios": [
+   0.16528177854554693,
+   0.13870934607193883,
+   0.3417511510446802,
+   0.005067010437820495,
+   0.11512866795103552,
+   0.0428968368245053,
+   0.1889646441802726,
+   0.06037223860945165,
+   0.017899194732344977,
+   0.033263352356780906
+  ],
+  "n_splits_below": 10,
+  "failure_direction_pass": true,
+  "largest_group": "prolet",
+  "beats_token_labels": true
+ },
+ "profile": {
+  "measurement": "per-layer profile (post-registration)",
+  "basin_separation": 1.430308793729347,
+  "basin_pass": false,
+  "class_separation": 0.6195260609606891,
+  "class_pass": false,
+  "random_split_ratios": [
+   0.10858706697093397,
+   0.04597882058112571,
+   0.20751793347552258,
+   0.06991276281910283,
+   0.03271377993938311,
+   0.15346772188868674,
+   0.028190086312322764,
+   0.1657728049611549,
+   0.04373089748991791,
+   0.2059762670963639
+  ],
+  "n_splits_below": 10,
+  "failure_direction_pass": true,
+  "largest_group": "prolet",
+  "beats_token_labels": true
+ },
+ "control_layer_shuffle_ratios": [
+  0.3823264672064493,
+  0.3901011020671765,
+  0.35569485601248785,
+  0.3561086742297036,
+  0.6899170292060567,
+  0.394447974373873,
+  0.1869854577282969,
+  0.32303294176595554,
+  0.18290244214329185,
+  0.439688500733615
+ ],
+ "control_layer_shuffle_mean": 0.37012054454669063,
+ "control_layer_shuffle_pass": true,
+ "control_head_shuffle_max_deviation": 1.7763568394002505e-15,
+ "control_head_shuffle_pass": true,
+ "thresholds": {
+  "separation": 1.5,
+  "failure_direction": 1.2,
+  "token_labels_from_C07": 0.87
+ }
+}
