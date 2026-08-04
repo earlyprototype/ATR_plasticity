@@ -100,8 +100,23 @@ arrives, so the weights are the only channel that can carry anything across.
 | `anti_hebb`, with feedback | **31 / 31** | 19 | **4/31** | no word above 3; 9 words seen once |
 | `anti_hebb`, without feedback | **31 / 31** | **1** | 30/31 | **Shiv 31** |
 
-"At rest" counts prompts whose trajectory is a fixed point (step-to-step agreement above
-0.9999). It is the column that makes the `anti_hebb` rows readable.
+"At rest" counts prompts whose trajectory has settled, meaning a fixed point
+(step-to-step agreement above 0.9999) **or a two-step cycle** (agreement above 0.9999
+between iterates two apart). It is the column that makes the `anti_hebb` rows readable.
+
+**A correction to this sentence, made after the merge and changing no number.** It
+originally described the column as counting fixed points by step-to-step agreement
+alone. That does not match the reference row, because `Divine` is a two-step cycle:
+recomputed from `exp002_uncapped.jsonl`, the eight `Divine` inputs in the census sit
+at step-to-step agreement 0.658 to 0.702 with two-step agreement above 0.99999, so a
+fixed-point-only reading gives 23 of 31 rather than the 31 of 31 reported. The
+reported figure is correct and the phase-aware definition above is the one that
+produces it.
+
+**The `anti_hebb` reading is unaffected**, which is the part that matters: its closed
+arm counts 4 of 31 under both definitions, so the twenty-seven trajectories still in
+motion are genuinely not two-step cycles being missed, and the claim that nineteen
+distinct words is non-convergence rather than surviving structure stands.
 
 **Something carries across the prompt boundary, decisively.** Every fresh prompt changed
 under both closed arms and under `anti_hebb` without feedback; `hebb` without feedback

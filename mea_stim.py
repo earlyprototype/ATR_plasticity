@@ -1,0 +1,255 @@
+"""Signal injection at sites on the 12x12 grid.
+
+The companion to `mea_grid.py`: that module reads the 144 sites, this one writes to
+them. Source record in `MEA_SOURCES.md`.
+
+SITES ARE BOTH READ AND WRITTEN, so a site injected into on an iteration must not
+have its activity read naively on that iteration. `stimulated_sites` is carried on
+every step so the measurement side can exclude them.
+
+THE LOOP IS NOT REIMPLEMENTED. This builds a step whose body is
+`atr_bridge.make_atr_step`'s, with additional hooks installed alongside the
+injection the bridge already performs. With no plan configured, or zero strength,
+it must produce a bit-identical trajectory; `tests/test_mea_stim.py` asserts that
+against the bridge, max deviation 0.0.
+
+TWO PLACES CURRENT CAN BE DELIVERED
+
+  A head site, `(layer, head)`. Added to that head's output before the output
+  projection, at `blocks.{L}.attn.hook_z` indexed by the head.
+
+  A stream site, `(layer, None)`. Added to the whole residual stream arriving at
+  that block, at `blocks.{L}.hook_resid_pre`.
+
+STRENGTH IS RELATIVE TO LOCAL ACTIVITY. `beta` multiplies a unit vector scaled by
+the length of whatever is already at that site on that forward pass, so a `beta`
+of 0.01 is one percent of local activity wherever it is delivered. EXP-002 records
+more than a 200x spread of activation scale across blocks, so a single absolute
+scale would mean different things at different depths.
+
+MATCHING SPREAD-OUT AGAINST CONCENTRATED. One total strength divided among n sites
+gives each `beta / sqrt(n)`, holding the sum of squares equal rather than the plain
+sum, because vectors drawn independently in a high-dimensional space are close to
+orthogonal. `plan_sites` implements this; `match="sum"` gives the alternative.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Callable, Literal, Optional, Sequence
+
+import torch
+
+from atr_bridge import hook_points, _layer_end, initial_state
+
+
+__all__ = ["StimSite", "StimPlan", "plan_sites", "make_stim_step"]
+
+
+@dataclass(frozen=True)
+class StimSite:
+    """One place current is delivered.
+
+    `head` None means the whole residual stream arriving at `layer`; an integer
+    means that head's slice of the attention output at `layer`.
+    """
+
+    layer: int
+    head: Optional[int] = None
+
+    @property
+    def is_head(self) -> bool:
+        """True when this site is one head rather than the whole residual stream."""
+        return self.head is not None
+
+    def __str__(self) -> str:
+        """A short label for logs and run records, for example L6.H8."""
+        return f"L{self.layer}.H{self.head}" if self.is_head else f"L{self.layer}.stream"
+
+
+@dataclass
+class StimPlan:
+    """Where to stimulate, how hard, and how often.
+
+    `beta_per_site` is already divided down for the number of sites; `beta_total`
+    is kept alongside it so a record of the run says what was asked for as well as
+    what each site got.
+
+    `every` is the rate: current is delivered on iterations where
+    `iteration % every == 0`, so `every=1` is every iteration and `every=16` is one
+    in sixteen. This is the axis carrying the biological crossing, because the
+    measurement being copied is stated in stimuli per second.
+    """
+
+    sites: tuple[StimSite, ...]
+    beta_per_site: float
+    beta_total: float
+    every: int = 1
+    seed: int = 20260802
+    match: Literal["rms", "sum"] = "rms"
+    _vectors: dict = field(default_factory=dict, repr=False)
+
+    def vector_for(self, site: StimSite, length: int, width: int) -> torch.Tensor:
+        """A fixed unit direction per site, drawn once and reused every iteration.
+
+        Fixed rather than fresh each step because the protocol being copied
+        delivered the same pulse repeatedly. A fresh-noise variant is named in the
+        pre-registration as the obvious follow-up and is not this.
+        """
+        key = (site.layer, site.head, length, width)
+        if key not in self._vectors:
+            gen = torch.Generator().manual_seed(
+                self.seed + 1009 * site.layer + 17 * (site.head if site.is_head else 99)
+            )
+            v = torch.randn(length, width, generator=gen)
+            self._vectors[key] = v / v.norm()
+        return self._vectors[key]
+
+
+def plan_sites(
+    sites: Sequence[StimSite],
+    beta_total: float,
+    every: int = 1,
+    seed: int = 20260802,
+    match: Literal["rms", "sum"] = "rms",
+) -> StimPlan:
+    """Divide one total strength among sites so the arms are comparable.
+
+    `rms` (the registered default) holds the sum of squares equal, giving each site
+    `beta_total / sqrt(n)`. `sum` holds the plain sum equal, giving each
+    `beta_total / n`. The two differ by a factor of sqrt(n), which at three sites is
+    1.73 and at twenty-four is 4.9, so the choice is not cosmetic and is reported.
+    """
+    sites = tuple(sites)
+    if not sites:
+        raise ValueError("a stimulation plan needs at least one site")
+    if len({(s.layer, s.head) for s in sites}) != len(sites):
+        raise ValueError("duplicate stimulation site; each site may appear once")
+    if every < 1:
+        raise ValueError("`every` is an iteration count and must be at least 1")
+
+    n = len(sites)
+    per = beta_total / (n ** 0.5) if match == "rms" else beta_total / n
+    return StimPlan(sites=sites, beta_per_site=per, beta_total=beta_total,
+                    every=every, seed=seed, match=match)
+
+
+def make_stim_step(
+    model,
+    prompt: str,
+    plan: Optional[StimPlan] = None,
+    layer_start: int = 0,
+    layer_end: Optional[int] = None,
+    initial_norm: Optional[float] = None,
+) -> Callable:
+    """An ATR step that also delivers current at the planned sites.
+
+    Returns `step(model, r, iteration=0) -> r_next`. With `plan` None, or with
+    `beta_total` exactly zero, the trajectory is bit-identical to
+    `atr_bridge.make_atr_step`'s, which is the gate the test suite enforces.
+
+    `step.stimulated_sites(iteration)` reports which sites fired on a given
+    iteration, so the measurement side can exclude them and avoid reading its own
+    injection back.
+    """
+    layer_end = _layer_end(model, layer_end)
+    hook_point_read, hook_point_write = hook_points(layer_start, layer_end)
+
+    if initial_norm is None:
+        initial_norm = initial_state(model, prompt, layer_end).initial_norm
+    initial_norm = float(initial_norm)
+
+    active = plan is not None and plan.beta_total != 0.0 and len(plan.sites) > 0
+
+    def fires(iteration: int) -> bool:
+        """Whether current is delivered on this iteration, given the plan's rate."""
+        return active and (iteration % plan.every == 0)
+
+    def _stim_hook_for(site: StimSite):
+        """Build the hook that adds current at one site.
+
+        The added vector is scaled by the length of what is already there, so
+        `beta` always means a fraction of local activity.
+        """
+        def head_hook(z, hook):
+            """Add current to one head's output, scaled by that head's own activity."""
+            # z is (batch, pos, head, d_head)
+            slice_ = z[0, :, site.head, :]
+            unit = plan.vector_for(site, slice_.shape[0], slice_.shape[1]).to(
+                device=z.device, dtype=z.dtype)
+            z[0, :, site.head, :] = slice_ + plan.beta_per_site * slice_.norm() * unit
+            return z
+
+        def stream_hook(resid, hook):
+            """Add current to the whole stream at this block, scaled by its own length."""
+            # resid is (batch, pos, d_model)
+            cur = resid[0, :, :]
+            unit = plan.vector_for(site, cur.shape[0], cur.shape[1]).to(
+                device=resid.device, dtype=resid.dtype)
+            resid[0, :, :] = cur + plan.beta_per_site * cur.norm() * unit
+            return resid
+
+        return head_hook if site.is_head else stream_hook
+
+    def _hook_name(site: StimSite) -> str:
+        """The hook point current is delivered at for this site."""
+        return (f"blocks.{site.layer}.attn.hook_z" if site.is_head
+                else f"blocks.{site.layer}.hook_resid_pre")
+
+    def step(model, r: torch.Tensor, iteration: int = 0) -> torch.Tensor:
+        """One ATR iteration, with current delivered at the planned sites if it fires."""
+        # --- atr_bridge.make_atr_step body, unchanged -----------------------
+        current_norm = r.norm().item()
+        if current_norm > 0:
+            r = r * (initial_norm / current_norm)
+
+        inject_tensor = r.clone()
+
+        def injection_hook(resid, hook, tensor=inject_tensor):
+            """Write the loop's carried state into the stream, overwriting what was there."""
+            resid[0, :, :] = tensor
+            return resid
+
+        model.add_hook(hook_point_write, injection_hook)
+        try:
+            # --- the only addition: current at the planned sites ------------
+            # INSIDE the try, and that placement is load-bearing. An earlier
+            # version raised the collision error here but outside it, so the
+            # injection hook registered on the line above survived the exception
+            # and poisoned every later forward pass on this model. `atr_bridge`
+            # documents that exact hazard at its own teardown and this module
+            # reproduced it anyway.
+            if fires(iteration):
+                for site in plan.sites:
+                    name = _hook_name(site)
+                    if name == hook_point_write:
+                        # The loop's own injection overwrites this tensor
+                        # wholesale, so a stimulation hook registered at the same
+                        # point would be silently erased. Refusing beats a silent
+                        # no-op.
+                        raise ValueError(
+                            f"stimulation site {site} collides with the loop's "
+                            f"injection point {hook_point_write}; the loop "
+                            f"overwrites that tensor, so the stimulation would "
+                            f"be discarded. Use a head site, or a different block."
+                        )
+                    model.add_hook(name, _stim_hook_for(site))
+            with torch.no_grad():
+                _, cache = model.run_with_cache(
+                    prompt,
+                    names_filter=lambda n: n == hook_point_read,
+                )
+        finally:
+            model.reset_hooks()
+
+        return cache[hook_point_read][0].clone()
+
+    step.prompt = prompt
+    step.initial_norm = initial_norm
+    step.hook_point_read = hook_point_read
+    step.hook_point_write = hook_point_write
+    step.plan = plan
+    step.stimulated_sites = lambda iteration: (
+        tuple(plan.sites) if fires(iteration) else ()
+    )
+    return step

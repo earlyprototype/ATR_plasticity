@@ -41,3 +41,9 @@ experiments/**/exp001.shard*.jsonl
 .vscode/
 experiments/output_exp002/run.log
 experiments/output_exp002/run_uncapped.log
+
+# In-flight experiment artifacts. A runner writes to `<name>.partial` and renames
+# to `<name>` only when it completes, so a run that dies part way never leaves a
+# file that looks like a finished result. Three commits were needed to undo a
+# blanket `git add` catching one of these mid-run; this is the fix for the cause.
+experiments/**/*.partial
