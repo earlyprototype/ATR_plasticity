@@ -2,13 +2,13 @@
 
 Issues #26, #30, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120 steps, cadence 1, `max_delta_frac` = 0.05.
 
-> **Review notice — `ALIGNMENT_REVIEW.md` supersedes two statements in this file.** Where they
+> **Review notice — `ALIGNMENT_REVIEW.md` supersedes three statements in this file.** Where they
 > disagree, `CLAIMS.md` is the authority.
 >
-> - **"The only cell in the whole sweep"** (next paragraph) is wrong: there are **two**
->   ceiling-silent cells that flip the basin — `hebb`@7.07e-05 (1.12% drift) and
->   `hebb`@1.18e-04 (2.20%), both 0.0% clip, both `comrade`. See **C-21**. (Not an independent
->   replication — both share prompt, seed, site and cadence.)
+> - **"The only cell in the whole sweep" was wrong, and is now corrected in place**
+>   (next paragraph, 2026-08-05): there are **two** ceiling-silent cells that flip the basin —
+>   `hebb`@7.07e-05 (1.12% drift) and `hebb`@1.18e-04 (2.20%), both 0.0% clip, both `comrade`.
+>   See **C-21**. (Not an independent replication — both share prompt, seed, site and cadence.)
 > - **§3's perpendicular/parallel figures (0.1153 / 0.0346, ratio 3.33)** are arithmetically
 >   correct, but the prose labels them fractions of `‖ΔW_closed‖`; `exp001_hebb.py:1163-1173`
 >   normalises by `‖ΔW_offline‖`. **The label is wrong, not the numbers.** Do not restate the
@@ -20,7 +20,7 @@ Issues #26, #30, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120 steps,
 >   `A04_climate`), one site, one eta. Every dispersion figure in that table — the ranges and
 >   medians — inherits that limit. See **C-41**.
 
-The step-size map found `hebb` at this eta to be the only cell in the whole sweep that moves the loop inside a clean band: basin `prolet` → `comrade` at 1.12% relative weight change with the norm ceiling silent. `oja`, `anti_hebb` and `random` all have wide usable bands in which no basin change was recorded. Every offline-control number previously recorded in this repo was taken at `oja`, eta 1e-5 — inside the dead zone. This is the first time the control has been run where the loop actually moves.
+The step-size map found `hebb` to be the only *rule* that moves the loop inside a clean band, and it does so at **two** step sizes (C-21): this eta, giving basin `prolet` → `comrade` at 1.12% relative weight change with the norm ceiling silent, and eta 1.18e-04, giving the same `comrade` at 2.20% drift, also ceiling-silent. The two are not an independent replication — they share prompt, seed, site and cadence — so what they establish is that the flip survives a 1.7× change in eta. `oja`, `anti_hebb` and `random` all have wide usable bands in which no basin change was recorded. Every offline-control number previously recorded in this repo was taken at `oja`, eta 1e-5 — inside the dead zone. This is the first time the control has been run where the loop actually moves.
 
 ## 1. Does the offline arm flip the basin too?
 

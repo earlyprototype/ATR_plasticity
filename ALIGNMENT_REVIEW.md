@@ -850,6 +850,30 @@ and any flip below a threshold fixed *now, in advance* is reported `readout-ambi
 **T0.6 — Commit the prior-art search artifacts.** Query lists, dates, endpoints, returned
 IDs. Converts eleven absence claims from assertion to record. (F10)
 
+> **Status note, added 2026-08-05, after this review was written.** Much of the list below has
+> since run, and **this list is not the record of it — `CLAIMS.md` is.** Read the per-item text
+> below as the review's original reasoning, not as current state. Verified against the register
+> and the committed artifacts:
+>
+> - **Run:** T0.4's "only cell" half (now corrected in place in `EXP_001_RESULTS.md` and
+>   `HANDOVER.md` §3.2 — C-21); T1.1 (C-26 `retired`, C-56 `supported`); T1.2 (C-52, no
+>   hysteresis); T1.4 (see the update under it — C-22 `retired`, C-55 `supported`); T1.5 (C-45
+>   `retired`, C-57 `supported`); T2.1 and T2.1b (C-35 answered, C-58 and C-59 `supported`);
+>   **T2.2 — EXP-002 ran and is merged** (C-53 answered; C-60 – C-63), so the "Still unrun" in
+>   its own entry below is stale; T3.2 in substance (EXP-002 ran all twelve MLP
+>   down-projections, so "tooling landed in PR #35, never used" is also stale — C-64); and
+>   T3.3's cadence half (cadence 2 and 4 in T2.1, 4 and 12 in EXP-003 Stage 2 — C-58, C-64).
+> - **Superseded:** T0.2. The claim it was to be written up in support of, "both magnitude and
+>   sign are required", is itself `retired` — T1.4 took the sign clause down. What survives is
+>   C-55.
+> - **Still unrun:** T0.5 (margin discipline — C-55 records the gap), T0.6 (search artifacts —
+>   C-42), T1.3 (C-28 still `provisional`), T2.3 (C-54, issue #49), T2.4 (C-14
+>   `not-established`), T3.1 (0 of 12 attention projections and 0 of 144 head stripes have ever
+>   carried plasticity — C-64), and T3.3's drive-β / leak-α half.
+> - **Partly propagated:** T0.1 and T0.3. The register carries both answers (C-04 – C-07 for
+>   issue #31, C-56 for the ladder step), but `HANDOVER.md` §3.4, §5.3 and §5.4 still read the
+>   old way under a top-of-file notice rather than being corrected in place.
+
 ### Tier 1 — Cheap decisive experiments (CPU-minutes to hours)
 
 **T1.1 — The coexistence test.** Under `W0 + ΔW`, seed the original frozen `prolet` state,

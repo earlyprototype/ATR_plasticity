@@ -7,9 +7,10 @@ where something is interpretation it is marked as such.*
 Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 "where we are and what's next" layer on top of it.
 
-> **Review notice — read before quoting anything below.** `ALIGNMENT_REVIEW.md` found three
-> claims in this file superseded by evidence already in the repo. Until the Tier 0 work in
-> that review lands, `CLAIMS.md` is the authority where they disagree:
+> **Review notice — read before quoting anything below.** `ALIGNMENT_REVIEW.md` found four
+> claims in this file superseded by evidence already in the repo, and a fifth reading noted
+> below it. Until the Tier 0 work in that review lands, `CLAIMS.md` is the authority where
+> they disagree:
 >
 > - **§3.3, "The two agree… feedback did nothing."** Wrong. Against a severed-path null of
 >   *exactly zero* (`torch.equal` True), the feedback-attributable component is 12% of drift:
@@ -26,18 +27,19 @@ Read `ORIENTATION.md` first if you have never seen this repo. This file is the
 > - **§5.4, "issue #31 not yet started."** It was run. The measurement is in
 >   `experiments/output_baseline/BASELINE.md` and the answer is compression, one-dimensional,
 >   position-uniform across all basins. See C-04 – C-07.
-> - **"Three facts worth carrying forward" (below), both of its first two claims.**
->   *"The only cell in the whole sweep"* — there are **two**: `hebb`@7.07e-05 (1.12% drift) and
->   `hebb`@1.18e-04 (2.20%), both ceiling-silent, both `comrade`. See C-21. And *"the basin
->   change is specific to the update's **direction**, not its magnitude"* — **withdrawn**. The
->   α-sweep holds this exact ΔW's direction fixed and produces three basins by scaling alone
->   (`prolet` → `comrade` → `Divine`, α\* = 0.75), and `hebb`@3.925e-05 is the same direction at
->   a quarter the magnitude and does not flip. The supported claim is that **both magnitude and
->   sign are required**. See C-22, now `provisional`.
+> - **"Three facts worth carrying forward" (§3.2 below), both of its first two claims — both
+>   now corrected in place, 2026-08-05.** *"The only cell in the whole sweep"* — there are
+>   **two**: `hebb`@7.07e-05 (1.12% drift) and `hebb`@1.18e-04 (2.20%), both ceiling-silent,
+>   both `comrade`. See C-21. And *"the basin change is specific to the update's
+>   **direction**, not its magnitude"* — **withdrawn**. The α-sweep holds this exact ΔW's
+>   direction fixed and produces three basins by scaling alone (`prolet` → `comrade` →
+>   `Divine`, α\* = 0.75), and `hebb`@3.925e-05 is the same direction at a quarter the
+>   magnitude and does not flip. C-22, which replaced it with "both magnitude and sign are
+>   required", has **since been retired itself** — T1.4 flipped the basin with arbitrary
+>   rank-1 directions, so the sign clause fell too. The surviving claim is **C-55**.
 >
-> Also: §3.2's "the only cell that moves the loop" undercounts — there are **two** clean
-> cells (C-21); and the Chaudhary reading in §5.4 is the superseded one, which predicts the
-> opposite failure mode to `PRIOR_ART.md` (C-44).
+> Also: the Chaudhary reading in §5.4 is the superseded one, which predicts the opposite
+> failure mode to `PRIOR_ART.md` (C-44).
 
 ---
 
@@ -125,12 +127,23 @@ ceiling 0.05. Only the rule and the step size vary.
 
 Three facts worth carrying forward:
 
-- **`hebb` at eta ≈ 7.07e-05 is the only cell in the whole sweep that moves the loop
-  with the ceiling silent** (1.12% relative weight change, 0.0% clip rate). That is
-  the working point every later run uses.
+- **`hebb` is the only rule that moves the loop with the ceiling silent, and it does so at
+  two step sizes** (C-21): eta ≈ 7.07e-05 at 1.12% relative weight change, and eta ≈
+  1.18e-04 at 2.20%, both at 0.0% clip and both to `comrade`. Not an independent
+  replication — the two cells share prompt, seed, site and cadence — so what they show is
+  that the flip survives a 1.7× change in eta. The first is the working point every later
+  run uses.
 - **Norm-matched `random` never moves the basin**, even at the full 5% drift. `oja`
-  reaches *larger* drift (2.9%) than `hebb` needed (1.1%) and also never moves it. So
-  the basin change is specific to the update's **direction**, not its magnitude.
+  reaches *larger* drift (2.9%) than `hebb` needed (1.1%) and also never moves it. Those
+  are measurements and they stand; the inference once drawn from them — that the basin
+  change is specific to the update's **direction**, not its magnitude — does not. It is
+  **retired twice over**: first by the α-sweep, which produces three basins by scaling one
+  fixed direction, and then by T1.4, which flipped the basin with *arbitrary* rank-1
+  directions and so took the replacement "magnitude and sign are both required" down with
+  it (C-22, `retired`). C-23 records why this control was matched on the wrong quantity:
+  isotropic `random` never reaches `hebb`'s operator norm anywhere in the sweep. What
+  survives is **C-55** — at matched displacement an arbitrary direction usually *does*
+  move the basin, but never to `comrade`, and at 66×–172× `hebb`'s weight cost.
 - **No spectral collapse anywhere.** Effective rank stays flat (~642 of 768) and
   *rises* under `oja`/`anti_hebb`. The changes are not a hollowing-out artifact.
 
