@@ -148,7 +148,7 @@ framing that reports it for `Divine` alone.
 **The caveat that governs every basin claim in this repo is C-07.** The taxonomy has a
 resolution limit and it is comparable to the separation it is resolving: within-basin spread
 3.319e-03 against the nearest-basin gap, `Anarch` to `prolet`, of 2.874e-03 — a ratio of
-**1.16**. Two basins this project treats as distinct are no further apart than the prompts
+**1.15**. Two basins this project treats as distinct are no further apart than the prompts
 inside one of them. Also worth carrying: 69 of the 125 baseline prompts sit at a top1−top2
 margin below 0.5, so the label is often close-run at the readout.
 
@@ -353,7 +353,7 @@ too lands in `Divine` (C-28).
 **One caveat governs all of it.** `comrade` and `prolet` sit at a settled margin of 0.321
 with `prolet` still at rank 3, and the basin taxonomy's resolution limit is comparable to
 the separation between basins: within-`prolet` spread 3.319e-03 against the nearest-basin
-gap 2.874e-03, a ratio of 1.16 (**C-07**). Two basins this project treats as distinct are
+gap 2.874e-03, a ratio of 1.15 (**C-07**). Two basins this project treats as distinct are
 no further apart than the prompts inside one of them.
 
 ---
