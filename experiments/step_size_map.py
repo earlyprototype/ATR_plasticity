@@ -487,6 +487,21 @@ def _fmt(x, spec=".4g", none="--"):
     return format(x, spec)
 
 
+def _fmt_d(d, none="--"):
+    """The D column, at a precision that does not misstate the step size that ran.
+
+    `.0e` is lossless for the decade and 3-decade grid points, but it rounds the two
+    `hebb` refinement cells -- d_target 0.018 printed as `2e-02` and 0.056 as `6e-02`,
+    i.e. 0.02 and 0.06, neither of which was run. Keep `.0e` wherever it round-trips
+    (which is every grid point, so the committed table is unchanged there) and fall
+    back to `.3g` where it would not.
+    """
+    if d is None:
+        return none
+    s = format(d, ".0e")
+    return s if float(s) == d else format(d, ".3g")
+
+
 def is_hollowed(rec: dict) -> bool:
     """Effective rank down while ||W||_F flat -- issue #27 item 11 and nothing else."""
     return (rec["erank_pr_rel_drop"] > ERANK_DROP_FLAG
@@ -913,7 +928,7 @@ def build_report(recs: list, meta: dict) -> str:
             A("| `{m}` | {d} | {eta} | {rel} | {wn} | {clip} | {nf} | {er} | "
               "{der} | {mm} | {pp} | `{basin}` | {l1} | {l2} | {v} |".format(
                   m=r["mode"],
-                  d=_fmt(r["d_target"], ".0e"),
+                  d=_fmt_d(r["d_target"]),
                   eta=_fmt(r["eta"], ".3g"),
                   rel=_fmt(r["rel_weight_change"], ".3e"),
                   wn=_fmt(r["w_norm_last"], ".4f"),

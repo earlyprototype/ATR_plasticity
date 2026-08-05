@@ -209,6 +209,25 @@ negotiable and they are why the rows above are worth anything.
   summary table with "only at 100% clip" stated inline, in a column asking whether the rule
   moves the basin inside the ceiling-silent band, answered "no". Quoting a ceiling-fired
   cell as a non-finding with its clip rate attached is what this prohibition asks for.
+- **Never quote the `verdict` field of the `d1_summary` record in
+  `experiments/output_basin_bifurcation/basin_bifurcation.jsonl`.** It reads "created (issue
+  #25 step 4, a bifurcation): comrade is NOT an attractor of the original frozen map". Only
+  the clause after the colon is a measurement; the "created"/step-4 half is **C-26**,
+  `retired`, refuted by T1.1 (durable claim **C-56**). The generator was corrected and now
+  writes the measurement alone, so artifact and code diverge here on purpose: an artifact
+  records what ran and is not edited afterwards, and a re-run supersedes it. Swept
+  2026-08-05 across all 31 committed `.json`/`.jsonl` artifacts, this is the only retired
+  reading left anywhere in the evidence layer.
+- **`STEP_SIZE_MAP.md` is not regenerable. Never run `--report-only` over it without reading
+  the diff first.** Checked 2026-08-05 by regenerating into a scratch path: the committed
+  document is **not** reproducible from `experiments/step_size_map.py`, and this predates this
+  branch (56 differing lines against `origin/main`). **No measurement disagrees** — the 35-row
+  main table is identical across all fifteen columns — but §5 carries a hand-written
+  "Corrected 2026-08-01" notice naming the two withdrawn ceiling-fired figures (640.5 at 99.2%
+  clip, 647.3 at 60.8%), which the generator does not emit. A blind regeneration deletes that
+  notice. It would no longer reinstate those figures *as the bound*, since the generator now
+  selects on ceiling-silent cells only, but this document is a hand-maintained descendant of
+  its generator rather than its output.
 - **Never use an even-only snapshot schedule.** Log lag-1 *and* lag-2.
 - **Use tolerance, not `torch.equal`,** except where asserting bit-identity on purpose.
 - **Don't tune to match the parent's basin percentages.** The bridge is bit-exact and

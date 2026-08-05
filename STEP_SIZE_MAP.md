@@ -12,7 +12,7 @@ Issue #30. Where, for each local rule, the weights actually move without the run
 | prompt | `A01_physics` — "The implications of quantum entanglement suggest that" |
 | loop | layers 0→11, 120 steps, ‖x₀‖ = 1289.226318 |
 | plasticity | cadence 1 (update after every step), `max_delta_frac` = 0.05, seed 0 |
-| cells | 35 recorded of 33 = 1 frozen reference + 4×8 |
+| cells | 35 recorded = 1 frozen reference + 4×8 grid + 2 `hebb` refinement (D = 0.018, 0.056) |
 | eta anchor | `eta = D · ‖W0‖_F / (N · U_ref)`, U_ref = {"hebb": 350.0, "oja": 14000.0, "anti_hebb": 14000.0, "random": 14000.0} |
 | threads | 1 per process, 2 shard(s) |
 
