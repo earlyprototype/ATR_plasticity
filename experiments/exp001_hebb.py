@@ -12,7 +12,7 @@ goes `prolet` -> `comrade` at 1.12% relative weight change with the ceiling
 **silent** (0.0% clipping), and at eta = 1.18e-04 it reaches the same `comrade`
 at 2.20% drift, also ceiling-silent. The two are NOT an independent replication
 -- they share prompt, seed, site and cadence -- so what they establish is that
-the flip survives a 1.7x change in eta.
+the flip survives a 1.7× change in eta.
 
 Every offline-control measurement this repo had recorded **before this run** was
 taken at `oja`, eta = 1e-5 -- which the map now places inside the dead zone. So
@@ -822,6 +822,14 @@ def _lens_section(lens: dict, main: dict) -> list:
 
 
 def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
+    # Guard FIRST, before any prose. `--report-only` hands this function whatever
+    # is in the chosen output directory, so on an empty or foreign dataset the
+    # opening paragraphs below would assert this experiment's specific findings --
+    # two ceiling-silent flipping cells, the control chronology -- over data that
+    # does not support them. A report with no records must say only that.
+    if not recs:
+        return "No records.\n"
+
     routed = [r for r in recs if r["kind"] == "routed"]
     severed = [r for r in recs if r["kind"] == "severed"]
     episodes = [r for r in recs if r["kind"] == "episode"]

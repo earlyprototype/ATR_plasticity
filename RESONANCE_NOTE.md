@@ -201,11 +201,18 @@ was an empirical quantity, and it has now been measured rather than argued.
 
 The same measurement handed back something I did not ask for, and it cuts the other way.
 **The basin taxonomy has a resolution limit comparable to the basin separation itself**
-(C-07): the within-basin spread of 3.319e-03 is *larger* than the gap between the two nearest
-basins, `Anarch` and `prolet`, at 2.874e-03 — a ratio of **1.15**. Two basins this project
-treats as distinct are no further apart than the prompts inside one of them. That caveat has
-to travel with every basin number in this note, including the five-basin count the argument
-above is built on.
+(C-07): the **pooled** mean within-basin spread of 3.319e-03, taken over 2337 pairs across all
+five basins, is *larger* than the gap between the two nearest basins, `Anarch` and `prolet`, at
+2.874e-03 — a ratio of **1.15**. Two basins this project treats as distinct are no further
+apart than the prompts inside one of them. That caveat has to travel with every basin number in
+this note, including the five-basin count the argument above is built on.
+
+**Name the population when you use it, because the pooled figure is driven by one basin.** Per
+basin the spreads are `Divine` 6.128e-03, `prolet` 2.773e-03, `Anarch` 1.178e-03 and `till`
+3.493e-04. Only `Divine` exceeds the 2.874e-03 gap, and `Divine` is the period-2 basin whose
+spread is intrinsically the largest. So the two basins that are actually nearest each other
+both sit *below* their mutual gap and do resolve; the caveat bites on the pooled statistic and
+not on that pair. C-07 carries the same decomposition.
 
 So "a different animal" needs care, though not the care I expected. The erasure reading is
 out, so the struck-bell analogy — doing something, doing it stably, and doing it nearly
@@ -348,8 +355,9 @@ the prompt that one-dimensional spread actually carries, and whether any of it r
 output. And the largest credibility gain available to the project is the **125-prompt library
 at the working point** — T2.3, register row C-54, issue #49 — which is what would move every
 basin-flip claim here off the 3 prompts it rests on. Read either against C-07 first:
-within-basin spread 3.319e-03 against a nearest-basin gap of 2.874e-03, ratio 1.15, which is
-the load-bearing caveat on anything in this note that uses the word basin.
+pooled mean within-basin spread 3.319e-03, across all five basins, against a nearest-basin gap
+of 2.874e-03, ratio 1.15, which is the load-bearing caveat on anything in this note that uses
+the word basin — and read its decomposition above before applying it to a particular pair.
 
 ---
 

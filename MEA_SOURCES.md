@@ -4,7 +4,7 @@
 literature, what was verified, and what EXP-003 borrows from it. It contains no argument
 about whether that literature applies to this project, and no interpretation of this
 project's results. Nothing in this file enters the claim register: it is source material, and
-the register cites it only through the rows that record what EXP-003 measured, C-65 to C-67.*
+the register cites it only through the rows that record what EXP-003 measured, C-65 to C-67, and through **C-44**, which records the limitation noted at the end of this file that no person on this project has opened any of these papers.*
 
 **History.** This file was previously `MEA_ANALOGUE.md` and argued that the ATR loop is a
 computational analogue of a dissociated cortical culture. That argument was written by an

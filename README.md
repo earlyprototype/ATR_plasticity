@@ -106,7 +106,7 @@ ever reaches the Hebbian rule's own destination, 0 of 10 random seeds, and match
 effect costs 66 to 171 times as much weight change. So direction does not decide whether
 the landscape moves; it decides where it moves to, and how cheaply.
 
-**Coupling is reported as a refinement, not the headline.** The project's founding
+**Coupling: measurably present, outcome-neutral up to a boundary that has now been located.** The project's founding
 interest is coupling: the weights changing while the activations they change feed back
 into them. That has been measured (claim C-31): the feedback-attributable part of the
 weight change is 12% of the total, against a severed-path control whose floor is exactly

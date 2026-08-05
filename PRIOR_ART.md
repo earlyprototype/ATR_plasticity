@@ -4,7 +4,7 @@
 Corrected again 2026-08-05 against `CLAIMS.md`: the verification claim re-audited entry by
 entry, the arm-to-arm floor replaced by C-30's exact zero, the Hebbian identity completed
 with its bias term (C-10), the ceiling-versus-rescaling gap closed at one site, and the
-three coverage gaps C-42 and C-43 require written into the still-open list.
+and the three coverage gaps that C-42 and C-43 require written into the still-open list.
 What exists, in plain terms, and how close it gets.*
 
 ## The claim, stated at the strength the search supports
@@ -808,8 +808,8 @@ No published step size was found in this search to anchor the sweep.
 ## Coverage gaps
 
 These are the reasons the verdict at the top is still provisional. **The still-open list is
-longer than it was, not shorter** — three items C-42's caveat requires had never been written
-down here: the eleven absence claims with no preserved artifact, the six adjacent literatures
+longer than it was, not shorter**: three items that C-42's caveat requires had never been
+written down here at all: the eleven absence claims with no preserved artifact, the six adjacent literatures
 a term-driven search never queried, and ROME specifically (C-43). One item did close, and one
 narrowed.
 

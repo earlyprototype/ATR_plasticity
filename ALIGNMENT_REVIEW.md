@@ -1245,7 +1245,7 @@ experiment, and both currently hold:
 > C-55's — an arbitrary rank-1 direction at the same loop displacement usually moves the basin,
 > never to `hebb`'s destination, at 66×–171× the weight cost. The Status cells above are left
 > as written for the record.
-
+>
 > *Update, post-T2.1b — the **Coupling** column's "Behavioural consequence: none" no longer
 > holds, and this is the row that changed most.* **C-59: at 2.5× the working step size, ceiling
 > silent, feedback does change the outcome.** The connected loop settles into the period-2

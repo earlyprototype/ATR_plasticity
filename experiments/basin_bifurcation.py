@@ -434,7 +434,12 @@ def run(model, out_dir: Path, meta: dict) -> tuple[list, dict]:
         prev1 = r.clone()
 
     last = basin_of(model, r)
-    stays = (last["basin"] == "comrade")
+    # `first_leave is None` is the horizon statement; the final label alone is not,
+    # because a trajectory can leave `comrade` and come back and the final label
+    # would not show it. Either way this is a statement about the READOUT over
+    # D1_N steps, not about the state being fixed, which a finite run of identical
+    # labels cannot establish.
+    stays = (first_leave is None and last["basin"] == "comrade")
     d1_summary = {
         "kind": "d1_summary",
         "n_steps": D1_N,
@@ -881,19 +886,37 @@ def build_report(records: list, meta: dict) -> str:
     A("**Establishes:**")
     A("")
     if d2s and d1s:
-        A(f"- **A bracket on the `alpha`-sweep's change of label.** The basin "
-          f"holds at `{d2s['base_basin']}` and reads `comrade` by alpha\\* = "
-          f"{_fmt(d2s['alpha_star_first_change'], '.2f')}; the sweep steps in "
-          f"0.25, so what is established is the **bracket** — the single grid "
-          f"step ending at {_fmt(d2s['alpha_star_first_change'], '.2f')} — and "
-          f"not a threshold at "
-          f"{_fmt(d2s['alpha_star_first_change'], '.2f')} itself.")
-        A(f"- **D1's measurement.** Seeded at the episode's `comrade` state, the "
-          f"**frozen** W0 map does not hold it: it leaves at iteration "
-          f"{d1s['first_leave']['iter'] if d1s['first_leave'] else '--'} "
-          f"and settles at `{d1s['final_basin']}`, smoothly and monotonically. "
-          f"`comrade` is not an attractor of the original frozen map. What that "
-          f"supports is **displacement**, not creation — see §D1 and **C-56**.")
+        # Branch on the recorded outcome rather than assuming it. A sweep in which
+        # no label changes leaves `alpha_star_first_change` None, and a sweep whose
+        # seeded state never leaves leaves `stays_comrade` True -- both are real
+        # possible results of this experiment, and asserting the outcome we happened
+        # to get would make the generator lie on a rerun that got the other one.
+        a_star = d2s.get("alpha_star_first_change")
+        if a_star is None:
+            A(f"- **No change of label anywhere in the `alpha`-sweep.** The basin "
+              f"holds at `{d2s['base_basin']}` at every sampled alpha, so this run "
+              f"establishes no bracket and nothing about a threshold.")
+        else:
+            A(f"- **A bracket on the `alpha`-sweep's change of label.** The basin "
+              f"holds at `{d2s['base_basin']}` and reads `comrade` by alpha\\* = "
+              f"{_fmt(a_star, '.2f')}; the sweep steps in "
+              f"0.25, so what is established is the **bracket** — the single grid "
+              f"step ending at {_fmt(a_star, '.2f')} — and "
+              f"not a threshold at "
+              f"{_fmt(a_star, '.2f')} itself.")
+        if d1s.get("stays_comrade"):
+            A(f"- **D1's measurement.** Seeded at the episode's `comrade` state, the "
+              f"**frozen** W0 map's readout does not leave `comrade` within "
+              f"{d1s['n_steps']} steps. That is a statement about the readout over a "
+              f"finite horizon and not a demonstration that the state is fixed — see "
+              f"§D1 and **C-56**.")
+        else:
+            A(f"- **D1's measurement.** Seeded at the episode's `comrade` state, the "
+              f"**frozen** W0 map does not hold it: the readout leaves at iteration "
+              f"{d1s['first_leave']['iter'] if d1s['first_leave'] else '--'} "
+              f"and settles at `{d1s['final_basin']}`, smoothly and monotonically. "
+              f"`comrade` is not an attractor of the original frozen map. What that "
+              f"supports is **displacement**, not creation — see §D1 and **C-56**.")
     A("")
     # These three bullets are kept in place, marked superseded, rather than
     # deleted: the repo's convention is that the record of what it used to

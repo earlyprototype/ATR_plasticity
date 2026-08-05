@@ -181,7 +181,7 @@ without amendment:
   move the loop state 3–5 orders of magnitude less and never flip.
 - C-07's resolution caveat travels with the destinations: 6 of the 8 flips
   land in `Anarch`, whose distance to `prolet` (1−cos 2.874e-03) is below the
-  **pooled** mean within-basin spread (3.319e-03, across all five basins; `prolet`'s own is 2.773e-03, which is *below* this gap, as is `Anarch`'s 1.178e-03 — see C-07's decomposition, which means the coarse-instrument caveat does not bite on these destinations).
+  **pooled** mean within-basin spread (3.319e-03, across all five basins; `prolet`'s own is 2.773e-03, which is *below* this gap, as is `Anarch`'s 1.178e-03 — see C-07's decomposition, which means the coarse-instrument caveat does not bite on the six `Anarch` destinations; the two `bourgeois` ones are **unresolved rather than cleared**, because `bourgeois` is not a baseline basin and so has neither a within-basin spread nor a baseline gap to compare).
 
 **C-22 has not been amended here.** Per `CLAIMS.md`, a status change is a pull
 request of its own with the evidence attached. This file is the evidence.
