@@ -18,7 +18,7 @@ resulting weights. Two rule arms, `hebb` and `anti_hebb`, each with a matched
 no-feedback arm built from the tested single-site recording and replay.
 
 Per-site step sizes were anchored so every layer travels a comparable relative distance
-(Amendment 1). At one shared step size the layers differ by more than 200x, so a shared
+(Amendment 1). At one shared step size the layers differ by **136x** for `hebb` and **56x** for `anti_hebb` (`calibration.probe_per_site[].delta_frac` at the shared probe eta; an earlier "more than 200x" here pooled the two rules, which is not a span across layers), so a shared
 value cannot drive them all. Anchoring worked well for `hebb` (achieved drift 1.03%–1.56%
 against a 1.12% target) and poorly for `anti_hebb` (0.92%–11.18%, a 12x spread), whose
 drift is strongly non-linear in step size. **Every `anti_hebb` number carries that
@@ -182,7 +182,7 @@ approaching, never settling, never diverging — which that issue states in adva
 result and not a failed run.
 
 So `anti_hebb` scoring 0/5 is not "no attraction": from a perturbation of 0.1 it comes
-back to within 0.00066, three orders closer. It is "no fixed point at the precision the
+back only to within 0.00068, about 2.2 orders closer rather than the three once stated here. It is "no fixed point at the precision the
 criterion demands".
 
 The reprompt table confirms this is systemic rather than a property of the driven prompt

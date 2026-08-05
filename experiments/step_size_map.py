@@ -702,12 +702,21 @@ def _findings(recs: list, by_mode: dict, ref: dict | None) -> list:
              "through, not eating it."))
     A("")
 
-    A("### 5. No hollowing out anywhere in the sweep")
+    A("### 5. No hollowing out anywhere in the ceiling-silent band")
     A("")
-    worst = min(recs, key=lambda r: r["erank_pr_min"])
-    best = max(recs, key=lambda r: r["erank_pr_last"])
+    # Bound this on the ceiling-silent cells ONLY. A cell where the ceiling fired
+    # is a measurement of `max_delta_frac`, not of the rule, and the register's
+    # standing prohibition forbids quoting one as evidence. Selecting over `recs`
+    # unfiltered is how this section came to bound the effect with `hebb`@0.0393
+    # at 99.2% clip and `anti_hebb`@9.81e-05 at 60.8% clip; both figures were
+    # withdrawn on 2026-08-01 and the committed document was rewritten onto the
+    # 23 clean cells. This filter is what stops a regeneration reinstating them.
+    clean = [r for r in recs if r["clip_rate"] == 0.0]
+    worst = min(clean, key=lambda r: r["erank_pr_min"])
+    best = max(clean, key=lambda r: r["erank_pr_last"])
     A(f"Effective rank starts at {ref['erank_pr_first']:.1f} (of 768) and over "
-      f"every cell in the map never falls below {worst['erank_pr_min']:.1f} "
+      f"every one of the {len(clean)} ceiling-silent cells never falls below "
+      f"{worst['erank_pr_min']:.1f} "
       f"(`{worst['mode']}` at {worst['eta']:.3g}, a "
       f"{1 - worst['erank_pr_min'] / ref['erank_pr_first']:.2%} fall). Under "
       f"`oja` and `anti_hebb` it *rises*, to {best['erank_pr_last']:.1f} — the "

@@ -158,7 +158,7 @@ all predate it):
 | scales covered | 0.39× – 2.20× ‖W0‖_F |
 | C-06 reference (frozen states) | all pairs above cos 0.999 |
 
-Position uniformity holds at every recorded Arm B scale, thirteen orders of
+Position uniformity holds at every recorded Arm B scale, ten orders of
 magnitude inside C-06's threshold. The position-mean used by `1−cos(off)` is a
 faithful summary at these scales, so the Arm B match criterion is valid where
 it was measured. Settled-state norm vs the frozen state (`norm_ratio_vs_off`)

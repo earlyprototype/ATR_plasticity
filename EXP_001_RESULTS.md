@@ -22,6 +22,13 @@ Issues #26, #30, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120 steps,
 >   one site. Repeated seeds on the same prompt are not independent runs, so **the independent n
 >   is 3** (`A01_physics`, `A02_medical`, `A04_climate`), one site, one eta. Every dispersion
 >   figure in that table — the ranges and the medians — inherits that limit. See **C-41**.
+>
+> **This list is the `ALIGNMENT_REVIEW.md` set and not the full set of corrections.** Four
+> further statements in the body were corrected against the register on 2026-08-05 and are
+> marked where they stand rather than listed up here: §4's ΔW effective-rank range (it quoted
+> another rule's cells, one of them ceiling-fired), §4's logit-lens conclusion (**C-36**,
+> `not-established`), §5's basin-separation conclusion (no register row covers it), and §6's
+> contraction figure (**C-03**).
 
 The step-size map found `hebb` to be the only *rule* that moves the loop inside a clean band, and it does so at **two** step sizes (C-21): this eta, giving basin `prolet` → `comrade` at 1.12% relative weight change with the norm ceiling silent, and eta 1.18e-04, giving the same `comrade` at 2.20% drift, also ceiling-silent. The two are not an independent replication — they share prompt, seed, site and cadence — so what they establish is that the flip survives a 1.7× change in eta. `oja`, `anti_hebb` and `random` all have wide usable bands in which no basin change was recorded. Every offline-control number recorded in this repo **before this run** was taken at `oja`, eta 1e-5, inside the dead zone. The later offline and severed arms at `hebb` all postdate it: C-31 is this run's own, and C-58's eta and cadence grid is T2.1's. This is the first time the control has been run where the loop actually moves.
 
@@ -173,7 +180,7 @@ Dominant 768-side ΔW direction, one closed-loop episode per prompt, sign-fixed 
 | **A14_kant**<br>`Divine` | +0.356371 | +0.363236 | +0.375584 | -- | +0.938737 |
 | **A08_linguistics**<br>`Divine` | +0.466183 | +0.473248 | +0.485904 | +0.938737 | -- |
 
-**Exploratory, and unregistered.** Within-basin median cosine is +0.997680 (4 pairs) against between-basin +0.420884 (6 pairs). No row in `CLAIMS.md` covers this comparison, and that file's first rule is that a claim enters the register before it enters any prose document — so this is a measurement the repository has taken, not something it asserts, and it may not be cited as a finding. **Prompt similarity and basin membership are confounded in this design**, which is the reason no row was opened: with five prompts split 3/2, the within-basin pairs are also the pairs of most similar prompts, and nothing here separates the two.
+**Exploratory, and unregistered.** Within-basin median cosine is +0.997680 (4 pairs) against between-basin +0.420884 (6 pairs). No row in `CLAIMS.md` covers this comparison, and that file's first rule is that a claim enters the register before it enters any prose document — so this is a measurement the repository has taken, not something it asserts, and it may not be cited as a finding. **Prompt similarity and basin membership are confounded in this design**, and that confound is why the comparison cannot become a register row on this evidence: with five prompts split 3/2, the within-basin pairs are also the pairs of most similar prompts, and nothing here separates the two.
 
 **Superseded 2026-08-05.** This paragraph used to head the same two cosines with the bolded conclusion "The directions separate by basin". The cosines stand as measurements. The conclusion was drawn in prose without a register row, from 4 pairs against 6, in a design this section itself declares confounded two paragraphs later, and it is withdrawn.
 

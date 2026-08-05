@@ -98,9 +98,8 @@ norm ceiling** (7.5%, 43.3%, 83.3%, 95.8% and 99.2% clip) — a clipped cell has
 drift bounded by `max_delta_frac` by construction, so it cannot bear on whether the
 rule itself diverges; it measures the ceiling. The claim is true and now rests only
 on what can carry it: `hebb`'s five ceiling-silent cells. The clipped cells stay in
-`STEP_SIZE_MAP.md`'s table as diagnostics. Note also what C-15 does *not* license —
-no document may say Hebb grows "without bound", because C3 runs a fixed small number
-of applications and records continued growth over that run only.
+`STEP_SIZE_MAP.md`'s table as diagnostics. Step 2 of the sweep order below states the
+other half of C-15's scope, which is that nothing here licenses "without bound".
 
 ## Sweep order
 
@@ -138,8 +137,9 @@ your hardware, which the parent repo already knows.
   approximates a timescale separation. k is a free parameter with a biological
   interpretation (the ratio of fast to slow dynamics), and this line's "should
   eventually be swept, not fixed" has since been done: **k = 1, 2, 4 and 12**
-  have run (C-64) — 2 and 4 in T2.1, 4 and 12 in EXP-003 Stage 2. Loosening the
-  coupling does what the framing predicts. The feedback-attributable share of
+  have run (C-64) — 2 and 4 in T2.1 alongside its cadence-1 cells, and 1, 4 and
+  12 in EXP-003 Stage 2 (`stage2.jsonl` field `k`, `ladder: [1, 4, 12]`).
+  Loosening the coupling does what the framing predicts. The feedback-attributable share of
   the weight change falls as k rises, **0.1204 at k=1, 0.0543 at k=2, 0.0254 at
   k=4** (C-58), which is the same coupling-strength monotonicity read along this
   axis rather than a separate effect. Two limits travel with that. Cadence above

@@ -56,7 +56,7 @@ effect; the two ratios differ, so no single per-doubling constant is claimed.
 
 In every ceiling-silent cell the two arms settle in the same basin, including the two
 cells where the settled state changes **dynamical class** into the period-2 `Divine`
-cycle (2x eta, and 240 steps at the working eta): lag-1 approx 0.67 to 0.69 with lag-2 =
+cycle (2x eta, and 240 steps at the working eta): lag-1 0.672 to 0.751 (**corrected 2026-08-05**: this read "approx 0.67 to 0.69", which is min/max over a set that *included* the ceiling-fired 4x-eta cell at 0.6920 and *excluded* the 240-step cell at 0.7507 — a breach of the standing prohibition against quoting a ceiling-fired cell, and the error propagated into register row C-58, now fixed there too) with lag-2 =
 1.0 in **both** arms, margins 2.0 to 2.4 logits, ceiling silent. Whatever the rule alone
 does offline, the connected loop does too. So C-33's "feedback changes no visible
 outcome" survives throughout this grid, up through 2x eta and 240 steps: the share grows

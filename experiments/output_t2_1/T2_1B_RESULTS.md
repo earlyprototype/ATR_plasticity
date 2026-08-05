@@ -62,8 +62,11 @@ resolution.
 - n = 1 prompt (`A01_physics`), 1 site, 1 seed, `hebb` only, single grid point of onset;
   the interval (2x, 2.5x) is unprobed below the 0.5x grid step.
 - `【`'s basin identity is read from the standard readout; it is not one of the five
-  frozen baseline basins, and no claim is made about what it "is" beyond a settled fixed
-  point outside the census.
+  frozen baseline basins, and no claim is made about what it "is" beyond a terminal readout
+  outside the census. **It is not called a settled fixed point**, which this caveat used to say and
+  which the body of this file correctly denies twice: a late-window lag-1 of 0.998 does not
+  establish convergence, no convergence test was run, and the severed arm's dynamical class is
+  therefore unclassified.
 
 ## Files
 

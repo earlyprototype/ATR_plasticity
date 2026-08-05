@@ -74,7 +74,7 @@ because `CLAIMS.md` and not this table is what decides what any of them may be c
 | 1 | `experiments/output_baseline/BASELINE.md` | Frozen 125-prompt basin census — the reference everything is compared against | C-01 – C-07 |
 | 2 | `STEP_SIZE_MAP.md` | 35 cells: 4 rules × 8 step sizes at one site — where each rule's weights move without the ceiling firing | C-13, C-21 |
 | 3 | `EXP_001_RESULTS.md` | The closed-loop vs offline-arm comparison at the working point | C-20, C-24, C-30 – C-33 |
-| 4 | `BASIN_BIFURCATION.md` | Whether the observed basin change is a boundary move or a created attractor | C-25, C-27, C-28 |
+| 4 | `BASIN_BIFURCATION.md` | Whether the observed basin change is a boundary move or a created attractor. **Its conclusion was refuted; read entry 5 with it** | C-25, C-27, C-28, and **C-26 `retired`**, C-56, C-68 |
 | 5 | `experiments/output_t1_1/T1_1_RESULTS.md` | T1.1, the coexistence test — does the frozen `prolet` state stay put under `W0 + ΔW`? | C-26 `retired`, **C-56** |
 | 6 | `experiments/output_t1_2/T1_2_RESULTS.md` | T1.2, the α up-then-down continuation sweep — is there hysteresis? | C-52: no |
 | 7 | `experiments/output_rank1_random/T1_4_RESULTS.md` | T1.4, a rank-1 random direction matched on loop displacement | C-22 `retired`, **C-55** |
@@ -352,7 +352,7 @@ too lands in `Divine` (C-28).
 
 **One caveat governs all of it.** `comrade` and `prolet` sit at a settled margin of 0.321
 with `prolet` still at rank 3, and the basin taxonomy's resolution limit is comparable to
-the separation between basins: within-`prolet` spread 3.319e-03 against the nearest-basin
+the separation between basins: **pooled** mean within-basin spread 3.319e-03, over 2337 pairs across all five basins, against the nearest-basin
 gap 2.874e-03, a ratio of 1.15 (**C-07**). Two basins this project treats as distinct are
 no further apart than the prompts inside one of them.
 
