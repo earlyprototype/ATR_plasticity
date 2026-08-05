@@ -26,8 +26,9 @@ change under the loop?*
 > the coupling sweep in [T2_1_RESULTS.md](experiments/output_t2_1/T2_1_RESULTS.md); twelve
 > plastic layers and a reprompt in
 > [EXP_002_RESULTS.md](experiments/output_exp002/EXP_002_RESULTS.md); and three
-> pre-registered stages in [output_exp003/](experiments/output_exp003/), which deliberately
-> enter no register rows.
+> pre-registered stages in [output_exp003/](experiments/output_exp003/), whose measurements are
+> claims C-65 to C-67 and whose most consequential result is a **refutation**: the mechanism
+> this project proposed for its own collapse fell by its own pre-registered threshold.
 >
 > **Two boundaries cut across all of it.** Everything up to and including T2.1b ran under a
 > 5% drift ceiling; EXP-002 and EXP-003 ran with it **lifted**, so numbers from the two
@@ -102,14 +103,15 @@ same size usually moves the settled word too, in 4 of the 6 cases that could be
 size-matched, so the edit is not special merely for having structure (claim C-55, which
 retired the earlier "the right sign is required" claim, C-22). But no random direction
 ever reaches the Hebbian rule's own destination, 0 of 10 random seeds, and matching its
-effect costs 66 to 172 times as much weight change. So direction does not decide whether
+effect costs 66 to 171 times as much weight change. So direction does not decide whether
 the landscape moves; it decides where it moves to, and how cheaply.
 
 **Coupling is reported as a refinement, not the headline.** The project's founding
 interest is coupling: the weights changing while the activations they change feed back
 into them. That has been measured (claim C-31): the feedback-attributable part of the
 weight change is 12% of the total, against a severed-path control whose floor is exactly
-zero, not a small number. But at the operating point tested, feedback changes the weights
+zero, not a small number — and that exact zero holds at **one** plastic site only, which is
+why the twelve-layer numbers cannot be put in the same series (claim C-63). But at the operating point tested, feedback changes the weights
 without changing the outcome, since the connected and disconnected runs settle on the
 same word (claim C-33). The honest one-line form is that feedback measurably steers the
 update and does not, at this operating point, change the result.
@@ -303,7 +305,7 @@ In order. Do not skip.
 |:---|:---|:---|
 | **C0** | At `eta=0`, do the hooks perturb the trajectory? | **Stop.** Contamination; nothing downstream is interpretable |
 | **C1** | Does `revert()` restore the original trajectory? | Hidden state accumulating somewhere |
-| **C2** | Does a random update of matched norm do the same thing? | You've measured "perturbing weights changes things", not Hebbian learning |
+| **C2** | Does a random update of matched **Frobenius** norm do the same thing? (diagnostic — see below) | You've measured "perturbing weights changes things", not Hebbian learning |
 | **C3** | With the ceiling lifted and a large step size, does Hebb's drift keep growing where Oja's saturates? | The decay term isn't doing its job |
 
 ```python
@@ -312,9 +314,23 @@ from controls import c0_identity, c1_revert, c2_random_direction, c3_divergence_
 print(c0_identity(model, r0, atr_step, site="transformer.h.6.mlp.c_proj"))
 ```
 
-**C2 is the one that decides whether this branch is interesting.** If Oja and a
-norm-matched random matrix produce the same landscape change, the finding is
-about perturbation magnitude, not about learning.
+**C2 is a diagnostic, not the decision.** This section used to call it "the one that
+decides whether this branch is interesting", and that framing is retired as claim
+C-23: the arm is matched on the wrong quantity. An isotropic random matrix spreads
+its Frobenius mass across the whole spectrum, so its **operator** norm never reaches
+the Hebbian arm's anywhere in the sweep — σ₁/‖ΔW‖_F holds 0.054 against `hebb`'s
+0.979, 4× to 11× short — and two arms that far apart in the norm that actually moves
+a state cannot establish direction-specificity. What C2 still catches is the crude
+failure it was built for: if the two arms produce the same landscape change, the
+finding is about perturbation magnitude and not about learning.
+
+**The control that can decide is the rank-1 matched-displacement arm**,
+`experiments/rank1_random_control.py`, which matches `hebb`'s loop-state
+displacement rather than a matrix norm. It found that arbitrary directions usually
+**do** move the basin — 4 of the 6 seeds it could match — but never to `hebb`'s
+destination `comrade` (0 of 10 seeds), and only at 66× to 171× `hebb`'s relative
+weight change (claim C-55, which retired C-22). Cite that one for direction; run
+this one as the cheap magnitude check.
 
 ## Learning rate
 

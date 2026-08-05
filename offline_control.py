@@ -970,24 +970,26 @@ def verify_arms_matched(closed: ArmConfig, offline: ArmConfig) -> dict:
     # reaches a higher one within a single forward pass and severing the loop does
     # not cut that path (C-63). See the module header for the numbers.
     feedback_interpretable = offline.y_source in ("recomputed", "live")
-    zero_floor_scope = (
-        "The severed-path floor is exactly zero only at ONE whole-matrix plastic "
-        "site (C-30); at a per-head site it is float32 noise 2.960e-08, not zero "
-        "(C-57), and with plasticity at more than one layer it is not zero above "
-        "the lowest plastic layer (C-63)."
-    )
     interpretation = (
         "the arms differ by feedback alone; their difference is evidence "
-        "about coupling. " + zero_floor_scope + " Read this arm's null against "
-        "the floor its own configuration has, not against the whole-matrix zero"
+        "about coupling. The severed-path floor this null is read against is "
+        "exactly zero ONLY at one whole-matrix plastic site (C-30): at a per-head "
+        "site it is float32 noise 2.960e-08 and not zero (C-57), and with "
+        "plasticity at more than one layer it is not zero at all above the lowest "
+        "plastic layer, because a lower layer's drift reaches a higher one within "
+        "one forward pass and severing the loop does not cut that path (C-63). "
+        "Read this comparison against the floor its own configuration has"
         if feedback_interpretable else
         f"y_source={offline.y_source!r} freezes Oja's own y = xW recursion in "
         "the offline arm while the closed arm's runs live. The arms therefore "
         "differ by that mechanism AS WELL AS by feedback, and their difference "
         "is not evidence about coupling. The severed-path control shows this "
         "empirically: with coupling physically impossible, this mode still "
-        "reports a difference while 'recomputed' reports exactly zero. " +
-        zero_floor_scope + " Compare "
+        "reports a difference while 'recomputed' reports exactly zero -- at one "
+        "whole-matrix plastic site (C-30), which is the only configuration where "
+        "that zero is exact: at a per-head site the recomputed floor is float32 "
+        "noise 2.960e-08 (C-57), and with plasticity at more than one layer it is "
+        "not zero above the lowest plastic layer (C-63). Compare "
         "cos_delta and the norm ratio separately, and read the result as a "
         "mechanism comparison"
     )
@@ -1101,9 +1103,17 @@ class MatchedArmsResult:
 
         The unsuffixed metrics are `y_source`'s -- the literal PRIOR_ART
         protocol by default. The `_recomputed_y` pair is the one whose floor is
-        zero, and is therefore the pair a claim about feedback should be read
-        from; it is None when `also_recomputed_y` was off. Both are carried
-        because reporting either alone is misleading in a different direction.
+        zero at a single whole-matrix plastic site, and is therefore the pair a
+        claim about feedback should be read from; it is None when
+        `also_recomputed_y` was off. Both are carried because reporting either
+        alone is misleading in a different direction.
+
+        "At a single whole-matrix plastic site" is load-bearing and not a hedge:
+        the same pair's severed floor is float32 noise 2.960e-08 at a per-head
+        site (C-57), and is not zero at all above the lowest plastic layer once
+        more than one layer is plastic (C-63). The metric names do not carry that,
+        so the log line cannot either -- `verification["interpretation"]`, which
+        the runners log alongside this dict, is where it travels.
         """
         w = self.comparison["weight"]
         r = self.comparison.get("weight_recomputed_y")

@@ -320,7 +320,7 @@ what counts as *no* effect. Replaced with:
    with plasticity at **more than one layer** the floor is not zero at all, since a lower
    plastic layer's drift reaches a higher one inside a single forward pass and severing the
    loop does not cut that path (**C-63**); and in `recorded` mode the severed cells are not
-   bit-identical and the comparison reverses sign, which is why `offline_control.py:895`
+   bit-identical and the comparison reverses sign, which is why `offline_control.py` itself
    declares that mode uninterpretable as a feedback test (**C-30**).
 5. **To claim the arms are the same, state an equivalence margin.** Pick a margin δ that
    would be too small to matter scientifically, decided in advance, and show the
@@ -512,8 +512,9 @@ exactly as expected. So the input matrix the rule works on is **the raw second m
 the covariance**, unless centring is explicitly applied.
 
 **That is necessary but not sufficient, and the shorter form of it is retired.** The site
-computes `y = x@W + b_out` (`plasticity.py:448`) and the rule accumulates `ΔW = E[x yᵀ]`
-(`:105-109`), so the exact identity is
+computes `y = x@W + b_out` — `x` is `blocks.6.mlp.hook_post`, `y` is
+`blocks.6.hook_mlp_out` — and the rule accumulates `ΔW = E[x yᵀ]` in
+`plasticity.py`'s `_hebb_term`, so the exact identity is
 
 > **ΔW = E[x xᵀ]·W + E[x]·b_outᵀ = C·W + x̄ b_outᵀ**
 
@@ -737,9 +738,14 @@ Nobody in the surveyed work got away with a single mechanism.
   - Load enters separately: with J_max in place, they had to change *how* they normalise
     so that the norm of J does not depend on the load α.
   - **Both mechanisms are present in the ATR loop** — a norm ceiling and a rescaling —
-    and this is a documented case of the two interacting badly. Worth checking whether a
-    small number of entries in our drifted matrix are absorbing the ceiling and
-    flattening everything else.
+    and this is a documented case of the two interacting badly. **Checked here, and it does
+    not happen at this site.** `STEP_SIZE_MAP.md` §5, on the 23 cells where the ceiling
+    never fired: effective rank never below **642.4** against a frozen **642.6**, *rising*
+    to **646.7** under `anti_hebb` at 0.0% clip; max/mean |W| falling 33.4 → 31.7; and the
+    update's mass spread across entries rather than concentrated in a few (Oja's top 0.1% of
+    entries hold 0.0263 of the absolute mass, against the isotropic arm's 0.0044). No
+    runaway entries, so no J_max analogue is needed — at **one** site, one prompt, one seed,
+    one ceiling. See the coverage gaps for the scope limit.
 - **The reservoir work (Cazalets & Dambre): verified from the paper.** Mean-HAG holds a
   target mean firing rate with a permissible deviation band. Variance-HAG holds a target
   standard deviation *and* adds an explicit safeguard: if any neuron's state exceeds a

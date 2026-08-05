@@ -1,18 +1,25 @@
 """
-EXP-001, run at the one step size where anything happens.
+EXP-001, run at `hebb`, eta = 7.065e-05 -- a step size where the loop moves.
 
 The step-size map (issue #30, `STEP_SIZE_MAP.md`) settled the question this
 experiment could not previously ask honestly. `oja`, `anti_hebb` and `random`
 all have wide bands in which the weights move several percent with the norm
 ceiling silent and **the loop does not move at all** -- basin, lag-1 and lag-2
 unchanged even with `oja` pinned at the ceiling at 100% clipping. `hebb` is the
-single exception: at eta = 7.065e-05 the basin goes `prolet` -> `comrade` at
-1.12% relative weight change with the ceiling **silent** (0.0% clipping).
+single exception among the *rules*, and it moves the loop at **two** of the step
+sizes swept, not one (C-21): at eta = 7.065e-05, this file's cell, the basin
+goes `prolet` -> `comrade` at 1.12% relative weight change with the ceiling
+**silent** (0.0% clipping), and at eta = 1.18e-04 it reaches the same `comrade`
+at 2.20% drift, also ceiling-silent. The two are NOT an independent replication
+-- they share prompt, seed, site and cadence -- so what they establish is that
+the flip survives a 1.7x change in eta.
 
-Every offline-control measurement this repo has recorded was taken at
-`oja`, eta = 1e-5 -- which the map now places inside the dead zone. So the
-project has never run its own control at a step size where anything happens.
-That is what this file does.
+Every offline-control measurement this repo had recorded **before this run** was
+taken at `oja`, eta = 1e-5 -- which the map now places inside the dead zone. So
+at the time of writing the project had never run its own control at a step size
+where anything happens. That is what this file does. The later offline and
+severed arms at `hebb` all postdate it: C-31 is this run's own, and C-58's eta
+and cadence grid is T2.1's.
 
 ## The question, and why the offline arm is the whole experiment
 
@@ -841,20 +848,29 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
     L = []
     A = L.append
 
-    A("# EXP-001 — the offline arm at the one step size where anything happens")
+    # Title and opening paragraph: "the one step size / the only cell in the
+    # whole sweep" is the C-21 undercount. There are TWO ceiling-silent cells
+    # that flip the basin, both `hebb`. What is singular is the RULE, not the
+    # step size, and the two cells are not an independent replication.
+    A(f"# EXP-001 — the offline arm at hebb, eta = {ETA:.6g}")
     A("")
     A("Issues #26, #30, #32. `hebb`, eta = "
       f"{ETA:.6g}, site `{SITE}`, {N_STEPS} steps, cadence {CADENCE}, "
       f"`max_delta_frac` = {MAX_DELTA_FRAC}.")
     A("")
-    A("The step-size map found `hebb` at this eta to be the only cell in the "
-      "whole sweep that moves the loop inside a clean band: basin `prolet` → "
-      "`comrade` at 1.12% relative weight change with the norm ceiling silent. "
-      "`oja`, `anti_hebb` and `random` all have wide usable bands in which "
-      "nothing whatsoever happens. Every offline-control number previously "
-      "recorded in this repo was taken at `oja`, eta 1e-5 — inside the dead "
-      "zone. This is the first time the control has been run where the loop "
-      "actually moves.")
+    A("The step-size map found `hebb` to be the only *rule* that moves the loop "
+      "inside a clean band, and it does so at **two** step sizes (**C-21**): "
+      "this eta, giving basin `prolet` → `comrade` at 1.12% relative weight "
+      "change with the norm ceiling silent, and eta 1.18e-04, giving the same "
+      "`comrade` at 2.20% drift, also ceiling-silent. The two are **not** an "
+      "independent replication — they share prompt, seed, site and cadence — so "
+      "what they establish is that the flip survives a 1.7× change in eta. "
+      "`oja`, `anti_hebb` and `random` all have wide usable bands in which no "
+      "basin change was recorded. Every offline-control number recorded in this "
+      "repo **before this run** was taken at `oja`, eta 1e-5 — inside the dead "
+      "zone. The later offline and severed arms at `hebb` all postdate it: C-31 "
+      "is this run's own, and C-58's eta and cadence grid is T2.1's. This is the "
+      "first time the control has been run where the loop actually moves.")
     A("")
 
     if not recs:

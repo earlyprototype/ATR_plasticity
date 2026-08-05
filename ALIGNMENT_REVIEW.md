@@ -75,10 +75,10 @@ does **not** move the basin — while `hebb` at a quarter of its own perturbatio
 also does not. **Both magnitude and sign are required.**
 
 > *Update, 2026-08-05: the last sentence is `retired`, and this asset is smaller than the
-> paragraph claims.* **C-22 fell to T1.4**, the test this review itself named as deciding.
-> Of the six ARBITRARY rank-1 random directions matched to `hebb`'s loop displacement within
-> ±2%, **4 flip the basin** — with no particular sign on the `hebb`/`oja` axis, so the sign
-> clause is refuted. The two observations above remain true *as measurements*; what fell is
+> paragraph claims.* **C-22 fell to T1.4**, the test this review itself named as deciding. Of the
+> six seeds whose *arbitrary* rank-1 random direction could be matched to `hebb`'s loop
+> displacement within ±2%, **4 flip the basin** — with no particular sign on the `hebb`/`oja`
+> axis, so the sign clause is refuted. The two observations above remain true *as measurements*; what fell is
 > the inference that the sign is **required**. The **magnitude** clause survives: Arm A, matched
 > on σ₁ = 1.8135 rather than on displacement, gives **0 of 10** flips at displacements 3–5
 > orders below `hebb`'s. What survives overall is **C-55**, and it is narrower: no random
@@ -1289,6 +1289,17 @@ founding question, answered properly. It is the highest-value experiment in the 
 **So nothing is dropped.** Lead editability; report coupling in the same breath as C-33's limit
 — *"feedback measurably steers the update and does not, at this operating point, change the
 outcome"*; run T2.1 to promote coupling from refinement to co-headline.
+
+> *Update, 2026-08-05: **T2.1 and T2.1b have run**, so the prize named two paragraphs up is
+> collected and the instruction here is discharged.* The share grows monotonically along all
+> three coupling axes — eta 0.25×/0.5×/1×/2× gives 0.0262/0.0549/0.1204/0.2722, cadence 2/4 gives
+> 0.0543/0.0254, and episode length 60/120/240 gives 0.0266/0.1204/0.3422, compounding faster than
+> proportional (**C-58**) — **and** at 2.5× eta, ceiling silent, it crosses into changing the
+> outcome (**C-59**). The licensed replacement for the quoted sentence adds a boundary rather than
+> deleting a clause: *"feedback measurably steers the update; it does not change the outcome up
+> through 2× eta and 240 steps, and it does at 2.5× eta."* Coupling has therefore earned
+> co-headline status on **one prompt, one site, one seed, `hebb` only** — which is where the
+> caution belongs now, not on whether the effect exists.
 
 **One caution, from F10.** That last point cuts both ways: ROME already makes rank-1 edits to
 a mid-stack GPT-2 MLP down-projection. So the novel element is **not** "a rank-1 edit there
