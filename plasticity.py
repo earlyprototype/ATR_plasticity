@@ -37,17 +37,23 @@ live weight lives, how to write it, how to capture x and y) and they are behind
 
 STATUS: executed against real GPT-2 small, and continuously. Every committed
 experiment in this repository runs on this module, and the eta=0 identity check
-(see README, Control C0) passes bit-exactly on the real model -- max abs
-deviation 0.0, not "small". It is also not a one-time acceptance test that was
-passed once and is now remembered: it is re-run as a gate, by the suite
-(`tests/test_controls.py::test_c0_identity_passes_on_healthy_setup`, on real
-weights) and by the runners themselves before they are allowed to report
-anything -- `experiments/exp002_distributed.py`'s `gate:eta0` refuses to continue
-if the trajectory or any weight matrix moved at step size zero, and the step-size
-map spends an `eta=0, mode="off"` cell on the same question.
+(see README, Control C0) passes bit-exactly -- max abs deviation 0.0, not
+"small". It is also not a one-time acceptance test that was passed once and is
+now remembered. It is re-run as a gate, at both levels:
 
-C0 remains THE gate, and re-running it is the point: a result taken without it is
-not a result, whatever else the run measured.
+  the suite    `tests/test_controls.py::test_c0_identity_passes_on_healthy_setup`
+               on real GPT-2 weights, through a deterministic test-double step
+               rather than the parent engine -- which is what keeps the LIBRARY
+               honest, and no more than that.
+  the runners  the real imported loop, before a run is allowed to report
+               anything. `experiments/exp002_distributed.py`'s `gate:eta0`
+               refuses to continue if the trajectory or any of the twelve weight
+               matrices moved at step size zero, and the step-size map spends an
+               `eta=0, mode="off"` cell on the same question.
+
+C0 remains THE gate and is re-run at both levels on purpose: a green suite is not
+C0 passing for an experiment, and a result taken without the gate is not a
+result, whatever else the run measured.
 """
 
 from __future__ import annotations
@@ -246,7 +252,12 @@ class TermSpec:
                      modes read it. Positive semi-definite `<y y^T>` is what
                      makes the sign of this term the difference between a brake
                      and an accelerator, so it is spelled unsigned here and the
-                     sign is yours: `sign=-1` brakes, `sign=+1` diverges.
+                     sign is yours: `sign=-1` brakes, `sign=+1` accelerates.
+                     "Accelerates" is measured as monotone weight-norm growth
+                     over the SIXTEEN applications of `tests/test_terms.py`'s
+                     flipped-brake arm with the ceiling lifted -- that run, not
+                     an unbounded limit, which is the same discipline C-15
+                     imposes on every growth claim in this repo.
     sign : {+1, -1}
         Exactly +1 or -1, nothing else. Magnitude belongs in `scale`, and a
         `sign` that quietly doubled as a coefficient would put the same number
@@ -950,8 +961,9 @@ class OjaPlasticity:
         the matrix back toward W0 along directions it had already committed to. A
         clipped run is therefore not "the same trajectory with a smaller last
         step", and a clipped cell is not a smaller-eta cell -- which is why the
-        standing prohibition is to never quote one, rather than to quote it with a
-        caveat.
+        standing prohibition is to never quote one as a finding. A ceiling-fired
+        cell may appear as a non-finding with its clip rate stated inline, and
+        that is the whole of what it may do.
 
         `clipped` in report() is a LATCHING boolean and not a rate: it is set the
         first time any apply() rescales and is cleared only by revert(), so it

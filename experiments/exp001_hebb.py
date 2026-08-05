@@ -859,15 +859,15 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
       f"`max_delta_frac` = {MAX_DELTA_FRAC}.")
     A("")
     A("The step-size map found `hebb` to be the only *rule* that moves the loop "
-      "inside a clean band, and it does so at **two** step sizes (**C-21**): "
-      "this eta, giving basin `prolet` → `comrade` at 1.12% relative weight "
-      "change with the norm ceiling silent, and eta 1.18e-04, giving the same "
-      "`comrade` at 2.20% drift, also ceiling-silent. The two are **not** an "
+      "inside a clean band, and it does so at **two** step sizes (C-21): this "
+      "eta, giving basin `prolet` → `comrade` at 1.12% relative weight change "
+      "with the norm ceiling silent, and eta 1.18e-04, giving the same "
+      "`comrade` at 2.20% drift, also ceiling-silent. The two are not an "
       "independent replication — they share prompt, seed, site and cadence — so "
       "what they establish is that the flip survives a 1.7× change in eta. "
       "`oja`, `anti_hebb` and `random` all have wide usable bands in which no "
       "basin change was recorded. Every offline-control number recorded in this "
-      "repo **before this run** was taken at `oja`, eta 1e-5 — inside the dead "
+      "repo **before this run** was taken at `oja`, eta 1e-5, inside the dead "
       "zone. The later offline and severed arms at `hebb` all postdate it: C-31 "
       "is this run's own, and C-58's eta and cadence grid is T2.1's. This is the "
       "first time the control has been run where the loop actually moves.")
