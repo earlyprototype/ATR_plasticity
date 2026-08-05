@@ -218,16 +218,24 @@ negotiable and they are why the rows above are worth anything.
   records what ran and is not edited afterwards, and a re-run supersedes it. Swept
   2026-08-05 across all 31 committed `.json`/`.jsonl` artifacts, this is the only retired
   reading left anywhere in the evidence layer.
-- **`STEP_SIZE_MAP.md` is not regenerable. Never run `--report-only` over it without reading
-  the diff first.** Checked 2026-08-05 by regenerating into a scratch path: the committed
-  document is **not** reproducible from `experiments/step_size_map.py`, and this predates this
-  branch (56 differing lines against `origin/main`). **No measurement disagrees** — the 35-row
-  main table is identical across all fifteen columns — but §5 carries a hand-written
-  "Corrected 2026-08-01" notice naming the two withdrawn ceiling-fired figures (640.5 at 99.2%
-  clip, 647.3 at 60.8%), which the generator does not emit. A blind regeneration deletes that
-  notice. It would no longer reinstate those figures *as the bound*, since the generator now
-  selects on ceiling-silent cells only, but this document is a hand-maintained descendant of
-  its generator rather than its output.
+- **No committed report is byte-reproducible from its generator. Never run a `--report-only`
+  path without diffing the result first.** Exactly four scripts emit markdown, and all four
+  were regenerated into scratch paths on 2026-08-05: `step_size_map.py` → `STEP_SIZE_MAP.md`,
+  `exp001_hebb.py` → `EXP_001_RESULTS.md`, `basin_bifurcation.py` → `BASIN_BIFURCATION.md`,
+  `baseline_basins.py` → `output_baseline/BASELINE.md`. Every one differs, and the drift
+  predates this branch. **After the fixes in this branch no measured value disagrees in any
+  pair** (verified by numeric-token comparison; `STEP_SIZE_MAP.md`'s 35-row table matches
+  across all fifteen columns and `BASIN_BIFURCATION.md` has no regenerated-only numeric token
+  at all). What remains is prose — and in three places it is a deliberate hand-written
+  correction the generator does not emit: §5 of `STEP_SIZE_MAP.md`, the "Corrected 2026-08-05"
+  paragraphs in `EXP_001_RESULTS.md`, and the C-26-retirement and C-68 discrepancy notices in
+  `BASIN_BIFURCATION.md`. A blind regeneration deletes all three. Treat these documents as
+  hand-maintained descendants of their generators, not as their output.
+- **`--report-only` is not read-only.** `baseline_basins.py` rewrites `<out>/basins.jsonl` and
+  `unlink()`s the shard files on its way to building the report, and it takes no `--report`
+  argument, so it writes `BASELINE.md` in place. Point `--out` at a *copy* before running it.
+  Its report path also needs the parent repo's `prompt_library.py`, so a from-scratch
+  reproduction is not possible from this repository alone.
 - **Never use an even-only snapshot schedule.** Log lag-1 *and* lag-2.
 - **Use tolerance, not `torch.equal`,** except where asserting bit-identity on purpose.
 - **Don't tune to match the parent's basin percentages.** The bridge is bit-exact and

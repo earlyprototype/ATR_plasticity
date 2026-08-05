@@ -1122,11 +1122,23 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
         A(f"| stable rank | {sp['erank_stable']:.2f} | "
           f"{_f(osp.get('erank_stable'), '.2f')} |")
         A("")
-        A("The step-size map measured ΔW effective rank 1.8–3.8 for `oja` and "
-          "718.8 for the isotropic noise arm. This is the `hebb` number at the "
-          "cell that moves the loop. Near-rank-1 is **expected** — it is the "
-          "rule doing what the rule does — and is reported as a sanity check, "
-          "never as a discovery.")
+        # These are cross-experiment citations of `output_step_size/step_size_map.jsonl`
+        # (`delta_spectral.erank_pr`), and they are quoted CEILING-SILENT ONLY. This
+        # paragraph used to read "1.8-3.8 for `oja`", which was wrong twice over: that
+        # range is `anti_hebb`'s all-cells range, and its top end 3.80 comes from
+        # `anti_hebb` at eta 9.81e-05, a cell at 60.8% clip -- which the register's
+        # standing prohibition forbids quoting as evidence, since such a cell measures
+        # `max_delta_frac` rather than the rule. The committed document was corrected on
+        # 2026-08-05 and this generator was not, so regenerating reinstated the withdrawn
+        # figure. Verified against the artifact: `oja` ceiling-silent 1.77-2.22 over 5 of
+        # 8 cells, `random` ceiling-silent 718.84, `anti_hebb` 1.79-3.24, `hebb`
+        # 1.89-2.22. Do not "simplify" these back to a single all-cells range.
+        A("The step-size map measured ΔW effective rank **1.77 – 2.22** for `oja` "
+          "against **718.84** for the isotropic noise arm, both read off "
+          "ceiling-silent cells only (clip rate 0.0%). This is the `hebb` number "
+          "at the cell that moves the loop, and it sits inside `oja`'s band. "
+          "Near-rank-1 is **expected** — it is the rule doing what the rule does "
+          "— and is reported as a sanity check, never as a discovery.")
         A("")
         A("### The dominant direction, decoded")
         A("")
@@ -1182,25 +1194,31 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
             _c = main['cos_dW_closed_offline_recomputed']
             _r = (main['rel_weight_change_closed']
                   / main['rel_weight_change_offline_recomputed'])
-            # Decompose the difference between the two updates into the part
-            # perpendicular to the closed arm (a direction change) and the part
-            # along it (a scale change), both relative to ||dW_closed||. A
-            # cosine near 1 does NOT mean "scale only": at cos 0.993 the
-            # perpendicular part is still several times the parallel one.
-            _perp = _r * math.sqrt(max(0.0, 1.0 - _c * _c))
-            _par = abs(1.0 - _r * _c)
+            # Report the rotation and the shortening, SEPARATELY, and never their
+            # ratio. This block used to emit a perpendicular/parallel decomposition
+            # (0.1153 and 0.0346, "a ratio of 3.33 to 1") which C-32's caveat
+            # forbids quoting at all, against either reference: it is the
+            # deterministic function r*sin(theta)/|r*cos(theta)-1| of the same two
+            # numbers reported on the line above, so it is not independent evidence;
+            # it takes 3.33 or 5.73 depending on which update normalises it; it is
+            # ill-conditioned (d ln ratio/d ln r = -47, pole 2.1% away); and it
+            # ranges 5.03-7.67 across the three prompts. The committed document
+            # withdrew it on 2026-08-05 and this generator kept emitting it, so a
+            # regeneration re-asserted a figure the register had withdrawn.
+            _deg = math.degrees(math.acos(max(-1.0, min(1.0, _c))))
+            _shorten = (1.0 - _r) * 100.0
             A(f"**Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = "
               f"{_c:.8f} (recomputed-y arm), with norm ratio {_r:.6f}.")
             A("")
-            A(f"Splitting the difference between the two updates: the component "
-              f"perpendicular to the closed-loop update is **{_perp:.4f}** of "
-              f"`||ΔW_closed||`, the component along it is **{_par:.4f}** -- a "
-              f"ratio of {_perp / _par:.2f} to 1"
-              + (" in favour of the perpendicular part." if _perp > _par else
-                 " in favour of the parallel part.")
-              + " The cosine and the norm ratio are reported separately for "
-                "this reason; a single mixed ratio cannot distinguish a "
-                "direction change from a magnitude change.")
+            A(f"Splitting that difference into its two parts: feedback **rotates** "
+              f"the update by **{_deg:.2f}°** (cos {_c:.5f}) and "
+              + (f"**shortens** it by **{_shorten:.1f}%**"
+                 if _shorten >= 0 else
+                 f"**lengthens** it by **{-_shorten:.1f}%**")
+              + f" (norm ratio {_r:.5f}). The rotation and the shortening are "
+                "reported separately, and only separately, because a single mixed "
+                "ratio cannot distinguish a direction change from a magnitude "
+                "change. See **C-32**, `provisional`.")
             A("")
 
     # --- across basins ----------------------------------------------------
@@ -1239,14 +1257,24 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
               f"({len(within)} pairs); between-basin median "
               f"{statistics.median(between):+.6f} ({len(between)} pairs).")
             A("")
-            if abs(statistics.median(within) - statistics.median(between)) < 0.02:
-                A("**The directions do not separate by basin.** ΔW records the "
-                  "site's activation statistics; it does not fingerprint which "
-                  "attractor the episode was in, and the persistence argument "
-                  "gets no episode-specific content from this object.")
-            else:
-                A("**The directions separate by basin**, so ΔW carries a "
-                  "recoverable trace of which attractor the episode ran in.")
+            # Neither direction is a licensed conclusion, so emit neither. This
+            # branched on a hardcoded 0.02 threshold and bolded whichever side it
+            # landed on. The `else` arm printed "**The directions separate by
+            # basin**", which the committed document withdrew on 2026-08-05: it was
+            # drawn in prose with no register row, from 4 within-basin pairs against
+            # 6 between-basin, in a design this same section declares confounded two
+            # paragraphs further down. The `if` arm is the same overreach mirrored.
+            # The cosines are the measurement; the reading is not, and until a
+            # register row licenses one, the report states the gap and stops.
+            _wm, _bm = statistics.median(within), statistics.median(between)
+            A(f"**Neither reading is licensed by this comparison.** The gap between "
+              f"the two medians is {abs(_wm - _bm):.6f} on {len(within)} "
+              f"within-basin pairs against {len(between)} between-basin ones, and "
+              f"no register row decides what a gap that size means. The cosines "
+              f"above are the measurement; \"the directions separate by basin\" and "
+              f"\"the directions do not separate by basin\" are both conclusions "
+              f"this section cannot reach, the more so because it declares its own "
+              f"design confounded two paragraphs below.")
             A("")
             A("Two things have to be said about that before it is worth "
               "anything. First, issue #32's two branches — \"ΔW fingerprints "
