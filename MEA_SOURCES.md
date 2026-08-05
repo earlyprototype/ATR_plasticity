@@ -3,7 +3,8 @@
 *Reference material only. This file records what was retrieved from the cultured-network
 literature, what was verified, and what EXP-003 borrows from it. It contains no argument
 about whether that literature applies to this project, and no interpretation of this
-project's results. Nothing here enters the claim register.*
+project's results. Nothing in this file enters the claim register: it is source material, and
+the register cites it only through the rows that record what EXP-003 measured, C-65 to C-67.*
 
 **History.** This file was previously `MEA_ANALOGUE.md` and argued that the ATR loop is a
 computational analogue of a dissociated cortical culture. That argument was written by an

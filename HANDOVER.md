@@ -42,8 +42,9 @@ iterates a **frozen** GPT-2 small on its own residual stream — read at
 residual-stream state to residual-stream state, and that map has fixed points,
 cycles and basins that single-pass inference never brings into view. **This repo
 turns the slow loop on**: one (or many) weight matrices are allowed to change under
-a local activation-driven rule while the loop runs. There is no task, no loss and
-no target. The narrow question is whether the one channel that persists across
+a local activation-driven rule while the loop runs. There is no task and no target, and no
+**externally specified** objective — which is the precise form, because plain Hebb is
+gradient ascent on output energy and so is not objective-free (C-11). The narrow question is whether the one channel that persists across
 prompts — the weights — can be written to, and whether writing to it changes what
 the system does afterwards.
 
@@ -80,7 +81,7 @@ because `CLAIMS.md` and not this table is what decides what any of them may be c
 | 8 | `experiments/output_t1_5/T1_5_RESULTS.md` | T1.5, the head-site `recomputed`-y reconstruction and its fix | C-45 `retired`, **C-57** |
 | 9 | `experiments/output_t2_1/T2_1_RESULTS.md`, `T2_1B_RESULTS.md` | T2.1 and T2.1b, the coupling sweep over step size, cadence and episode length | C-35 answered, **C-58, C-59** |
 | 10 | `experiments/output_exp002/EXP_002_RESULTS.md` | **EXP-002 (issue #24), the pre-registered primary experiment** — twelve plastic layers, then a reprompt | C-53 answered, **C-60 – C-63** |
-| 11 | `experiments/output_exp003/STAGE0_RESULTS.md`, `STAGE1_RESULTS.md`, `STAGE2_RESULTS.md` | EXP-003 stages 0, 1 and 2 — a label-free grid measurement, spectral concentration, and a cadence ladder | **None, by design.** Each file states that nothing in it enters the register |
+| 11 | `experiments/output_exp003/STAGE0_RESULTS.md`, `STAGE1_RESULTS.md`, `STAGE2_RESULTS.md` | EXP-003 stages 0, 1 and 2 — a label-free grid measurement, spectral concentration, and a cadence ladder | **C-65, C-66, C-67.** Entered 2026-08-05; each file previously stated that nothing in it entered the register |
 
 **Two regime boundaries cut across this table and neither may be crossed silently.**
 Artifacts 1 – 9 were taken under the 5% drift ceiling; 10 and 11 were taken with the
@@ -275,11 +276,17 @@ the frozen loop, read the settled basin:
 
 Three things fall out:
 
-1. **The basin holds at `prolet` through α ≤ 0.50 and flips at α\* = 0.75.** This was
-   written up as "a threshold, not a smooth bias", issue #32 §5's answer; that reading is
-   **C-27, `not-established`**, because an argmax always changes discretely, including
-   under perfectly smooth motion, so the discreteness is a property of the readout and
-   not evidence about the dynamics. What is measured is the crossing location.
+1. **The basin holds at `prolet` at every sampled α ≤ 0.50, and the first sampled flip is at
+   α = 0.75.** The sweep steps in 0.25, so what it establishes is a **bracket**, that the
+   transition lies in (0.50, 0.75], not a threshold at 0.75; the earlier write-up's "α\* =
+   0.75" reads a grid point as a measured crossing and is withdrawn. Note also that T1.2's
+   finer continuation sweep, stepping in 0.10, places its own crossing near α ≈ 0.45 — a
+   different seeding scheme and therefore a different measurement, not a contradiction, but
+   the two thresholds are not interchangeable (C-52). This was also written up as "a
+   threshold, not a smooth bias", issue #32 §5's answer; that reading is **C-27,
+   `not-established`**, because an argmax changes discretely even under perfectly smooth
+   motion, so the discreteness is a property of the readout rather than evidence about the
+   dynamics.
 2. **Smooth logits, discrete attractor.** The logit gap is a smooth monotone function
    of α that crosses zero inside (0.50, 0.75]; `comrade`'s rank climbs 5 → 4 → 2 → 1.
    The argmax is discrete; the thing it is the argmax *of* is not. Note the crossing
@@ -316,6 +323,25 @@ point looks like and not what two coexisting basins look like (C-52). Its own li
 to `prolet` and the whole α table stand as recorded. What they do not support is creation,
 because D1 returns the same verdict for *any* ΔW that displaces the fixed point, so it cannot
 distinguish displacement from creation on its own.
+
+**One loose thread, found 2026-08-05 and registered as C-68 rather than resolved.** The α
+sweep in §3.4 and T1.2's sweep disagree at **α = 0.50**, and nothing in the repository had
+noticed. §3.4's D2, starting each α from the prompt's iteration-0 residual tensor, settles on
+`prolet` there, at margin 0.1144 with 15 of 15 tail iterations agreeing. T1.2, a continuation
+sweep that starts each α from the previous α's settled state, settles on `comrade` at the same
+α, in all four of its arms. Same site, same rule, same step size, same prompt, same 120 steps,
+same ΔW to sixteen figures, same TransformerLens build. The difference is the initial state,
+which means that at α = 0.50 two initial conditions reach two different settled words under
+**identical weights**.
+
+Two things follow, and it matters not to overstate either. **C-56 is untouched**: T1.1 tested
+α = 1.00 directly, seeding the frozen `prolet` state, and it moved to `comrade`. But **the
+broader gloss that the α sweep shows one continuously-moving fixed point at every α is
+withdrawn**, and C-52's caveat now says so. It may be genuine bistability at α = 0.50, or it
+may be a readout artifact: the D2 margin there is 0.1144 and the `prolet`/`comrade` logit gap
+is 0.114, which is inside C-07's resolution limit. The test that would settle it is a
+basin-of-attraction probe at that α, seeding several initial states with a convergence
+criterion fixed in advance. It has not been run.
 
 The step-3 results are untouched by this and are a different kind of claim. §3.3's
 `A04_climate` lands on the **pre-existing** `Divine` orbit, which 34 of the 125 frozen
@@ -440,8 +466,14 @@ its four results at C-60 – C-63. In short:
   §5.2 below. The untouched model puts those 31 prompts on 5 distinct words. After `hebb`
   with feedback: 3 words, **27 of 31 on `Rousse`**. Without feedback: 2 words, 30 of 31 on
   `comrade`. `anti_hebb` without feedback: **1 word**, all 31 on `Shiv`. `anti_hebb` with
-  feedback gives 19 words but only 4 of 31 at rest, which is a system that cannot settle
-  rather than surviving structure. C-61 may never be quoted without C-62.
+  feedback gives 19 words but only **4 of 31 at rest at the 120-iteration readout**, so those
+  19 are snapshots of trajectories still in motion rather than settled states, and they are
+  not surviving structure. **State that as a horizon-bounded result, not as an impossibility.**
+  What is measured is that they had not settled by iteration 120, and that the phase-aware
+  return test failed at 5 of 5 magnitudes, flooring at ~1e-4 whatever the perturbation size,
+  with the best match the *last* iterate every time, which excludes a missed longer-period
+  orbit. What is **not** measured is whether a longer run would settle. C-61 may never be
+  quoted without C-62.
 - **The severed-path control's exact-zero floor is a single-site guarantee and does not
   survive more than one plastic layer** (C-63). Within one forward pass a lower plastic
   layer's drift changes the activations arriving at a higher one, and severing the loop does
@@ -464,12 +496,12 @@ has fallen into."* Any framing that reports collapse as the achievement has the
 experiment backwards.
 
 **This is now the sharpest thing in the file, because EXP-002 produced collapse.** C-62
-records it: every arm destroys the five-basin census, either by leaving one attractor that
-swallows nearly everything or by leaving the system unable to settle at all. Issue #27 item 5
-called that outcome in advance and called it a non-finding. So the project has demonstrated
-the direction it said would not count, and has not yet attempted the direction that would.
-Escape has never been tested, because step 2 of §5.1's sequence — the balance — has never
-been run.
+records it: every arm destroys the five-basin census, three of them by leaving one attractor
+that swallows nearly everything, and the fourth by leaving most prompts unsettled at the
+120-iteration readout. Issue #27 item 5 called that outcome in advance and called it a
+non-finding. So the project has demonstrated the direction it said would not count, and has
+not yet attempted the direction that would. Escape has never been tested, because step 2 of
+§5.1's sequence — the balance — has never been run.
 
 ### 5.3 The ladder (issue #25) — and where we now are on it
 
@@ -528,12 +560,12 @@ explain a fixed point becoming a two-step cycle.
   in this list: 2 and 4 in T2.1, 4 and 12 in EXP-003 Stage 2 (C-58, C-64).
 - **EXP-003 stages 3 to 5.** Pre-registered in `experiments/output_exp003/PREREGISTRATION.md`
   and not run. Stage 3 injects a signal at a fraction of the local activity and compares
-  focal against distributed placement; Stages 4 and 5 are gated behind it. Note that the
-  three stages which *have* run deliberately enter no register rows, so nothing EXP-003 has
-  measured is currently quotable — including its Stage 1 result, which **refuted**, against
-  its own pre-registered threshold, the spectral-concentration mechanism this project had
-  proposed for EXP-002's collapse (mean effective rank fell 0.044% against a 2% refutation
-  floor). Whether that earns a row is an open decision, §6 item 3.
+  focal against distributed placement; Stages 4 and 5 are gated behind it, and Stage 3 also
+  needs `mea_stim.py`, which exists and has never been used in a committed run. Two
+  measurements registered for Stage 1 were also never implemented and are recorded as not run:
+  the depth-weighted centre of the weight change across the twelve sites, and the smallest
+  weight change at which each statistic separates the drifted system from the frozen one
+  (C-66).
 
 ---
 
@@ -551,15 +583,20 @@ explain a fixed point becoming a two-step cycle.
    cascade's own class change is C-28, `provisional`, and lands in the pre-existing `Divine`
    basin rather than a new one. So the honest version of this decision is narrower — whether
    C-28 is worth promoting, which needs T1.3 to resolve the α interval first.
-3. **Whether EXP-003 should have register rows.** Its three completed stages each state that
-   nothing in them enters the register. That is defensible and consistent with the operator's
-   instruction to strip the MEA framing, but it means the strongest thing EXP-003 has
-   produced is unquotable: Stage 1 **refuted** the spectral-concentration mechanism this
-   project proposed for its own collapse, against a pre-registered threshold. Stage 0 also
-   recorded a **failed gate** worth knowing about — the borrowed centre-of-activity statistic
-   separates the five end states well (12.20) but does **not** separate fixed points from
-   two-step cycles (1.0036 against a 1.5 threshold), so that instrument is blind to exactly
-   the distinction carrying C-24, the register's strongest row.
+3. **CLOSED 2026-08-05: EXP-003 now has register rows.** It previously did not, and this
+   entry asked whether it should. It should have, because this register's own first rule is
+   that a claim enters it before it enters any prose document, and three stages of
+   pre-registered measurement were sitting in committed prose outside it. They are now
+   **C-65** (the statistic separates the five end states and **fails** its registered gate on
+   dynamical class, so it is blind to the distinction carrying C-24), **C-66** (the
+   spectral-concentration mechanism this project proposed for its own collapse is **refuted**
+   by its own pre-registered threshold, 0.044% against a 2% floor), and **C-67** (census
+   agreement is 0 of 31 at every cadence tested, while the cadence comparison itself is *not*
+   established because the drift guard fired at 6.03× against a required factor of 2). What
+   stays out of the register, and stays out deliberately, is the cultured-network argument
+   the operator had removed; only the borrowed statistics remain, sourced in `MEA_SOURCES.md`.
+   **What is left for you here is narrower**: whether Stage 3 should run at all, given that
+   Stage 0 showed the instrument it depends on cannot see dynamical class.
 4. **Whether `docs/voice.md`'s prohibition on em dashes applies to repository text.** The
    guide says it does, in as many words. In practice every document written since it landed
    still uses them, including all four EXP-003 files, and `CLAIMS.md` uses them throughout.

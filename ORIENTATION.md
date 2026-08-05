@@ -51,10 +51,14 @@ can be written to, and whether writing to it changes what the system does afterw
 
 **Be precise about "no loss", because the repo has been caught being imprecise about it.**
 What is true is that there is no *externally specified* objective. It is not true that there
-is no objective at all: plain Hebb is exactly gradient ascent on output energy, since
-`∂/∂W ½E‖xW+b‖² = E[x yᵀ]`, which is the update. Register row **C-11** holds this, and it
-matters because "no objective" is the axis the novelty claim leans on, and it is softer than
-it first looks.
+is no objective at all: plain Hebb is exactly gradient ascent on output energy. Differentiate
+½E‖xW+b‖² with respect to `W` and you get the average outer product of the pre-synaptic and
+post-synaptic activity, which is precisely the Hebbian update. In the code's own convention,
+where `x` is a **row** vector and `y = x @ W + b`, that gradient is `E[xᵀy]`; the same
+quantity is written `E[x yᵀ]` in the column-vector notation the register and the rule tables
+use, and `CLAIMS.md` states the correspondence in its convention note above C-10. Register row
+**C-11** holds the claim. It matters because "no objective" is the axis the novelty argument
+leans on, and it is softer than it first looks.
 
 ## The design, and why each piece is there
 
@@ -77,7 +81,8 @@ spelled out further down, under the severed-path control and under "the second r
 
 ### Four rules
 
-Written in the convention `W` is `(n_in, n_out)` and the module computes `y = x @ W`:
+Written below in the **column-vector** notation the register uses, where `x yᵀ` denotes the
+outer product of pre-synaptic and post-synaptic activity:
 
 ```
 hebb       dW =   E[x yᵀ]
@@ -86,7 +91,15 @@ anti_hebb  dW = − E[x yᵀ] − W E[y yᵀ]
 random     norm-matched noise
 ```
 
-`x` is the pre-synaptic activity, `y` the post-synaptic. The second term in Oja is a
+`x` is the pre-synaptic activity, `y` the post-synaptic.
+
+**Mind the two conventions, because they look contradictory and are not.** The code stores
+`W` as `(n_in, n_out)` and computes `y = x @ W + b` with `x` a **row** vector, so what the
+implementation actually forms is `E[xᵀy]`, of shape `(n_in, n_out)`. That is the same
+quantity as `E[x yᵀ]` above, which reads `x` as a column. Written as a row-vector expression,
+`E[x yᵀ]` would not conform, so do not take the table above as literal code. `CLAIMS.md`
+states the correspondence in its convention note above C-10, and `plasticity.py:105-109` is
+the implementation. The second term in Oja is a
 brake: it opposes growth and keeps the weight bounded. Hebb has no brake.
 
 Anti-Hebbian negates the reinforcement term **only**. Negating the learning rate instead
@@ -222,8 +235,13 @@ first thing to check is whether they came from the same regime. Register row C-6
 
 ## Reading order
 
-**Read the register first if you intend to quote anything.** The rest is background and
-sequencing.
+Two different things are easy to conflate here, so they are stated separately.
+
+**The order below is a learning path**, and it starts with this file because the apparatus has
+to make sense before any result does. **Authority is a separate question, and it does not
+follow the numbering**: [`CLAIMS.md`](CLAIMS.md) outranks every file on this list, including
+this one. So read in the order given, but never quote a number from any of these documents
+without checking its row in the register first, whatever position that document holds here.
 
 | # | File | What it is for |
 |---|---|---|
@@ -236,7 +254,7 @@ sequencing.
 | 7 | `EXP_001_RESULTS.md` | The connected-versus-offline comparison at the working point |
 | 8 | `BASIN_BIFURCATION.md`, then `experiments/output_t1_1/T1_1_RESULTS.md` | In that order, and do not stop after the first: the second refutes the first's conclusion. The edit **displaces** one attractor rather than creating a second (C-26 `retired`, C-56 `supported`) |
 | 9 | `experiments/output_exp002/EXP_002_RESULTS.md` | Twelve plastic layers and a reprompt. Something does cross the prompt boundary, and what crosses is collapse rather than steering (C-61 with C-62, never apart) |
-| 10 | `experiments/output_exp003/` | Three stages run against pre-registered thresholds, plus `MEA_SOURCES.md` for the borrowed measurements. **Nothing here enters the register**, by design, so nothing in it is quotable as a claim |
+| 10 | `experiments/output_exp003/` | Three stages run against thresholds registered before each run, plus `MEA_SOURCES.md` for the borrowed statistics. The measurements are register rows **C-65 to C-67**, and the most consequential of them is a **refutation**: the spectral-concentration mechanism this project proposed for its own collapse fell by its own registered threshold |
 | 11 | `RESONANCE_NOTE.md` | The open question about what the loop is, kept separate from the measurements on purpose |
 | 12 | `ALIGNMENT_REVIEW.md` | How the claim layer and the evidence layer came apart once, and the task list that came out of it. Its status note says which items have since run |
 

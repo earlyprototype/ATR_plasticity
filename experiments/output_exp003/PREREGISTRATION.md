@@ -2,7 +2,8 @@
 
 *What will be run, in what order, and what threshold decides each result. Written before
 the runs it governs. Source material for the borrowed measurements is in `MEA_SOURCES.md`.
-Nothing in this file enters the claim register.*
+Nothing in this file enters the claim register; the **results** of stages 0, 1 and 2 now do,
+as register rows C-65, C-66 and C-67.*
 
 **History.** An earlier version of this file interleaved the protocol with an argument
 about cultured neural networks and with proposed mechanisms for EXP-002's collapse. That

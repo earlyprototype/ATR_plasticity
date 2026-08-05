@@ -1,8 +1,16 @@
 # EXP-003 Stage 0 results
 
 *Measurements only. Thresholds were registered in `PREREGISTRATION.md` before the run.
-Run artifact: `stage0.jsonl`. Analysis artifact: `stage0_analysis.json`. Nothing here
-enters the claim register.*
+Run artifact: `stage0.jsonl`. Analysis artifact: `stage0_analysis.json`.*
+
+> **This file used to say that nothing in it entered the claim register. That has changed.**
+> The measurement is now register row **C-65**, which records both that the statistic
+> separates the five end states and that it **fails** its registered gate on dynamical class,
+> and which therefore may not be used to argue anything about fixed points against cycles.
+> `CLAIMS.md` is the authority; where it and this file disagree, it wins. What is still
+> excluded from the register, and stays excluded, is any argument that the loop is a
+> computational analogue of a cultured neural network: that argument was removed at the
+> operator's instruction and only the borrowed statistics remain, sourced in `MEA_SOURCES.md`.
 
 ## What was run
 

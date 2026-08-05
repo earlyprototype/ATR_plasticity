@@ -54,8 +54,11 @@ of a trained artifact or something the loop can reshape:
 
 - Do basins **deepen** — wider basins of attraction, i.e. consolidation?
 - Or does the landscape **collapse further** — fewer basins, the model-collapse
-  direction? **Answered, in the twelve-layer regime: it collapses.** The five-word census
-  becomes one or two words, or the system stops settling altogether (claim C-62).
+  direction? **Answered, in the twelve-layer regime: it collapses.** Against a five-word
+  frozen census over 31 fresh prompts, the three arms that still settle give **three, two and
+  one** distinct word, and the fourth arm gives 19 words with only 4 of 31 at rest at the
+  120-iteration readout, which is failure to converge rather than surviving structure (claim
+  C-62).
 - Does the `Divine` period-2 limit cycle become a fixed point, or survive? Still open as
   posed. What has been measured is the reverse direction: fixed points becoming that cycle
   (claims C-24, C-28, C-58).
@@ -128,14 +131,19 @@ has moved.
 **What happened when twelve layers were made plastic at once, and it is not a happy
 result.** EXP-002 was the pre-registered primary experiment: drive one prompt through a
 plastic episode, freeze the weights, then run 31 fresh prompts the drift never saw. All 31
-reproduce the frozen census beforehand, and afterwards every one of them settles on a
-different word in three of the four arms, 30 of 31 in the fourth. Since the residual stream
-is destroyed at a prompt boundary, the weights are the only channel that could have carried
-it (claim C-61). **But what carried is destruction, not direction** (claim C-62). The
-untouched model puts those 31 prompts on 5 distinct words; afterwards the reinforcing rule
-puts 27 of 31 on a single word, and the eroding rule without feedback puts all 31 on one
-word, while the eroding rule with feedback leaves the system unable to settle at all, only 4
-of 31 at rest. C-61 may never be quoted without C-62. This matters because the recorded plan
+reproduce the frozen census beforehand, and afterwards **the word each one reads out has
+changed**: 31 of 31 in three arms and 30 of 31 in the fourth. Since the residual stream is
+destroyed at a prompt boundary, the weights are the only channel that could have carried it
+(claim C-61). **But what carried is destruction, not direction** (claim C-62). The untouched
+model puts those 31 prompts on 5 distinct words, all 31 at rest. Afterwards the reinforcing
+rule with feedback gives 3 words with 27 of 31 on one of them, the reinforcing rule without
+feedback gives 2 words with 30 of 31 on `comrade`, and the eroding rule without feedback
+gives a single word for all 31. The eroding rule **with** feedback is different in kind: 19
+words, but only 4 of 31 at rest at the 120-iteration readout, so those readouts are snapshots
+of trajectories still in motion rather than settled states. Its return test failed at 5 of 5
+perturbation magnitudes, which rules out a missed cycle but does not establish that the
+trajectories would never settle given longer. C-61 may never be quoted without C-62. This
+matters because the recorded plan
 said in advance that collapse would not count as a finding, and that the interesting
 direction was **escape**, lifting a state back out of a well. Escape has not been attempted:
 it needs the balanced rule, and the balanced rule has never been run.
