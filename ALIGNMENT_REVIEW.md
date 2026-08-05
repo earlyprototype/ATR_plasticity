@@ -939,7 +939,9 @@ or record the other heads' contribution as a residual and add it back.
 > output additively as `record.y + x @ delta`, other heads and `b_O` frozen in the recorded `y`,
 > so the head-site path is repaired rather than refused. The two regression tests this finding
 > asked for exist. **T3.1 and T3.2 are unblocked** — the register's list of unrun work no longer
-> carries T1.5, and T3.1's remaining blocker is compute, not correctness.
+> carries T1.5. What remains in front of T3.1 is the per-site eta re-anchoring this review names
+> in its own Tier 3 entry, which is work, not a correctness defect. T3.2 has in substance already
+> run: EXP-002 applied plasticity at all twelve MLP down-projections.
 >
 > *Two clauses in the paragraph above need restating, and only one of them was wrong.* "Every
 > `site` field in every committed artifact is `blocks.6.mlp`" is **`retired` with C-40** — all

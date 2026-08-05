@@ -808,13 +808,13 @@ def build_report(records: list, meta: dict) -> str:
             # Which side of the gap moves. The generator cannot assert the
             # direction for an arbitrary rerun, so it points at its own columns
             # and attributes the figures to the committed run they come from.
-            A(f"Note also which side moves — read the `prolet logit` column "
-              f"against the `comrade logit` column in the table above. In the "
-              f"committed run the crossing is driven mainly by `prolet`'s logit "
-              f"**falling** (16.95 → 16.07 across `alpha` = 0.00 → 0.75), not by "
-              f"`comrade`'s rising: `comrade`'s own logit barely moves over the "
-              f"same span, and slightly *falls* (16.29 → 16.27), so its climb in "
-              f"rank is other tokens falling past it. **[The reading this file "
+            A(f"Note also which side moves, and check it against the two logit "
+              f"columns above: the crossing is driven mainly by `prolet`'s logit "
+              f"**falling**, not by `comrade`'s rising — `comrade`'s own logit "
+              f"barely moves across the bracket and slightly *falls*, so its "
+              f"climb in rank is other tokens falling past it. In the committed "
+              f"sweep that is `prolet` 16.95 → 16.07 across `alpha` = 0.00 → "
+              f"0.75 against `comrade` 16.29 → 16.27. **[The reading this file "
               f"originally drew here — \"threshold, not smooth bias\", issue #32 "
               f"section 5's answer — is superseded.]**")
             A("")
@@ -954,10 +954,12 @@ def build_report(records: list, meta: dict) -> str:
           f"interchangeable (**C-52**, and **C-68** for where they disagree "
           f"outright).")
         A(f"- **A discrepancy this file owns half of.** At `alpha` = 0.50 this "
-          f"sweep settles on `{d2s['base_basin']}` from that `alpha`'s own "
-          f"iteration-0 tensor, while T1.2's continuation sweep — same site, "
-          f"rule, eta, prompt, steps and ΔW — settles on `comrade` from a settled "
-          f"state, in all four of its arms. That is **C-68**, `provisional` and "
+          f"sweep and T1.2 reach **different settled words from different "
+          f"initial states under identical weights** — this sweep from that "
+          f"`alpha`'s own iteration-0 tensor (`prolet` in the committed run), "
+          f"T1.2's continuation sweep from a settled state, where it reaches "
+          f"`comrade` in all four of its arms, `robust_up` included. Same site, "
+          f"rule, eta, prompt, steps and ΔW. That is **C-68**, `provisional` and "
           f"**unresolved**; the seeding is the candidate explanation and the "
           f"deciding test (a basin-of-attraction probe at `alpha` = 0.50, several "
           f"initial states, convergence criterion fixed in advance) has not run. "

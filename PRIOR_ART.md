@@ -16,10 +16,10 @@ combination did not.
 
 That is still a statement about a search, not about the literature. **It is not "nobody
 has done this."** The forum gap and the citation-graph gap have been closed and turned up
-nothing, and **thirteen of the seventeen works cited below carry a verification status and
-are verified against the source. Four do not** — see "Verification status", which now names
-them. The remaining coverage limits are recorded at the bottom and they are still real. The
-claim is `provisional` (C-42).
+nothing, and **thirteen of the seventeen entries below carry a verification status and are
+verified against the source. Four do not** — see "Verification status", which now names them.
+The remaining coverage limits are recorded at the bottom and they are still real. The claim is
+`provisional` (C-42).
 
 ## How the search was done
 
@@ -30,7 +30,7 @@ claim is `provisional` (C-42).
 | Databases | Open web, arXiv API, Semantic Scholar (metadata + forward citations), PubMed Central, GitHub code and repository search |
 | Forums | LessWrong and the Alignment Forum searched directly through the site's own search API — 16 phrasings across posts, comments and wikitags. Plus general web and GitHub |
 | Inclusion | Any work combining two or more of: local unsupervised rule, pretrained frozen model, closed activation loop, no objective |
-| Verification | Thirteen of the seventeen works cited carry a status and are verified against the source, most with a quote. **Four carry none**, two carry no author list, and one carries no identifier of any kind — audited entry by entry 2026-08-05 and named below |
+| Verification | Thirteen of the seventeen entries carry a status and are verified against the source, most with a quote. **Four carry none**, two carry no author list, and one carries no identifier of any kind — audited entry by entry 2026-08-05 and named below |
 
 ## Verification status
 
@@ -54,9 +54,11 @@ claim is `provisional` (C-42).
 
 ### What the status list does not cover
 
-The two bullets above plus the inline statuses in the body account for **thirteen** cited
-works. Re-audited entry by entry on 2026-08-05, **four carry no status at all**, and the
-count is unchanged since `ALIGNMENT_REVIEW.md` F7 recorded it:
+**"Entry" here means a work this file names with a citation** — not the literatures named in the
+coverage gaps as *never searched*, which are recorded there precisely because they are absent.
+There are **seventeen** such entries. The two bullet lists above plus the inline statuses in the
+body account for **thirteen** of them. Re-audited entry by entry on 2026-08-05, **four carry no
+status at all**, and the count is unchanged since `ALIGNMENT_REVIEW.md` F7 recorded it:
 
 - **Nellessen & Jan, *Hebbian Natural Abstractions* (LessWrong, 2022)** — no status, and
   **no identifier**: no URL, no post ID, and the title left sitting in unresolved brackets.
@@ -66,8 +68,10 @@ count is unchanged since `ALIGNMENT_REVIEW.md` F7 recorded it:
 - **An unnamed bioRxiv spiking-network paper**, the single forward citation of Gong et al.
   — **no identifier of any kind**, no authors, no title, no status. It is dismissed as
   "nothing near us" on the strength of a one-clause description.
-- **Zenke & Gerstner, Phil. Trans. R. Soc. B 372:20160259** — named only to record a
-  withdrawn misattribution rather than as prior art, and carries no status of its own.
+- **Zenke & Gerstner, Phil. Trans. R. Soc. B 372:20160259** — no status of its own. This one
+  is borderline and is counted anyway: it is named only to record a withdrawn misattribution,
+  not offered as prior art, so on a stricter definition of "entry" the count is three rather
+  than four. Either way the blanket claim is false.
 
 **Two entries carry no author list**: *Training-Free Looped Transformers*
 (arXiv:2605.23872) and *Where to Bind Matters* (arXiv:2605.02920). Both are **Verified**
@@ -819,7 +823,7 @@ narrowed.
   in statistical physics; Chaudhary has 1, in vision transformers; Cazalets & Dambre has
   1, in theoretical neuroscience; Lee et al. has 0. None of the citing papers matched
   more inclusion criteria than the paper it cites.
-- ~~Most entries unverified.~~ **Closed for thirteen of the seventeen works cited**, which
+- ~~Most entries unverified.~~ **Closed for thirteen of the seventeen entries**, which
   carry a status and are verified against the source. **Not closed for four** — two forward
   citations named by bare identifier or by description, the LessWrong sequence, and the
   withdrawn Zenke & Gerstner attribution. See "What the status list does not cover"; the

@@ -85,7 +85,7 @@ flip (0.324) and 7 of these 8.
 
 To reach `hebb`'s loop displacement, the matched random directions need
 ‖ΔW‖_F/‖W0‖_F between **0.740 and 1.927** against `hebb`'s **0.0112** —
-66× to 172× the relative weight change for the same loop-state movement.
+66× to 171× the relative weight change for the same loop-state movement.
 
 ## Unreachable targets
 
@@ -176,12 +176,12 @@ without amendment:
   axis flip the basin at `hebb`'s displacement.
 - 0 of 10 seeds — and 0 of 74 probe evaluations — reach `hebb`'s destination
   `comrade`.
-- Matching the displacement costs a random direction 66×–172× `hebb`'s
+- Matching the displacement costs a random direction 66×–171× `hebb`'s
   relative weight change; at matched operator norm (Arm A) random directions
   move the loop state 3–5 orders of magnitude less and never flip.
 - C-07's resolution caveat travels with the destinations: 6 of the 8 flips
   land in `Anarch`, whose distance to `prolet` (1−cos 2.874e-03) is below the
-  within-`prolet` spread (3.319e-03).
+  **pooled** mean within-basin spread (3.319e-03, across all five basins; `prolet`'s own is 2.773e-03, which is *below* this gap, as is `Anarch`'s 1.178e-03 — see C-07's decomposition, which means the coarse-instrument caveat does not bite on these destinations).
 
 **C-22 has not been amended here.** Per `CLAIMS.md`, a status change is a pull
 request of its own with the evidence attached. This file is the evidence.

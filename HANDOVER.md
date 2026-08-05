@@ -148,7 +148,7 @@ framing that reports it for `Divine` alone.
 **The caveat that governs every basin claim in this repo is C-07.** The taxonomy has a
 resolution limit and it is comparable to the separation it is resolving: within-basin spread
 3.319e-03 against the nearest-basin gap, `Anarch` to `prolet`, of 2.874e-03 — a ratio of
-**1.15**. Two basins this project treats as distinct are no further apart than the prompts
+**1.15**. Read C-07's decomposition before applying that pairwise: only `Divine`'s own spread (6.128e-03) exceeds the gap, while `prolet` (2.773e-03), `Anarch` (1.178e-03) and `till` (3.493e-04) all sit below it, so the nearest pair does resolve at its own scale and the pooled ratio is driven by the period-2 basin. As a pooled statement it stands: two basins this project treats as distinct are no further apart than the prompts
 inside one of them. Also worth carrying: 69 of the 125 baseline prompts sit at a top1−top2
 margin below 0.5, so the label is often close-run at the readout.
 
@@ -182,7 +182,7 @@ Three facts worth carrying forward:
   it (C-22, `retired`). C-23 records why this control was matched on the wrong quantity:
   isotropic `random` never reaches `hebb`'s operator norm anywhere in the sweep. What
   survives is **C-55** — at matched displacement an arbitrary direction usually *does*
-  move the basin, but never to `comrade`, and at 66×–172× `hebb`'s weight cost.
+  move the basin, but never to `comrade`, and at 66×–171× `hebb`'s weight cost.
 - **No spectral collapse anywhere.** Effective rank stays flat (~642 of 768) and
   *rises* under `oja`/`anti_hebb`. The changes are not a hollowing-out artifact.
 
