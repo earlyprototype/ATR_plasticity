@@ -120,7 +120,7 @@ ceiling 0.05. Only the rule and the step size vary.
 
 | rule | basin behaviour across eta | moves the basin inside the ceiling-silent band? |
 |---|---|---|
-| `hebb` | `prolet` → **`comrade`** (7.07e-05) → `locality` (at the ceiling) | **yes** |
+| `hebb` | `prolet` → **`comrade`** (7.07e-05 **and** 1.18e-04, both ceiling-silent) → `locality` (at the ceiling) | **yes** |
 | `anti_hebb` | `prolet` throughout; → `anarchism` only at 100% clip | no |
 | `oja` | `prolet` at every eta, up to and including 5% drift / 100% clip | no |
 | `random` | `prolet` at every eta, up to 5% drift | no |
