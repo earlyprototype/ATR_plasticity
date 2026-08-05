@@ -9,16 +9,19 @@ Issues #26, #30, #32. `hebb`, eta = 7.06517e-05, site `blocks.6.mlp`, 120 steps,
 >   (next paragraph, 2026-08-05): there are **two** ceiling-silent cells that flip the basin —
 >   `hebb`@7.07e-05 (1.12% drift) and `hebb`@1.18e-04 (2.20%), both 0.0% clip, both `comrade`.
 >   See **C-21**. (Not an independent replication — both share prompt, seed, site and cadence.)
-> - **§3's perpendicular/parallel figures (0.1153 / 0.0346, ratio 3.33)** are arithmetically
->   correct, but the prose labels them fractions of `‖ΔW_closed‖`; `exp001_hebb.py:1163-1173`
->   normalises by `‖ΔW_offline‖`. **The label is wrong, not the numbers.** Do not restate the
->   ratio against the other reference — report the **6.81° rotation** and **2.8% shortening**
->   instead. See **C-32**, `provisional`.
-> - **The `n=5` in §3's table is a cell count, not an independent sample size.** Those five
->   cells are 3 prompts × repeated seeds at one site. Repeated seeds on the same prompt are not
->   independent runs, so **the independent n is 3** (`A01_physics`, `A02_medical`,
->   `A04_climate`), one site, one eta. Every dispersion figure in that table — the ranges and
->   medians — inherits that limit. See **C-41**.
+> - **The perpendicular/parallel figures (0.1153 / 0.0346, ratio 3.33) are withdrawn, and the
+>   body is now corrected in place** (§4, 2026-08-05). They are arithmetically correct, but the
+>   prose labelled them fractions of `‖ΔW_closed‖`; `exp001_hebb.py:1163-1173` normalises by
+>   `‖ΔW_offline‖`. **The label was wrong and so was quoting the ratio at all** — C-32 forbids
+>   it against either reference, for reasons the body now records. The licensed form, now in the
+>   body, is the **6.81° rotation** and the **2.8% shortening**. See **C-32**, `provisional`.
+>   (This notice said "§3"; the paragraph is in §4.)
+> - **The `n=5` in §3's table is a cell count, not an independent sample size — now stated
+>   inline in the table itself** (§3, 2026-08-05), because C-41 requires the caveat to travel
+>   with the number rather than sit up here. Those five cells are 3 prompts × repeated seeds at
+>   one site. Repeated seeds on the same prompt are not independent runs, so **the independent n
+>   is 3** (`A01_physics`, `A02_medical`, `A04_climate`), one site, one eta. Every dispersion
+>   figure in that table — the ranges and the medians — inherits that limit. See **C-41**.
 
 The step-size map found `hebb` to be the only *rule* that moves the loop inside a clean band, and it does so at **two** step sizes (C-21): this eta, giving basin `prolet` → `comrade` at 1.12% relative weight change with the norm ceiling silent, and eta 1.18e-04, giving the same `comrade` at 2.20% drift, also ceiling-silent. The two are not an independent replication — they share prompt, seed, site and cadence — so what they establish is that the flip survives a 1.7× change in eta. `oja`, `anti_hebb` and `random` all have wide usable bands in which no basin change was recorded. Every offline-control number recorded in this repo **before this run** was taken at `oja`, eta 1e-5, inside the dead zone. The later offline and severed arms at `hebb` all postdate it: C-31 is this run's own, and C-58's eta and cadence grid is T2.1's. This is the first time the control has been run where the loop actually moves.
 
@@ -64,10 +67,12 @@ The severed arm reads the loop out at `blocks.3.hook_resid_post`, below the plas
 
 | configuration | y_source | `cos_delta` | `rel_fro_diff` | `diff_over_drift` |
 |---|---|---|---|---|
-| routed (0→11) | `recomputed` (floor 0) | 9.929e-01 … 9.939e-01 (median 9.929e-01, n=5) | 1.233e-03 … 1.392e-03 (median 1.392e-03, n=5) | 1.118e-01 … 1.204e-01 (median 1.204e-01, n=5) |
-| routed (0→11) | `recorded` (floor ≠ 0) | 9.905e-01 … 9.914e-01 (median 9.905e-01, n=5) | 2.597e-03 … 2.782e-03 (median 2.782e-03, n=5) | 2.390e-01 … 2.476e-01 (median 2.476e-01, n=5) |
-| severed (0→3) | `recomputed` (floor 0) | 1.000e+00 … 1.000e+00 (median 1.000e+00, n=5) | 0.000e+00 … 0.000e+00 (median 0.000e+00, n=5) | 0.000e+00 … 0.000e+00 (median 0.000e+00, n=5) |
-| severed (0→3) | `recorded` (floor ≠ 0) | 1.000e+00 … 1.000e+00 (median 1.000e+00, n=5) | 8.111e-03 … 8.372e-03 (median 8.372e-03, n=5) | 2.842e-01 … 2.868e-01 (median 2.868e-01, n=5) |
+| routed (0→11) | `recomputed` (floor 0) | 9.929e-01 … 9.939e-01 (median 9.929e-01, n=5 cells but 3 prompts) | 1.233e-03 … 1.392e-03 (median 1.392e-03, n=5 cells but 3 prompts) | 1.118e-01 … 1.204e-01 (median 1.204e-01, n=5 cells but 3 prompts) |
+| routed (0→11) | `recorded` (floor ≠ 0) | 9.905e-01 … 9.914e-01 (median 9.905e-01, n=5 cells but 3 prompts) | 2.597e-03 … 2.782e-03 (median 2.782e-03, n=5 cells but 3 prompts) | 2.390e-01 … 2.476e-01 (median 2.476e-01, n=5 cells but 3 prompts) |
+| severed (0→3) | `recomputed` (floor 0) | 1.000e+00 … 1.000e+00 (median 1.000e+00, n=5 cells but 3 prompts) | 0.000e+00 … 0.000e+00 (median 0.000e+00, n=5 cells but 3 prompts) | 0.000e+00 … 0.000e+00 (median 0.000e+00, n=5 cells but 3 prompts) |
+| severed (0→3) | `recorded` (floor ≠ 0) | 1.000e+00 … 1.000e+00 (median 1.000e+00, n=5 cells but 3 prompts) | 8.111e-03 … 8.372e-03 (median 8.372e-03, n=5 cells but 3 prompts) | 2.842e-01 … 2.868e-01 (median 2.868e-01, n=5 cells but 3 prompts) |
+
+**The `n` above is a cell count, not a sample size, and the caveat travels with every figure in the table (C-41).** Those five cells are 3 prompts × repeated seeds at one site: `hebb` has no stochastic term, so seeds 0/1/2 on `A01_physics` are one run three times, with spread exactly **0.000e+00** (below). **The independent n is 3** — `A01_physics`, `A02_medical`, `A04_climate` — one site, one eta. Every median above is therefore forced onto `A01`'s value, and that value is the **extreme** of the quoted range in 3 of the 4 rows, the severed `recomputed` row being degenerate at exactly zero. These are not central tendencies of anything: each range spans the three prompts, and `A01`'s value sits at one **end** of it while occurring 3 of the 5 times, which is the whole reason it comes out as the median.
 
 In the zero-floor `recomputed` mode the routed cells sit at 1.204e-01 against a severed floor of 0.000e+00. The severed arms come out **bit-identical** — `rel_fro_diff` is exactly 0.0, not small — so the floor is zero in the literal sense and the ratio is not a finite number. The routed difference is therefore entirely above the floor. The severed control runs a shallower loop (0→3) with different activation statistics. In this mode `torch.equal` on the two severed matrices is True, so the severed floor is zero regardless of readout depth. The `recorded` row below has a nonzero severed floor.
 
@@ -101,7 +106,9 @@ Across prompts (all `prolet` under the frozen loop), seed 0:
 | effective rank (participation ratio) | 2.00 | 1.93 |
 | stable rank | 1.04 | 1.04 |
 
-The step-size map measured ΔW effective rank 1.8–3.8 for `oja` and 718.8 for the isotropic noise arm. This is the `hebb` number at the cell that moves the loop.
+The step-size map measured ΔW effective rank **1.77 – 2.22** for `oja` against **718.84** for the isotropic noise arm, both read off ceiling-silent cells only (clip rate 0.0%). This is the `hebb` number at the cell that moves the loop, and it sits inside `oja`'s band.
+
+**Corrected 2026-08-05.** This paragraph read "1.8–3.8 for `oja`", which was wrong twice over. That range is `anti_hebb`'s, not `oja`'s; and its top end, 3.80, is `anti_hebb` at eta 9.81e-05, a cell at **60.8% clip** — which this repository's standing prohibition forbids quoting as evidence, because such a cell measures the ceiling rather than the rule. Five of `oja`'s eight cells are ceiling-silent and they give 1.77 – 2.22; its all-cells range is 1.00 – 2.89 and *both* of those endpoints are ceiling-fired too (100% and 9.2% clip). `anti_hebb`'s own ceiling-silent range is 1.79 – 3.24, and `hebb`'s is 1.89 – 2.22 over its five ceiling-silent cells. The withdrawn figure stays in `STEP_SIZE_MAP.md`'s full table as a diagnostic, as §5 of that file already does for the two it withdrew for the same reason.
 
 ### The dominant direction, decoded
 
@@ -144,11 +151,15 @@ The measurement below reports where the tokens this experiment is actually about
 | " comrade" | 18.9 | 59.7 | 7.1 – 98.9 |
 | " Divine" | 82.8 | 57.3 | 16.5 – 88.3 |
 
-The loop went `prolet` → `comrade`. **All 3 of the tokens checked sit inside the null's 5–95% band**, including the one the flip landed on. The dominant direction of ΔW carries no measurable preference for the tokens whose basin it moved the loop into — the basin change is not legible in the weight change by logit lens.
+The loop went `prolet` → `comrade`. **All 3 of the tokens checked sit inside the null's 5–95% band**, including the one the flip landed on — and **that is an absence of statistical power, not an absence of effect.** The null bands span **91 percentile points** — `prolet`'s is [7.7, 98.4] — so to land outside that one a direction would have to put the token in the top 1.6% or the bottom 7.7% of all 50257. A test with that null cannot reject anything, in either direction: it has not failed to find a preference, it has not looked. See **C-36**, `not-established` and **not quotable**.
+
+**Superseded 2026-08-05.** This paragraph used to conclude that "the dominant direction of ΔW carries no measurable preference for the tokens whose basin it moved the loop into — the basin change is not legible in the weight change by logit lens." That reads a 91-point-wide null band as a negative result. The percentiles in the table stand as measurements; the inference drawn from them does not, and C-36 exists to hold it out of circulation.
 
 **Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = 0.99294294 (recomputed-y arm), with norm ratio 0.972248.
 
-Splitting the difference between the two updates: the component perpendicular to the closed-loop update is **0.1153** of `||ΔW_closed||`, the component along it is **0.0346** -- a ratio of 3.33 to 1 in favour of the perpendicular part. The cosine and the norm ratio are reported separately for this reason; a single mixed ratio cannot distinguish a direction change from a magnitude change.
+Splitting that difference into its two parts: feedback **rotates** the update by **6.81°** (cos 0.99294; 6.32° on `A02_medical`, 6.37° on `A04_climate`) and **shortens** it by **2.8%** (norm ratio 0.97225). The rotation and the shortening are reported separately, and only separately, because a single mixed ratio cannot distinguish a direction change from a magnitude change. See **C-32**, `provisional`.
+
+**Superseded 2026-08-05 — this withdraws a figure, it does not relabel one.** The paragraph used to give a perpendicular/parallel decomposition: perpendicular **0.1153**, parallel **0.0346**, "a ratio of 3.33 to 1 in favour of the perpendicular part". The two components are arithmetically correct and the prose mislabelled them as fractions of `‖ΔW_closed‖` when `exp001_hebb.py:1163-1173` normalises by `‖ΔW_offline‖` — but C-32 goes further than the label and forbids quoting the **ratio at all**, against either reference. It is the deterministic function `r·sinθ/|r·cosθ−1|` of the same cosine and norm ratio quoted above, so it is not independent evidence; it takes **3.33 or 5.73** depending on which update you normalise by; it is ill-conditioned, `d ln ratio/d ln r` = **−47** with a pole 2.1% away; and it ranges **5.03 – 7.67** across the three prompts. At this cosine, perpendicular dominance is automatic for any norm ratio in [0.900, 1.144] — at *equal* norms the ratio would be 16.8, so the measured value is **less** direction-dominated than equal norms would give, not more. The rotation and the shortening are the licensed form.
 
 ## 5. Does the ΔW direction differ by basin? (issue #32 section 3b)
 
@@ -162,7 +173,9 @@ Dominant 768-side ΔW direction, one closed-loop episode per prompt, sign-fixed 
 | **A14_kant**<br>`Divine` | +0.356371 | +0.363236 | +0.375584 | -- | +0.938737 |
 | **A08_linguistics**<br>`Divine` | +0.466183 | +0.473248 | +0.485904 | +0.938737 | -- |
 
-**The directions separate by basin**: within-basin median cosine +0.997680 (4 pairs), between-basin +0.420884 (6 pairs).
+**Exploratory, and unregistered.** Within-basin median cosine is +0.997680 (4 pairs) against between-basin +0.420884 (6 pairs). No row in `CLAIMS.md` covers this comparison, and that file's first rule is that a claim enters the register before it enters any prose document — so this is a measurement the repository has taken, not something it asserts, and it may not be cited as a finding. **Prompt similarity and basin membership are confounded in this design**, which is the reason no row was opened: with five prompts split 3/2, the within-basin pairs are also the pairs of most similar prompts, and nothing here separates the two.
+
+**Superseded 2026-08-05.** This paragraph used to head the same two cosines with the bolded conclusion "The directions separate by basin". The cosines stand as measurements. The conclusion was drawn in prose without a register row, from 4 pairs against 6, in a design this section itself declares confounded two paragraphs later, and it is withdrawn.
 
 This comparison has two features. First, issue #32's two branches — "ΔW fingerprints the attractor" and "ΔW records the site's activation statistics and nothing about the episode" — are **not separable in this design**: no measurement here distinguishes attractor identity from the site's activation statistics, or isolates an episode-specific component. Section 1 showed the offline arm, which sees nothing but the frozen activation statistics, reproduces the closed arm's ΔW to cos = 0.99294.
 
@@ -170,7 +183,9 @@ Second, prompts in the same basin are not a random sample — `A01`/`A02`/`A04` 
 
 ## 6. C1 — does the state come back when the weights do?
 
-After the episode, W0 is restored and the loop continues from the closed arm's final state. Horizon 1000 with early stop at `1 − cos` ≤ 1e-12, **not 200**: the measured per-iteration contraction is ~0.968, about 71 iterations per decade of displacement, so returning from a displacement of order 5.0e-03 to the round-off floor needs several hundred iterations and a 200-iteration horizon has already produced one false "failed to return" in this repo.
+After the episode, W0 is restored and the loop continues from the closed arm's final state. Horizon 1000 with early stop at `1 − cos` ≤ 1e-12, **not 200**: the per-iteration contraction the horizon was sized against is ~0.968, about 71 iterations per decade of displacement, so returning from a displacement of order 5.0e-03 to the round-off floor needs several hundred iterations and a 200-iteration horizon has already produced one false "failed to return" in this repo.
+
+**That 0.968 is not a constant, and C-03's caveat travels with it.** Contraction here is not a single number: across the five-magnitude perturbation ladder in `RESONANCE_NOTE.md` the per-decade rate ranges **4 to 124**, and 0.968 / 71-per-decade is an **endpoint slope** rather than a fit. It was the right quantity to size a horizon generously against and is the wrong quantity to quote as a property of the orbit — it is a property of one end of one ladder, and it should not be quoted without the range. The measurement at the end of this section gives **0.9521**, about **47** iterations per decade, on a different trajectory; the spread between the two is the caveat working, not a discrepancy to reconcile.
 
 The reference is iterated in **lockstep**, not held fixed at the episode's last iteration. The frozen loop is itself still settling at iteration 120, so a state that has come all the way back onto the frozen trajectory still reads a nonzero gap against the iteration-120 snapshot. Both are reported: the lockstep gap and the fixed-target gap.
 

@@ -325,7 +325,7 @@ committed, with the interpretation fixed in advance exactly as the issue demande
 | within-basin spread, mean `1 − cos` | 3.32e-03 (2337 pairs) |
 | between-basin spread, mean | 1.85e-01 (5413 pairs) |
 | ratio within/between | 1.80e-02 |
-| **ratio against the *nearest* basin pair** | **1.16** |
+| **ratio against the *nearest* basin pair** | **1.15** |
 | within-basin effective dimensionality (participation ratio) | **1.02 – 1.29** across basins |
 | position uniformity | **125/125 prompts, every basin** — not a `Divine` property |
 
@@ -334,7 +334,7 @@ one that makes the persistence work worth doing. Prompts in a basin land on near
 distinct states, and the within-basin variation is essentially **one-dimensional**
 (participation ratio 1.02–1.29 against a maximum of n−1 = 15–54).
 
-And the sting: **a ratio of 1.16 against the nearest basin pair means the two closest
+And the sting: **a ratio of 1.15 against the nearest basin pair means the two closest
 basins are no further apart than the prompts inside one of them.** `BASELINE.md` reports
 this candidly — it undercuts the basin construct and was published anyway. That number is
 the correct lens for every basin result in the repository, and no downstream document cites
@@ -824,7 +824,7 @@ This is the mechanism that would have caught all three drifts, and it costs one 
 
 **T0.1 — Recognise that issue #31 is answered.** Close it against `BASELINE.md`, record the
 answer (**compression, one-dimensional, position-uniform across all basins, nearest-basin
-ratio 1.16**), and propagate it into `HANDOVER.md` §5.4 and `RESONANCE_NOTE.md`. (F3)
+ratio 1.15**), and propagate it into `HANDOVER.md` §5.4 and `RESONANCE_NOTE.md`. (F3)
 
 **T0.2 — Promote the loop-displacement-matched control.** `anti_hebb`@2.944e-05 — ceiling-silent,
 94% of `hebb`'s loop-state perturbation, opposite sign on the same axis, does not flip — paired

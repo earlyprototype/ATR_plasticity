@@ -47,9 +47,26 @@ Per run:
 - terminal attractor and iteration of lock-in
 - basin assignment over the 125-prompt library, for comparison against the
   parent repo's convergence matrix
-- the delta matrix itself, saved — its spectrum is a result, not just a
-  diagnostic. If the update is dominated by one or two singular directions,
-  that connects to the anisotropy story in the parent repo's isomorphism.
+- the delta matrix's spectrum — a result, not just a diagnostic. If the update
+  is dominated by one or two singular directions, that connects to the
+  anisotropy story in the parent repo's isomorphism.
+
+  **This line used to say the delta matrix itself is saved. It is not, and
+  nothing else is either.** `experiments/output_*` holds summary statistics
+  only: no dense ΔW and no raw state is persisted anywhere in the repository
+  (`.gitignore:27-29` excludes the state directories and both array formats,
+  and no runner writes a ΔW at all). The consequence is a standing cost, not a
+  tidiness point — every downstream analysis has to **regenerate** the episode
+  rather than load it, and pays a float drift of roughly **0.1%** for doing so:
+  `basin_bifurcation.py` matches the weight anchors to about nine figures and
+  still lands 0.12% off on the closed-loop state norm, and each such
+  regeneration compounds on the last. Cross-reference **C-47** (`retired`),
+  which is the identical failure for the settled states — `BASELINE.md`
+  promised 125 saved states for exactly the within-basin re-analysis,
+  `.gitignore:27` excludes them, the directory does not exist, and the summary
+  statistics survive where the raw objects do not. Re-deriving those costs the
+  ~6 CPU-hour baseline re-run. If ΔW is going to be reused as an object, which
+  issue #32 §5 already assumes, it has to be persisted first.
 
 ## Snapshot schedule — read this before running anything
 
@@ -68,11 +85,22 @@ periodic, not fewer.
 | Symptom | Likely cause |
 |:---|:---|
 | C0 fails | Hook has a side effect; dtype cast leaking; in-place op on a captured tensor |
-| `nonfinite` fires early | eta too high. **Not** "expected under `mode="hebb"`": across all 35 cells of the step-size map, `hebb` never once went non-finite (register row C-15) |
+| `nonfinite` fires early | eta too high. **Not** "expected under `mode="hebb"`": across `hebb`'s **five ceiling-silent cells** in the step-size map, drift up to **2.20% at 0.0% clip**, it never once went non-finite, and at the working point ‖W‖_F moved **+0.03%** (register row C-15) |
 | `clipped` fires immediately | eta far too high; the ceiling is doing its job |
 | Landscape identical to baseline at every eta | Site is not load-bearing for the dynamics; try a different layer or `attn.c_proj` |
 | Oja and random controls agree (C2) | The result is about perturbation magnitude; the branch as framed is dead and needs rethinking |
 | Basins change but so does the eta=0 rerun | Nondeterminism somewhere; check the parent repo's reproducibility gate still passes on this machine |
+
+**The `nonfinite` row is rescoped, 2026-08-05.** It used to rest the no-divergence
+claim on "all 35 cells of the step-size map". That is the wrong evidence twice
+over. Only 10 of the 35 cells run `hebb` at all, and **five of those ten fired the
+norm ceiling** (7.5%, 43.3%, 83.3%, 95.8% and 99.2% clip) — a clipped cell has its
+drift bounded by `max_delta_frac` by construction, so it cannot bear on whether the
+rule itself diverges; it measures the ceiling. The claim is true and now rests only
+on what can carry it: `hebb`'s five ceiling-silent cells. The clipped cells stay in
+`STEP_SIZE_MAP.md`'s table as diagnostics. Note also what C-15 does *not* license —
+no document may say Hebb grows "without bound", because C3 runs a fixed small number
+of applications and records continued growth over that run only.
 
 ## Sweep order
 
@@ -82,10 +110,14 @@ periodic, not fewer.
    Oja's saturates only with the ceiling lifted at a large eta; at the step
    sizes actually used, Hebb is bounded and finite (C-15), and C3's evidence is
    continued growth over the fixed small number of applications it runs, not an
-   unbounded limit. Oja then moved the basin at none of the eight step sizes
-   tested (C-13), and every result in which the loop's behaviour changed comes
-   from `hebb`. The other rules are recorded throughout the step-size map; what
-   they record is that nothing moved.
+   unbounded limit. Oja then moved the basin at none of the **five** step sizes
+   tested with the ceiling silent — up to **2.9% drift at 0.0% clip**, which is
+   what C-13 rests on. The remaining three of its eight cells fired the ceiling
+   (9.2%, 65.8% and 100% clip) and are **diagnostic only**: Oja stays `prolet`
+   in those too, but a clipped cell measures `max_delta_frac` rather than the
+   rule, so it is a note and not evidence. Every result in which the loop's
+   behaviour changed comes from `hebb`. The other rules are recorded throughout
+   the step-size map; what they record is that nothing moved.
 3. Single prompt, eta ∈ {1e-6, 3e-6, 1e-5, 3e-5, 1e-4}, 500 iterations. Find
    the eta where anything happens at all.
 4. C2 at that eta. **Gate — if this fails, stop and rethink.**
@@ -101,14 +133,40 @@ your hardware, which the parent repo already knows.
 
 ## Open design questions
 
-- **Cadence.** Applying an update every iteration couples the two loops
-  tightly; applying every k iterations approximates a timescale separation.
-  k is a free parameter with a biological interpretation (the ratio of fast to
-  slow dynamics) and should eventually be swept, not fixed.
-- **One site or many.** Rung 3 of the ladder ("each head has a looping training
-  function") requires updating every head simultaneously with a local rule. The
-  scaffold supports one site. Extending to many is mechanically easy and
-  interpretively much harder — do it only after single-site results exist.
+- **Cadence — swept, and this question is answered.** Applying an update every
+  iteration couples the two loops tightly; applying every k iterations
+  approximates a timescale separation. k is a free parameter with a biological
+  interpretation (the ratio of fast to slow dynamics), and this line's "should
+  eventually be swept, not fixed" has since been done: **k = 1, 2, 4 and 12**
+  have run (C-64) — 2 and 4 in T2.1, 4 and 12 in EXP-003 Stage 2. Loosening the
+  coupling does what the framing predicts. The feedback-attributable share of
+  the weight change falls as k rises, **0.1204 at k=1, 0.0543 at k=2, 0.0254 at
+  k=4** (C-58), which is the same coupling-strength monotonicity read along this
+  axis rather than a separate effect. Two limits travel with that. Cadence above
+  1 has only ever run at **one site** (`t2_1_coupling.jsonl`) apart from Stage 2;
+  and **Stage 2's own registered drift guard fired** — its runner scaled eta by k
+  on the assumption that drift is linear in eta, it is not, and the drift spread
+  across that ladder came out **6.03×** against a required factor of 2, so
+  `drift_matched` is false, cadence there is confounded with drift, and nothing
+  in it separates a slow-timescale effect from a larger-drift one (C-67).
+- **One site or many — answered, and the interpretive half of the warning was
+  right.** Rung 3 of the ladder ("each head has a looping training function")
+  requires updating every head simultaneously with a local rule. This line used
+  to say the scaffold supports one site and that extending to many should wait
+  for single-site results; both halves are now stale. `multi_site.py` is in the
+  repository, and EXP-002 carried plasticity at **all twelve MLP
+  down-projections at once** (C-60), after the single-site series had run. What
+  survives is the warning that many sites are interpretively much harder — and
+  it is no longer a worry but registered fact. A multi-site run **lifts the drift
+  ceiling** (C-60, `max_delta_frac` 1e9, so it is a different regime from every
+  result taken under the 5% cap) and **loses the exact-zero severed-path floor**
+  (C-63: only the *lowest* plastic layer floors at zero, because a lower layer's
+  drift reaches a higher one inside a single forward pass and severing the loop
+  does not cut that). Multi-site closed-versus-offline numbers therefore have no
+  zero baseline, and **may not be placed in one series with the single-site
+  shares** (C-64) — wider coverage cannot be assembled by adding them up. Rung 3
+  itself is still untouched: **0 of 144 head stripes** have carried plasticity in
+  a committed experiment (C-64).
 - **Whether to renormalise the weights.** Oja's decay term stabilises the
   update, but nothing constrains the weight matrix's overall scale over long
   runs. A separate weight-norm homeostasis may be needed, which would be a

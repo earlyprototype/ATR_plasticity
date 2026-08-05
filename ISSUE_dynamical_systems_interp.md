@@ -76,6 +76,15 @@ write-up.
     direction and a different level of description. This is the single most
     important citation for the `Divine` result and should be added to
     FINDINGS.md F9.
+  - **What "exact" is licensed to mean here (C-02).** Indistinguishable from
+    period-2 **at the float32 floor** — `1−cos` of order 1e-14 between the state and
+    its second iterate, and C-02 carries the probe range and median — and **not**
+    bit-identical: applying the map twice moves 88% of the entries. The caveat travels
+    with the claim, so a write-up citing 2502.15208 alongside `Divine` must say
+    "period-2 to float32 round-off", not "exact" bare.
+    A reviewer who reads "exact" as bit-equality and then runs `torch.equal` gets
+    False, which is why C-02 carries this and why state-equality tests in this repo
+    are tolerance tests.
 
 ### Adjacent formalism
 
@@ -122,7 +131,10 @@ living cortical cultures on multi-electrode arrays. Directly relevant papers:
   population state, in both simulated and living networks. Relevant to gate
   design (#9).
 - **Wagenaar, Pine & Potter (2006)**, *Searching for plasticity...*, J Negat
-  Results BioMed 5:16 — the methodological model for our own refutation:
-  positive controls established first, every change measured against
-  spontaneous drift, and the false-positive mechanism diagnosed rather than
-  merely reported.
+  Results BioMed 5:16, **and its correction, J Negat Results BioMed 6:3 (2007)** —
+  the methodological model for our own refutation: positive controls established
+  first, every change measured against spontaneous drift, and the false-positive
+  mechanism diagnosed rather than merely reported. **Read the correction with it:**
+  it swaps two protocol labels throughout, and the uncorrected text is still
+  publicly served (`MEA_SOURCES.md`). The methodology this entry admires is
+  unaffected; which protocol worked is not.
