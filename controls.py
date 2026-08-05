@@ -121,14 +121,32 @@ def c2_random_direction(
     seeds: Sequence[int] = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
 ) -> dict:
     """
-    C2 -- is the update DIRECTION doing the work, or just its magnitude?
+    C2 -- a Frobenius-norm-matched random arm. Asks whether the update DIRECTION
+    is doing the work rather than its magnitude, and is a DIAGNOSTIC on that
+    question rather than an answer to it.
 
     Compare mode="oja" against mode="random", which applies a random matrix
     matched in Frobenius norm to what Oja would have applied. If the two give
     the same landscape change, you have measured "perturbing weights by this
     much changes things", which is not a finding about Hebbian learning.
 
-    This is the control that decides whether the branch is interesting.
+    THIS IS NOT THE CONTROL THAT DECIDES WHETHER THE BRANCH IS INTERESTING, and
+    this docstring used to say it was. The arm is matched on the wrong quantity.
+    An isotropic random matrix spreads its Frobenius mass over the whole
+    spectrum, so across the committed step-size sweep it holds
+    sigma1/||dW||_F = 0.054 against `hebb`'s 0.979 -- its operator norm never
+    reaches `hebb`'s anywhere in the sweep, falling 4x to 11x short. Two arms
+    that agree in Frobenius norm and differ by an order of magnitude in the norm
+    that actually moves a state cannot establish direction-specificity, and
+    register row C-23 is retired on exactly that ground.
+
+    The control that can decide is a rank-1 random direction matched on `hebb`'s
+    loop-state DISPLACEMENT rather than on a matrix norm:
+    `experiments/rank1_random_control.py`. It found that arbitrary directions
+    usually DO move the basin -- 4 of the 6 seeds it could match -- but never to
+    `hebb`'s destination `comrade`, and only at 66x-171x `hebb`'s relative weight
+    change (C-55). Run this one for the magnitude sanity check; cite that one for
+    direction.
 
     THE RANDOM ARM IS RUN ONCE PER SEED, and that is the point of the `seeds`
     argument. A single random matrix is one sample from the space of directions
@@ -187,6 +205,13 @@ def c2_random_direction(
         "delta_frac_random_per_seed": frac_per_seed,
         "note": (
             "cos near 1.0 means the direction is NOT doing the work. "
+            "cos below 1.0 does NOT establish the converse: this arm is matched "
+            "in Frobenius norm and not in sigma1 (0.054 against hebb's 0.979, "
+            "operator norm 4x-11x short everywhere in the sweep), so a "
+            "difference here can be the operator-norm gap rather than the "
+            "direction -- CLAIMS.md C-23, retired. For direction, see "
+            "experiments/rank1_random_control.py, matched on loop displacement "
+            "(C-55). "
             "Read cos_per_seed, not just the mean: one draw is not a control."
         ),
     }

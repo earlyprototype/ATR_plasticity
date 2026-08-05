@@ -889,6 +889,20 @@ All measured magnitudes in this finding (0.838, and this table) come from a **Co
 stand-in, not real GPT-2 weights** — provisional until T1.5 reproduces them (§7, C-45). The
 structural defect is read from source and does not depend on them.
 
+> *Update, 2026-08-05: T1.5 reproduced them on real GPT-2 small, and **the stand-in figures did
+> not transfer**. Both numbers above are withdrawn.* The relative error on `y` is **≈ 1.00**
+> (per-sample 0.9988–1.0021), not 0.838 — reconstructing from one head does not approximate the
+> shared full output, it misses it almost entirely. And the head-site `recomputed` severed floor
+> is **4.9975e-02**, not 3.87e-04: **two orders larger** than the stand-in predicted, because it
+> saturates near the 0.05 `max_delta_frac` ceiling. The stand-in therefore *understated* the
+> severity by two orders, which cuts in the finding's favour and against its own caution. Its
+> caveat was right to be there. Post-fix the same floor is **2.960e-08** with `bit_identical`
+> **False**. *One structural correction the table's own framing needs:* the documented
+> **0.000e+00** is a **whole-matrix** property and was never available at a head site — a fused
+> twelve-head einsum cannot be rebuilt bit-for-bit from one head's additive remainder — so the
+> post-fix null there is a measured float32 bound (test bound 1e-6), not exact zero. The right
+> comparison is 4.9975e-02 → 2.960e-08, not 3.87e-04 → 0.0 (C-45, C-57).
+
 `verify_arms_matched` passes **17/17 in both cases**, because `y_source` is deliberately not
 an axis, so the verifier structurally cannot see this. The TransformerLens path is worse:
 `_site_bias` looks for `b_out`/`bias` while TL's `Attention` spells it `b_O`, so the bias is
@@ -918,6 +932,23 @@ T3.2, so it must be fixed before the site sweep, not after it.
 
 *Fix shape:* refuse `y_source="recomputed"` when the adapter is a head site (loud, one line),
 or record the other heads' contribution as a residual and add it back.
+
+> *Update, 2026-08-05 — the verdict is discharged. **This is no longer a blocker in front of the
+> site sweep.*** T1.5 took the **second** of the two fix shapes named above, which is the better
+> one: `replay_offline` branches on `site.shared_post_activity` and rebuilds the drifted full
+> output additively as `record.y + x @ delta`, other heads and `b_O` frozen in the recorded `y`,
+> so the head-site path is repaired rather than refused. The two regression tests this finding
+> asked for exist. **T3.1 and T3.2 are unblocked** — the register's list of unrun work no longer
+> carries T1.5, and T3.1's remaining blocker is compute, not correctness.
+>
+> *Two clauses in the paragraph above need restating, and only one of them was wrong.* "Every
+> `site` field in every committed artifact is `blocks.6.mlp`" is **`retired` with C-40** — all
+> twelve MLP down-projections have since carried plasticity. But **the conclusion it was
+> supporting survives, on a narrower and still-true statement (C-64): no committed experiment
+> applies plasticity at a *head* site** — 0 of 12 attention output projections and 0 of 144 head
+> stripes — so nothing published was ever exposed to this defect. EXP-003 Stage 0 *measures*
+> activity at all 144 head sites and applies plasticity at none; the head stripes are exercised
+> by the test suite only, which is now where the fix is pinned.
 
 **Six lower-severity defects worth tracking:**
 
@@ -1061,6 +1092,15 @@ weights is part of this task) — and it sits on the
 path to `blocks.11.attn.head.7` — the site the parent project makes most interesting. Fix
 before the site sweep, not after. (F11)
 
+> *Update: **done**, and it no longer blocks T3.1 or T3.2.* Both halves ran — the fix (additive
+> reconstruction of the shared full output, `record.y + x @ delta`, gated on
+> `site.shared_post_activity`) and the head-site tests. **The stand-in floor was wrong by two
+> orders in the safe direction**: on real GPT-2 small at `blocks.11.attn.head.7` the pre-fix
+> severed floor is **4.9975e-02**, not 3.87e-04; post-fix it is **2.960e-08** with
+> `bit_identical` **False**, because exact zero was never available at a head site — that is a
+> whole-matrix property. C-45 `retired`, C-57 `supported`. Evidence:
+> `experiments/output_t1_5/T1_5_RESULTS.md`.
+
 ### Tier 2 — The experiments that make this a result
 
 **T2.1 — The coupling-versus-drift curve.** *Highest value in the project.* Sweep eta × step
@@ -1157,6 +1197,20 @@ unqualified.
 α-sweep refutes it, since scaling this exact ΔW at fixed direction produces three different
 basins. Both magnitude and sign matter; that is the claim, and it is the one the data carry.
 
+> *Update, 2026-08-05 — this is the review's closing statement of the claim, and its last
+> sentence is `retired`.* **C-22 fell to T1.4.** Magnitude still matters; **sign does not** — 4 of
+> the 6 displacement-matched arbitrary rank-1 directions flip the basin with no particular sign
+> on the `hebb`/`oja` axis, so the data do not carry the sign half. What the data do carry is
+> **C-55**, and the licensed closing form of the editability claim is one clause longer and one
+> clause weaker: *an arbitrary rank-1 direction at the same loop displacement usually moves the
+> basin too — but never to `hebb`'s destination (`comrade` 0 of 10 seeds, 0 of 74 probe
+> evaluations), and only at 66×–171× `hebb`'s weight cost.* So what is specific to the Hebbian
+> edit is **its efficiency and its destination**, not the bare fact that the basin moves. Both
+> observations the sentence above rests on remain true as measurements; the inference does not.
+> The two clauses of the §6 headline claim that are **untouched** are the ones this review
+> already bounded: the measured Hebbian flip (C-20) and the `A04` dynamical-class change (C-24),
+> which are observations rather than inferences.
+
 Every clause is measured, controlled and reproducible from committed artifacts. It is a claim
 about the **editability of iterated dynamics**, which:
 
@@ -1187,8 +1241,33 @@ experiment, and both currently hold:
 > generic" clause is gone (C-22 `retired`), exactly as bounded above: the measured Hebbian flip
 > and the `A04` dynamical-class change are untouched. The editability claim's surviving form is
 > C-55's — an arbitrary rank-1 direction at the same loop displacement usually moves the basin,
-> never to `hebb`'s destination, at 66×–172× the weight cost. The Status cells above are left
+> never to `hebb`'s destination, at 66×–171× the weight cost. The Status cells above are left
 > as written for the record.
+
+> *Update, post-T2.1b — the **Coupling** column's "Behavioural consequence: none" no longer
+> holds, and this is the row that changed most.* **C-59: at 2.5× the working step size, ceiling
+> silent, feedback does change the outcome.** The connected loop settles into the period-2
+> `Divine` cycle (lag-1 0.685, lag-2 1.000, margin 2.36) while the feedback-severed arm ends on a
+> near-stationary trajectory reading out **`【`**, a token outside the five baseline basin
+> families. Drifts 0.0403 (closed) and 0.0465 (offline) against the 0.05 cap, **0 clip on all
+> arms**, 17/17 axes matched, both margins over the pre-registered 0.05-logit threshold by more
+> than 40×. This is **the first admissible feedback-changes-outcome observation in the project**,
+> and it also discharges the last row's *"T2.1 finding no growth into outcome change"*: the share
+> grows monotonically along all three coupling axes **and** crosses into changing the outcome, so
+> the two claims merge as this section's "prize" paragraph below anticipated.
+>
+> **C-33 is not refuted — it is bounded, and the boundary is narrow.** Through the whole T2.1
+> grid, **up to 2× eta and 240 steps**, the arms agreed on the settled basin at every
+> ceiling-silent cell (**C-58**), including two agreed changes of dynamical class into `Divine`.
+> The onset sits in the interval **(2×, 2.5×]** at 0.5× grid resolution. So the honest table cell
+> reads: *none up to 2× eta and 240 steps (C-33, C-58); the outcome diverges at 2.5× eta (C-59)*.
+> **Share does not predict divergence** — the agreeing 240-step cell carries share 0.3422 against
+> the diverging cell's 0.3496; which axis you push matters, not how large the share is. Limits:
+> n = 1 prompt, 1 site, 1 seed, `hebb` only; the severed arm's dynamical class is **unclassified**
+> (late-window lag-1 0.998 does not establish convergence), so the established contrast is the
+> basin-label disagreement plus the connected arm's verified period-2 signature, not a
+> class-versus-class statement. Evidence: `experiments/output_t2_1/T2_1B_RESULTS.md`,
+> pre-registered in `PREREGISTRATION_T2_1B.md` before the run.
 
 **The dependency runs one way, and that is the whole argument for the ordering.** If
 editability fails, coupling is worthless — feedback steering a weight change that changes

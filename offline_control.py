@@ -63,7 +63,33 @@ THE DETECTION LIMIT, and it is not the same for the two modes. Sever the
 feedback path entirely -- run the loop reading out below the site -- and:
 
   recomputed   the arms come out **bit-identical**. Floor zero. This is where
-               a claim about feedback can live.
+               a claim about feedback can live -- inside three restrictions,
+               because the exact zero is a property of one particular
+               configuration and not of the control:
+
+                 - ONE plastic site, and that site a WHOLE MATRIX. The measured
+                   zero is `blocks.6.mlp`: all five severed cells bit-identical,
+                   `rel_fro_diff` and `diff_over_drift` exactly 0.0 (C-30).
+                 - AT A PER-HEAD SITE IT IS NOT ZERO. There `y` is the shared
+                   full projection output, a fused twelve-head einsum, and the
+                   offline arm rebuilds it additively as `record.y + x @ delta`
+                   -- exact in arithmetic, not bit-for-bit. Measured severed
+                   floor at `blocks.11.attn.head.7`: **2.960e-08**,
+                   `bit_identical` False. That is a float32 noise bound, and a
+                   bound is what should be quoted, never a value (C-45, C-57).
+                 - WITH PLASTICITY AT MORE THAN ONE LAYER IT IS NOT ZERO AT ALL
+                   above the lowest plastic layer. EXP-002 severed eight plastic
+                   layers at `blocks.3.hook_resid_post`: `blocks.4.mlp`, the
+                   lowest, gives exactly 0.0 and bit-identical; every layer above
+                   it is non-zero (difference/drift 0.033 to 0.245). Severing the
+                   loop cuts a plastic layer's path into the next iterate, which
+                   for the lowest layer is its only path -- but a lower layer's
+                   drift also changes the activations arriving at a higher one
+                   WITHIN a single forward pass, and no severing cuts that. So a
+                   multi-site closed-versus-offline number has no zero baseline
+                   and may not be placed in a series with the single-site ones
+                   (C-63).
+
   recorded     the arms still differ by `diff_over_drift` 6.8e-02, with no
                feedback anywhere in the system, because the recording froze the
                rule's own recursion. That floor is *larger* than the routed
@@ -71,8 +97,9 @@ feedback path entirely -- run the loop reading out below the site -- and:
                eta, the difference between the arms is the frozen y and not
                the coupling.
 
-The zero floor is defended, not lucky: it holds only because `_recompute_y`
-reproduces the site's fused addmm bit for bit instead of merely mathematically.
+Where the floor IS exactly zero -- the one whole-matrix site above -- it is
+defended and not lucky: it holds only because `_recompute_y` reproduces the site's
+fused addmm bit for bit instead of merely mathematically.
 The obvious `x @ W + b` put ~5e-09 relative Frobenius under everything --
 hardware-dependent (2.9e-09 and 4.8e-09 on two machines), harmless at any usable
 eta, and entirely self-inflicted. `test_a_site_the_loop_does_not_route_through`
@@ -929,18 +956,38 @@ def verify_arms_matched(closed: ArmConfig, offline: ArmConfig) -> dict:
     # recursion runs live -- a mechanism difference, not a feedback difference.
     # The severed-path control shows it empirically: with coupling physically
     # impossible, "recorded" still reports a difference, and "recomputed"
-    # reports exactly zero.
+    # reports exactly zero -- at ONE whole-matrix plastic site, which is the only
+    # configuration where that zero is exact.
+    #
+    # The restrictions travel INTO THE ARTIFACT, not just into this comment. Every
+    # runner logs `interpretation` and `verdict` verbatim, so an unqualified
+    # "recomputed reports exactly zero" in those strings writes a false general
+    # claim into the results file, where it outlives whoever knew better. The
+    # bounds are: at a per-head site the recomputed severed floor is float32 noise
+    # 2.960e-08 with `bit_identical` False, because y is a fused twelve-head einsum
+    # rebuilt additively (C-57); and with plasticity at more than one layer it is
+    # not zero at all above the lowest plastic layer, because a lower layer's drift
+    # reaches a higher one within a single forward pass and severing the loop does
+    # not cut that path (C-63). See the module header for the numbers.
     feedback_interpretable = offline.y_source in ("recomputed", "live")
+    zero_floor_scope = (
+        "The severed-path floor is exactly zero only at ONE whole-matrix plastic "
+        "site (C-30); at a per-head site it is float32 noise 2.960e-08, not zero "
+        "(C-57), and with plasticity at more than one layer it is not zero above "
+        "the lowest plastic layer (C-63)."
+    )
     interpretation = (
         "the arms differ by feedback alone; their difference is evidence "
-        "about coupling"
+        "about coupling. " + zero_floor_scope + " Read this arm's null against "
+        "the floor its own configuration has, not against the whole-matrix zero"
         if feedback_interpretable else
         f"y_source={offline.y_source!r} freezes Oja's own y = xW recursion in "
         "the offline arm while the closed arm's runs live. The arms therefore "
         "differ by that mechanism AS WELL AS by feedback, and their difference "
         "is not evidence about coupling. The severed-path control shows this "
         "empirically: with coupling physically impossible, this mode still "
-        "reports a difference while 'recomputed' reports exactly zero. Compare "
+        "reports a difference while 'recomputed' reports exactly zero. " +
+        zero_floor_scope + " Compare "
         "cos_delta and the norm ratio separately, and read the result as a "
         "mechanism comparison"
     )

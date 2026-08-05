@@ -1305,10 +1305,20 @@ class OjaPlasticity:
             upd = upd @ self.project
 
         if self.mode == "random":
-            # Match in float64. C2's entire verdict rests on these two arms
-            # carrying the same magnitude, and a float32 match leaves ~3e-4
-            # relative error on a matrix this size -- small, but avoidable
-            # error in the control the README calls decisive.
+            # Match in float64. The Frobenius match is the one property this arm
+            # does have, so it should at least be exact in the quantity it claims:
+            # a float32 match leaves ~3e-4 relative error on a matrix this size --
+            # small, but avoidable, and an arm already limited in what it can
+            # decide should not also be sloppy about what it can.
+            #
+            # What the match does NOT buy is direction-specificity, and no
+            # precision here would. Frobenius norm is the wrong quantity: this
+            # noise spreads it across the spectrum (sigma1/||dW||_F 0.054) where
+            # `hebb` concentrates it (0.979), so the two arms never carry the same
+            # operator norm and C2 cannot separate direction from magnitude.
+            # C-23 is retired on that ground; the decisive comparison is the
+            # rank-1 arm matched on loop displacement in
+            # `experiments/rank1_random_control.py` (C-55), not this one.
             target_norm = upd.double().norm().item()
             noise = torch.randn(
                 upd.shape, generator=self._rng, device=upd.device, dtype=upd.dtype
