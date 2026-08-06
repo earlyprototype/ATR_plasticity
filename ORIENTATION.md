@@ -1,8 +1,17 @@
 # Orientation
 
 *What this project is, where it came from, and why the experiment is shaped the way
-it is. Written for someone arriving cold. No results here — see `EXP_001_RESULTS.md`,
-`STEP_SIZE_MAP.md` and `experiments/output_baseline/BASELINE.md` for those.*
+it is. Written for someone arriving cold. **No findings here**, deliberately: this file
+explains the apparatus and the two regime boundaries that govern how any number in this
+repository has to be read, and the reading order at the bottom says where the findings live.*
+
+> **Before you quote anything from any document in this repository, know that
+> [`CLAIMS.md`](CLAIMS.md) exists and outranks all of them.** Prose files here describe what
+> was measured. The register decides what those measurements are allowed to be *called*, it
+> carries the caveat that has to travel with each one, and it keeps retired claims on the page
+> rather than deleting them. It exists because the same correction was once made in one
+> document and left stale in three others. Where a prose file and the register disagree, the
+> register is right and the prose file is the bug. This file is prose.
 
 ## The starting point: the ATR loop
 
@@ -36,14 +45,24 @@ gone.
 **The weights are the only thing that persists across prompts.** They are the only place
 an episode can leave a mark that a later episode could read.
 
-That is the whole reason this repo exists. Not a claim about learning: there is no task,
-no loss, and no target anywhere in this design. The narrow question is whether the one
-persistent channel can be written to, and whether writing to it changes what the system
-does afterwards.
+That is the whole reason this repo exists. Not a claim about learning: there is no task and
+no target anywhere in this design. The narrow question is whether the one persistent channel
+can be written to, and whether writing to it changes what the system does afterwards.
+
+**Be precise about "no loss", because the repo has been caught being imprecise about it.**
+What is true is that there is no *externally specified* objective. It is not true that there
+is no objective at all: plain Hebb is exactly gradient ascent on output energy. Differentiate
+½E‖xW+b‖² with respect to `W` and you get the average outer product of the pre-synaptic and
+post-synaptic activity, which is precisely the Hebbian update. In the code's own convention,
+where `x` is a **row** vector and `y = x @ W + b`, that gradient is `E[xᵀy]`; the same
+quantity is written `E[x yᵀ]` in the column-vector notation the register and the rule tables
+use, and `CLAIMS.md` states the correspondence in its convention note above C-10. Register row
+**C-11** holds the claim. It matters because "no objective" is the axis the novelty argument
+leans on, and it is softer than it first looks.
 
 ## The design, and why each piece is there
 
-### One weight matrix
+### One weight matrix, and later twelve
 
 `OjaPlasticity` attaches to a single matrix — by default the MLP output projection in
 block 6. It watches the activations flowing through that matrix and, on request, nudges
@@ -53,9 +72,17 @@ The module knows nothing about the ATR loop. It installs hooks, accumulates an u
 and applies it when told. The loop is imported from the parent, unchanged, so the only
 new code in this repo is the plasticity layer.
 
+That single-site design is where the project started and where most of its numbers come
+from. `MultiSitePlasticity` in `multi_site.py` later generalised it to N sites at once, and
+EXP-002 used it to make all twelve MLP output projections plastic simultaneously. **Read the
+two as separate regimes**, because the multi-site work also runs with the drift ceiling
+lifted and loses a control guarantee the single-site work depends on. Both differences are
+spelled out further down, under the severed-path control and under "the second regime".
+
 ### Four rules
 
-Written in the convention `W` is `(n_in, n_out)` and the module computes `y = x @ W`:
+Written below in the **column-vector** notation the register uses, where `x yᵀ` denotes the
+outer product of pre-synaptic and post-synaptic activity:
 
 ```
 hebb       dW =   E[x yᵀ]
@@ -64,7 +91,15 @@ anti_hebb  dW = − E[x yᵀ] − W E[y yᵀ]
 random     norm-matched noise
 ```
 
-`x` is the pre-synaptic activity, `y` the post-synaptic. The second term in Oja is a
+`x` is the pre-synaptic activity, `y` the post-synaptic.
+
+**Mind the two conventions, because they look contradictory and are not.** The code stores
+`W` as `(n_in, n_out)` and computes `y = x @ W + b` with `x` a **row** vector, so what the
+implementation actually forms is `E[xᵀy]`, of shape `(n_in, n_out)`. That is the same
+quantity as `E[x yᵀ]` above, which reads `x` as a column. Written as a row-vector expression,
+`E[x yᵀ]` would not conform, so do not take the table above as literal code. `CLAIMS.md`
+states the correspondence in its convention note above C-10, and `plasticity.py:105-109` is
+the implementation. The second term in Oja is a
 brake: it opposes growth and keeps the weight bounded. Hebb has no brake.
 
 Anti-Hebbian negates the reinforcement term **only**. Negating the learning rate instead
@@ -149,6 +184,21 @@ an early block, put the plastic site downstream of it, so coupling is impossible
 
 Any effect claimed in the connected configuration has to exceed what this reports.
 
+**This control's floor is exactly zero at one plastic site, and it is not zero beyond one.**
+That distinction is register row **C-63** and it is the most important thing to understand
+before reading any multi-site number. Severing the loop cuts a plastic layer's path into the
+*next* iterate, which for a single site is the only path there is. With several plastic
+layers, a lower one's drift changes the activations arriving at a higher one **within a single
+forward pass**, and no amount of severing the loop cuts that. So a multi-site
+connected-versus-offline difference measures loop feedback *and* within-pass layer
+interaction, with no zero baseline to measure it against, and it may not be put in a series
+with the single-site numbers. EXP-002's own severed gate shows this directly: the lowest
+plastic layer gives exactly 0.0, bit-identical, and every layer above it does not.
+
+There is a second, smaller boundary. At a **per-head** site the reconstruction is additive
+out of a fused twelve-head operation, so the floor is float32 noise, around 1e-7, rather than
+exactly zero (C-57). The exact zero is a whole-matrix property.
+
 ## Controls
 
 - **C0** — with `eta = 0`, the model must be bit-identical to the frozen one. If this
@@ -175,13 +225,41 @@ rescales, and the rest of the matrix is flattened, while the norm stays constant
 ceiling stays quiet. It is tracked so that this failure mode is visible when the norm and
 the clip state are not showing it.
 
+## The second regime: the ceiling comes off
+
+Everything described above runs with `max_delta_frac` capping total drift at 5%. **EXP-002 and
+EXP-003 do not.** The ceiling was lifted for that series by operator decision, so those runs
+reach drift of 1.3% to 7.9% with nothing clipping, and **no number from them is continuous
+with a number from the capped runs.** If you are comparing two figures in this repository, the
+first thing to check is whether they came from the same regime. Register row C-60 carries this.
+
 ## Reading order
 
-1. This file.
-2. `PRIOR_ART.md` — what exists in the literature, with each entry's verification status.
-3. `EXP_001_SPEC.md` — the protocol, including the matched-axes table.
-4. `experiments/output_baseline/BASELINE.md` — the frozen reference.
-5. `STEP_SIZE_MAP.md` — which step sizes do anything.
-6. `EXP_001_RESULTS.md` — the comparison.
-7. `RESONANCE_NOTE.md` — the open question about what the loop is, kept separate from the
-   measurements on purpose.
+Two different things are easy to conflate here, so they are stated separately.
+
+**The order below is a learning path**, and it starts with this file because the apparatus has
+to make sense before any result does. **Authority is a separate question, and it does not
+follow the numbering**: [`CLAIMS.md`](CLAIMS.md) outranks every file on this list, including
+this one. So read in the order given, but never quote a number from any of these documents
+without checking its row in the register first, whatever position that document holds here.
+
+| # | File | What it is for |
+|---|---|---|
+| 1 | This file | The apparatus, and why each piece of it is shaped that way |
+| 2 | [`CLAIMS.md`](CLAIMS.md) | **The authority.** Every claim the project makes, its status, its evidence and the caveat that must travel with it. Retired claims stay on the page |
+| 3 | [`HANDOVER.md`](HANDOVER.md) | Where the project is, what has run, what has not, and what the recorded plan says to do next |
+| 4 | `PRIOR_ART.md` | What exists in the literature, with each entry's verification status. Read C-42's caveat with it: the novelty claim rests on a search, and eleven of its absence claims have no preserved artifact |
+| 5 | `experiments/output_baseline/BASELINE.md` | The frozen reference every later result is compared against, and the source of the resolution-limit caveat C-07 |
+| 6 | `STEP_SIZE_MAP.md` | Which step sizes do anything, at one site |
+| 7 | `EXP_001_RESULTS.md` | The connected-versus-offline comparison at the working point |
+| 8 | `BASIN_BIFURCATION.md`, then `experiments/output_t1_1/T1_1_RESULTS.md` | In that order, and do not stop after the first: the second refutes the first's conclusion. The edit **displaces** one attractor rather than creating a second (C-26 `retired`, C-56 `supported`) |
+| 9 | `experiments/output_exp002/EXP_002_RESULTS.md` | Twelve plastic layers and a reprompt. Something does cross the prompt boundary, and what crosses is collapse rather than steering (C-61 with C-62, never apart) |
+| 10 | `experiments/output_exp003/` | Three stages run against thresholds registered before each run, plus `MEA_SOURCES.md` for the borrowed statistics. The measurements are register rows **C-65 to C-67**, and the most consequential of them is a **refutation**: the spectral-concentration mechanism this project proposed for its own collapse fell by its own registered threshold |
+| 11 | `RESONANCE_NOTE.md` | The open question about what the loop is, kept separate from the measurements on purpose |
+| 12 | `ALIGNMENT_REVIEW.md` | How the claim layer and the evidence layer came apart once, and the task list that came out of it. Its status note says which items have since run |
+
+`EXP_001_SPEC.md` is deliberately left off this list. It still carries the title and the
+"proposed, not run" status of a *different* experiment from the one `EXP_001_RESULTS.md`
+reports, because the label "EXP-001" was reused. Resolving that is an open decision for the
+operator, recorded as `HANDOVER.md` §6 item 1. Its matched-axes table is still the reference
+for the seventeen axes, and its §0 and §5.3 were corrected and are right either way.

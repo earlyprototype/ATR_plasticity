@@ -40,6 +40,18 @@ high-severity latent defect on the per-head path** — invisible to all 17 match
 the severed-path control does flag it — sitting directly in front of the next planned
 experiment. No published result is affected; every committed artifact is `blocks.6.mlp`. **F11**
 
+> *Update, 2026-08-05 — two clauses in that paragraph are stale.* **The defect is fixed.**
+> T1.5 rebuilt the head-site `recomputed`-y path as an additive reconstruction of the shared
+> full output (`record.y + x @ delta`, gated on `site.shared_post_activity`); the head-site
+> severed floor fell from O(1e-2) to float32 noise **2.960e-08**, `bit_identical` False.
+> C-45 is `retired`, C-57 is `supported`, and F11 no longer sits in front of the site sweep —
+> see the update under F11 itself. **And "every committed artifact is `blocks.6.mlp`" is
+> `retired` with C-40.** All twelve MLP down-projections have since carried plasticity
+> (EXP-002, EXP-003 Stage 1), and cadence 2, 4 and 12 have run. The narrower statement that
+> holds, and the one this paragraph's conclusion actually needs, is **C-64**: no committed
+> experiment applies plasticity at a **head** site — 0 of 12 attention output projections and
+> 0 of 144 head stripes — so no published result was ever exposed to the defect.
+
 **This review has itself been adversarially attacked and corrected** — four of its load-bearing
 claims were refuted in part, and the withdrawals are marked in place. None of the three findings
 above fell. See §7.
@@ -61,6 +73,19 @@ Stated first, because the rest is critical and the asset is real.
 `anti_hebb` at **94%** of `hebb`'s loop-state perturbation, opposite sign on the same axis,
 does **not** move the basin — while `hebb` at a quarter of its own perturbation, *same* sign,
 also does not. **Both magnitude and sign are required.**
+
+> *Update, 2026-08-05: the last sentence is `retired`, and this asset is smaller than the
+> paragraph claims.* **C-22 fell to T1.4**, the test this review itself named as deciding. Of the
+> six seeds whose *arbitrary* rank-1 random direction could be matched to `hebb`'s loop
+> displacement within ±2%, **4 flip the basin** — with no particular sign on the `hebb`/`oja`
+> axis, so the sign clause is refuted. The two observations above remain true *as measurements*; what fell is
+> the inference that the sign is **required**. The **magnitude** clause survives: Arm A, matched
+> on σ₁ = 1.8135 rather than on displacement, gives **0 of 10** flips at displacements 3–5
+> orders below `hebb`'s. What survives overall is **C-55**, and it is narrower: no random
+> direction reaches `comrade` (**0 of 10 seeds, 0 of all 74 probe evaluations**), and matching
+> the displacement costs **66×–171×** `hebb`'s relative weight change (‖ΔW‖_F/‖W0‖_F
+> 0.740–1.927 against 0.011239). One prompt (`A01_physics`), one site (`blocks.6.mlp`).
+> Evidence: `experiments/output_rank1_random/`.
 
 **A dynamical-class change.** `A04_climate` goes from a fixed point (lag-1 0.99999) to the
 period-2 `Divine` orbit (lag-1 0.661). lag-1 is a property of the trajectory, not of the
@@ -276,6 +301,19 @@ whichever way it is read. **The argument against step 4 rests on (a) and (b), no
 > a different and more interesting failure than the one this caveat was written to guard against.
 > **C-26 is held at `not-established` because T1.1 is unrun, not because of a measurement doubt.**
 
+> *Update, 2026-08-05: T1.1 has run, and C-26 is no longer held — it is `retired`.* Seeded from
+> the original frozen `prolet` state under `W0 + ΔW`, the loop does **not** stay: it moves to
+> `comrade`, settling at iteration 12 and holding through 120, lag-1 ≥ 0.99990 at every step and
+> the top1−top2 margin falling smoothly to 0.00025 at the crossing. One **displaced** attractor,
+> not two coexisting — so the coexistence reading step 4 required fails, and what is measured is
+> ladder **step 2**, exactly as (a) and (b) above argued. eta=0 gate bit-identical to the frozen
+> loop. Verdict invariant to the renorm shell. The durable claim is **C-56**. Evidence:
+> `experiments/output_t1_1/`. *Note the register has since attached a bound this review could not
+> have seen:* **C-68** records that at α = 0.50 two committed artifacts reach two different
+> settled words from two different initial states under identical weights, so the general "one
+> continuously-moving fixed point, never coexistence" gloss is stronger than the evidence at
+> that α — but it does not touch T1.1, which tested α = 1.00 directly.
+
 **(d) In the audited state, the file never mentioned the offline arm.**
 `grep -i "offline\|coupling\|feedback"` on `BASIN_BIFURCATION.md` at `ea4f0c1` returned **zero
 hits**. But the offline arm — no feedback path at all — flips the same basin, and the commit
@@ -292,6 +330,18 @@ Moves to `comrade` → one displaced attractor → step 2. ~1 CPU-minute. Issue 
 specifies the hysteresis test that would settle it independently — *"Up-then-down eta sweep…
 that hysteresis is the cheapest available evidence of a real transition. Almost nobody does
 it."* Specified, not run.
+
+> *Update, 2026-08-05: both have run.* **T1.1** (the decisive test): the state moves to
+> `comrade` — step 2, not step 4 (C-26 `retired`, C-56 `supported`; details in the update two
+> paragraphs above). **T1.2** (the hysteresis test): **no hysteresis.** A continuation
+> up-then-down α-sweep, step 0.10, 0 → 1.5 → 0, each α seeded from the previous α's settled
+> state, **retraces exactly** — both directions give the identical basin map (`prolet` at
+> α ≤ 0.4, `comrade` at α ≥ 0.5), with **alpha_up 0.5 and alpha_down 0.4, one grid step apart**,
+> i.e. a single threshold near α ≈ 0.45 and no resolved loop. Same verdict under the fixed-W0
+> shell; all settled states are fixed points (lag-1 = 1.0). This corroborates T1.1 rather than
+> merely repeating it, since the two tests differ in initial condition. Limits: a sub-0.10 loop
+> inside (0.4, 0.5) is not excluded at this grid, and n = 1 prompt, 1 site, 1 eta. C-52 is
+> answered; evidence `experiments/output_t1_2/`.
 
 **The one genuine qualitative transition is elsewhere and is under-reported.** Between
 α = 1.25 and 1.50 lag-1 collapses 0.999998 → 0.734 and the state norm jumps 65.9 against a
@@ -325,7 +375,7 @@ committed, with the interpretation fixed in advance exactly as the issue demande
 | within-basin spread, mean `1 − cos` | 3.32e-03 (2337 pairs) |
 | between-basin spread, mean | 1.85e-01 (5413 pairs) |
 | ratio within/between | 1.80e-02 |
-| **ratio against the *nearest* basin pair** | **1.16** |
+| **ratio against the *nearest* basin pair** | **1.15** |
 | within-basin effective dimensionality (participation ratio) | **1.02 – 1.29** across basins |
 | position uniformity | **125/125 prompts, every basin** — not a `Divine` property |
 
@@ -334,7 +384,7 @@ one that makes the persistence work worth doing. Prompts in a basin land on near
 distinct states, and the within-basin variation is essentially **one-dimensional**
 (participation ratio 1.02–1.29 against a maximum of n−1 = 15–54).
 
-And the sting: **a ratio of 1.16 against the nearest basin pair means the two closest
+And the sting: **a ratio of 1.15 against the nearest basin pair means the two closest
 basins are no further apart than the prompts inside one of them.** `BASELINE.md` reports
 this candidly — it undercuts the basin construct and was published anyway. That number is
 the correct lens for every basin result in the repository, and no downstream document cites
@@ -416,6 +466,13 @@ a quarter of the perturbation, and also does not flip.
 this axis. Neither alone.** That is a real, loop-displacement-matched, ceiling-silent control,
 already in the repo and never cited — and it is a weaker claim than "direction-specific".
 
+> *Update, 2026-08-05: the sign half of that statement is `retired` (C-22).* T1.4 flips the
+> basin with arbitrary rank-1 directions carrying no particular sign on this axis. The magnitude
+> half survives. Full accounting in the update three paragraphs below, under "Remaining gaps";
+> the surviving claim is **C-55**. The control described here remains a real, correctly-matched
+> control — it is the conclusion drawn from two samples of one axis that did not survive
+> sampling the space.
+
 **"Direction-specific, not magnitude-specific" must be withdrawn**, because F2's own α-sweep
 refutes it two findings earlier: holding this exact ΔW's *direction* fixed and scaling it alone
 produces three basins (`prolet` → `comrade` → `Divine`, α\* = 0.75). Within `hebb`, σ₁ 0.9002 →
@@ -426,6 +483,29 @@ Remaining gaps: only two directions are sampled, and `hebb` grows `W` while `oja
 shrink it, which the loop's L2 renormalisation may treat asymmetrically. **T1.4 — a rank-1
 random direction at matched σ₁ *and* matched loop displacement — is still the deciding test,
 and it can falsify what is left.**
+
+> *Update, 2026-08-05: T1.4 ran, and it did falsify what was left. `C-22` is `retired`.* The
+> two-directions gap named just above was the whole weakness, and sampling arbitrary directions
+> closed it against this finding. Of the six of ten seeds matched to `hebb`'s loop displacement
+> within ±2%, **4 flip the basin** (`Anarch` ×2, `bourgeois` ×2) — arbitrary rank-1 directions
+> with **no particular sign on the `hebb`/`oja` axis**. So "the flip needs the right sign on this
+> axis" is refuted; the paragraph three above stands as a pair of measurements but not as the
+> inference drawn from them. **The magnitude clause survives**, and survives cleanly: Arm A,
+> matched on σ₁ = 1.8135 instead of on displacement, gives **0 of 10** flips at displacements
+> 4.0e+03–6.7e+05× smaller than `hebb`'s — which is this finding's own "matched σ₁ is not matched
+> effect" point, confirmed by construction. **What replaces C-22 is C-55**, and it is narrower
+> than either claim this section considered: an arbitrary rank-1 direction at `hebb`'s
+> displacement usually moves the basin, **never to `hebb`'s destination** (`comrade` 0 of 10
+> seeds, 0 of all 74 probe evaluations), and only at **66×–171×** `hebb`'s relative weight change
+> (‖ΔW‖_F/‖W0‖_F 0.740–1.927 against 0.011239). Four of ten seeds could not be matched — two at
+> the search's scale cap, two straddling a displacement discontinuity — so the flip-rate
+> denominator is 6, not 10. C-07 travels with the destinations: 6 of the 8 flips land `Anarch`,
+> whose gap to `prolet` (2.874e-03) is *below* the **pooled** mean within-basin spread (3.319e-03,
+> 2337 pairs across all five basins). `prolet`'s own spread is **2.773e-03**, which that gap
+> *exceeds*, so the population has to be named or the comparison reverses — the coarse-instrument
+> reading holds on the pooled figure and not on `prolet`'s own scatter (`BASELINE.md`
+> "Within-basin spread"). n = 1 prompt
+> (`A01_physics`), 1 site, 120-step episode. Evidence: `experiments/output_rank1_random/`.
 
 **The isotropic critique stands unchanged.** Theory for an iid Gaussian (3072, 768) gives
 σ₁/‖·‖_F = 0.054127; measured across all 8 `random` cells the mean is 0.054203 — 0.14%
@@ -490,7 +570,21 @@ Three consequences the write-up must confront:
 | `random` | no | up to 1.84% clean, 5% clipped |
 
 `oja` is inert at every step size tested. Every headline number in the repository is a
-`hebb` number. The repository is nonetheless organised around Oja: the class is
+`hebb` number.
+
+> *Update, 2026-08-05: "at every step size tested" over-reaches, and the repository's own
+> standing prohibition is what withdraws it.* `oja` has **eight** cells in the step-size map.
+> **Five** are ceiling-silent at 0.0% clip; the other **three fired the ceiling — at 9.2%, 65.8%
+> and 100% clip** — and a ceiling-fired cell measures the ceiling, not the rule, so it may not be
+> quoted as evidence here. The licensed statement is the one **C-13** carries: `oja` is inert
+> **across the five clean cells**, moving the basin at no step size tested **up to 2.9% drift
+> with the ceiling silent**. The three clipped cells also stay `prolet`, and that remains a
+> diagnostic note rather than evidence — the same treatment the table row above applies to
+> `anti_hebb`'s "only at 100% clip". Nothing in F5's argument depends on the difference: five
+> clean cells spanning three decades of eta with the basin never moving carries the finding on
+> its own.
+
+The repository is nonetheless organised around Oja: the class is
 `OjaPlasticity`; the README carries *"Why Oja rather than Hebb"*; and `PRIOR_ART.md:81`
 transfers external risk arguments on the basis that *"We run an Oja rule"* — keyed to an arm
 that produces no result.
@@ -525,6 +619,20 @@ Coverage overall: 3 prompts (1 for the step-size map and the entire bifurcation 
 1 site of 168 candidates, 1 eta, cadence 1, 1 model. The ΔW decode and the C1 revert are
 each **n = 1**.
 
+> *Update, 2026-08-05: the site and cadence figures are stale — C-40, the claim that every
+> number in the repository is one site and cadence 1, is `retired`.* The current count is
+> **C-64**: **twelve of twelve MLP down-projections** have carried plasticity (all of
+> `blocks.0.mlp`…`blocks.11.mlp`, in `output_exp002/exp002.jsonl`, `exp002_uncapped.jsonl` and
+> `output_exp003/stage1.jsonl`), while **zero of twelve** attention output projections and
+> **zero of 144** head stripes have; and **cadence 1, 2, 4 and 12** have all run (1 in EXP-001,
+> 2 and 4 in `output_t2_1/t2_1_coupling.jsonl`, 4 and 12 in `output_exp003/stage2.jsonl`). So
+> read this paragraph as **12 of 168 candidate sites, one model, one site family** — and the
+> scope point it was making survives intact, because that is still the project's weakest
+> dimension. **Two boundaries the arithmetic must respect**: the multi-site runs lifted the drift
+> ceiling (C-60) and lost the exact-zero severed floor (C-63), so wider coverage cannot be
+> assembled by adding them to the single-site series; and cadence > 1 is tested at one site only,
+> except for `stage2.jsonl`, whose own registered drift guard fired.
+
 **Errors of fact to correct:**
 
 | # | Location | Says | Actually |
@@ -537,6 +645,22 @@ each **n = 1**.
 that effective rank *rises* is taken from `anti_hebb`@9.81e-05 at 60.8% clip; and
 `HANDOVER.md:90` cites the `anarchism` flip without noting it occurs at **100% clip**. The
 null conclusions stand from the clip-free cells; the specific numbers should not be quoted.
+
+> *Update, 2026-08-05: both were adjudicated on 2026-08-01 and the register's standing-prohibitions
+> entry now records the outcome — they did not resolve the same way.*
+>
+> - **`STEP_SIZE_MAP.md` §5 *was* in breach**, exactly as flagged: it bounded the effect with
+>   cells at 99.2% and 60.8% clip. It has been **rewritten onto the 23 ceiling-silent cells** —
+>   effective rank never below **642.4** against a frozen **642.6**, rising to **646.7** under
+>   `anti_hebb` at **0.0% clip**. The conclusion is unchanged and now rests on clean cells. The
+>   two withdrawn figures (640.5 and 647.3) are named in place and kept in the full table as
+>   diagnostics.
+> - **`HANDOVER.md`'s `anarchism` citation is *not* in breach**, and this review's flag on it was
+>   wrong. It appears in the step-size summary table with **"only at 100% clip" stated inline**,
+>   in a column asking whether the rule moves the basin inside the ceiling-silent band, answered
+>   **"no"**. Quoting a ceiling-fired cell as a non-finding with its clip rate attached is
+>   precisely what the standing prohibition asks for, not a violation of it. The distinction that
+>   matters is whether the cell is being used to *support* a conclusion or to *decline* one.
 
 **C2 was never run in EXP-001 at all.** There is no `mode="random"` cell in
 `exp001.jsonl`. The "random control #0/#1" columns in §4 are isotropic *decode* directions
@@ -570,6 +694,22 @@ Errors of fact currently live on `main`, beyond those in F6:
 | `EXP_001_SPEC.md` header | "Status: proposed, not run", titled for the `Divine`-cycle question | Describes a **different experiment** from the one `EXP_001_RESULTS.md` reports |
 | `EXP_001_SPEC.md` §0 | Points at `EXP_001_RESULTS.md` for the C0 gate | That file contains **no C0 section**. C0 on the real stack was never run in the experiment — only in pytest and the map's `off` cell |
 | `PRIOR_ART.md:28` | "every entry has been verified against its source" | Four entries carry no status, two no authors, one no identifier |
+
+> *Update, 2026-08-05: the `PRIOR_ART.md:28` row was re-audited entry by entry and it **still
+> stands**, unfixed — all three of its counts reproduce.* Over the seventeen works the file
+> cites, **four carry no verification status**: Nellessen & Jan's *Hebbian Natural Abstractions*
+> (LessWrong, 2022), which is the load-bearing hit of the whole forum search; **arXiv:2605.04200**,
+> the one forward citation of Cazalets & Dambre, given as a bare identifier; an **unnamed bioRxiv
+> spiking-network paper**, the one forward citation of Gong et al.; and **Zenke & Gerstner,
+> Phil. Trans. R. Soc. B 372:20160259**, named only to record a withdrawn misattribution. **Two
+> carry no author list** — *Training-Free Looped Transformers* (arXiv:2605.23872) and *Where to
+> Bind Matters* (arXiv:2605.02920), both marked **Verified** against identifier and abstract
+> without saying who wrote them. **One carries no identifier of any kind**: the bioRxiv paper,
+> dismissed as "nothing near us" on the strength of a one-clause description. *One addition this
+> row did not make:* **two further entries are located by venue and year only**, with no arXiv ID,
+> DOI, volume or pages — Irie, Csordás & Schmidhuber (ICML 2022) and Lazar, Pipa & Triesch
+> (Frontiers in Computational Neuroscience, 2009). `PRIOR_ART.md` now states this position in all
+> three places that carried the blanket claim, and the verdict stays `provisional` (C-42).
 
 The `EXP_001_SPEC.md` collision is logged as open decision #1 in `HANDOVER.md` §6 and was
 left deliberately. It should now be closed: the label denotes two different experiments
@@ -707,6 +847,22 @@ literature tests 12 layers**, so the paper cannot set expectations either way fo
 
 ### F11 — A latent high-severity defect sits directly in the path of the next planned experiment
 
+> *Update, 2026-08-05 — read the whole of F11 in the past tense: **the defect was fixed in
+> T1.5** and this finding is no longer a blocker.* The fix is an **additive reconstruction of the
+> shared full output**: `replay_offline` branches on `site.shared_post_activity` and rebuilds the
+> drifted full output as `record.y + x @ delta`, holding the other heads and `b_O` frozen inside
+> the recorded `y`, instead of recomputing one head's contribution from scratch. On real GPT-2
+> small at `blocks.11.attn.head.7` the unit reconstruction's relative error to the full output is
+> **0.0** at eta = 0, and the head-site `recomputed` severed floor falls from **4.9975e-02** to
+> **2.960e-08** with **`bit_identical` False** — float32 noise, **not exactly 0.0**, because a
+> fused twelve-head einsum cannot be rebuilt bit-for-bit from one head's additive remainder. Two
+> regression tests now cover the head-site path
+> (`test_recomputed_y_at_a_head_site_is_the_shared_full_output`,
+> `test_a_head_site_the_loop_does_not_route_through`), against a bound of 1e-6. C-45 is
+> `retired`, **C-57** is `supported`, the whole-matrix `blocks.6.mlp` path is untouched and still
+> bit-exact at 0.0, and **T3.1 / T3.2 are no longer blocked on this**. The structural finding
+> below was correct; its magnitudes were not. Evidence: `experiments/output_t1_5/T1_5_RESULTS.md`.
+
 A full read of `plasticity.py`, `offline_control.py`, `multi_site.py`, `controls.py` and
 `atr_bridge.py` against the documented claims found the whole-matrix path **defended to the
 last bit** and the per-head path having inherited the scaffolding without inheriting the
@@ -732,6 +888,20 @@ conformable, so nothing raises. Measured relative error on `y`: **0.838**. End t
 All measured magnitudes in this finding (0.838, and this table) come from a **Conv1D-shaped
 stand-in, not real GPT-2 weights** — provisional until T1.5 reproduces them (§7, C-45). The
 structural defect is read from source and does not depend on them.
+
+> *Update, 2026-08-05: T1.5 reproduced them on real GPT-2 small, and **the stand-in figures did
+> not transfer**. Both numbers above are withdrawn.* The relative error on `y` is **≈ 1.00**
+> (per-sample 0.9988–1.0021), not 0.838 — reconstructing from one head does not approximate the
+> shared full output, it misses it almost entirely. And the head-site `recomputed` severed floor
+> is **4.9975e-02**, not 3.87e-04: **two orders larger** than the stand-in predicted, because it
+> saturates near the 0.05 `max_delta_frac` ceiling. The stand-in therefore *understated* the
+> severity by two orders, which cuts in the finding's favour and against its own caution. Its
+> caveat was right to be there. Post-fix the same floor is **2.960e-08** with `bit_identical`
+> **False**. *One structural correction the table's own framing needs:* the documented
+> **0.000e+00** is a **whole-matrix** property and was never available at a head site — a fused
+> twelve-head einsum cannot be rebuilt bit-for-bit from one head's additive remainder — so the
+> post-fix null there is a measured float32 bound (test bound 1e-6), not exact zero. The right
+> comparison is 4.9975e-02 → 2.960e-08, not 3.87e-04 → 0.0 (C-45, C-57).
 
 `verify_arms_matched` passes **17/17 in both cases**, because `y_source` is deliberately not
 an axis, so the verifier structurally cannot see this. The TransformerLens path is worse:
@@ -762,6 +932,25 @@ T3.2, so it must be fixed before the site sweep, not after it.
 
 *Fix shape:* refuse `y_source="recomputed"` when the adapter is a head site (loud, one line),
 or record the other heads' contribution as a residual and add it back.
+
+> *Update, 2026-08-05 — the verdict is discharged. **This is no longer a blocker in front of the
+> site sweep.*** T1.5 took the **second** of the two fix shapes named above, which is the better
+> one: `replay_offline` branches on `site.shared_post_activity` and rebuilds the drifted full
+> output additively as `record.y + x @ delta`, other heads and `b_O` frozen in the recorded `y`,
+> so the head-site path is repaired rather than refused. The two regression tests this finding
+> asked for exist. **T3.1 and T3.2 are unblocked** — the register's list of unrun work no longer
+> carries T1.5. What remains in front of T3.1 is the per-site eta re-anchoring this review names
+> in its own Tier 3 entry, which is work, not a correctness defect. T3.2 has in substance already
+> run: EXP-002 applied plasticity at all twelve MLP down-projections.
+>
+> *Two clauses in the paragraph above need restating, and only one of them was wrong.* "Every
+> `site` field in every committed artifact is `blocks.6.mlp`" is **`retired` with C-40** — all
+> twelve MLP down-projections have since carried plasticity. But **the conclusion it was
+> supporting survives, on a narrower and still-true statement (C-64): no committed experiment
+> applies plasticity at a *head* site** — 0 of 12 attention output projections and 0 of 144 head
+> stripes — so nothing published was ever exposed to this defect. EXP-003 Stage 0 *measures*
+> activity at all 144 head sites and applies plasticity at none; the head stripes are exercised
+> by the test suite only, which is now where the fix is pinned.
 
 **Six lower-severity defects worth tracking:**
 
@@ -824,7 +1013,7 @@ This is the mechanism that would have caught all three drifts, and it costs one 
 
 **T0.1 — Recognise that issue #31 is answered.** Close it against `BASELINE.md`, record the
 answer (**compression, one-dimensional, position-uniform across all basins, nearest-basin
-ratio 1.16**), and propagate it into `HANDOVER.md` §5.4 and `RESONANCE_NOTE.md`. (F3)
+ratio 1.15**), and propagate it into `HANDOVER.md` §5.4 and `RESONANCE_NOTE.md`. (F3)
 
 **T0.2 — Promote the loop-displacement-matched control.** `anti_hebb`@2.944e-05 — ceiling-silent,
 94% of `hebb`'s loop-state perturbation, opposite sign on the same axis, does not flip — paired
@@ -849,6 +1038,30 @@ and any flip below a threshold fixed *now, in advance* is reported `readout-ambi
 
 **T0.6 — Commit the prior-art search artifacts.** Query lists, dates, endpoints, returned
 IDs. Converts eleven absence claims from assertion to record. (F10)
+
+> **Status note, added 2026-08-05, after this review was written.** Much of the list below has
+> since run, and **this list is not the record of it — `CLAIMS.md` is.** Read the per-item text
+> below as the review's original reasoning, not as current state. Verified against the register
+> and the committed artifacts:
+>
+> - **Run:** T0.4's "only cell" half (now corrected in place in `EXP_001_RESULTS.md` and
+>   `HANDOVER.md` §3.2 — C-21); T1.1 (C-26 `retired`, C-56 `supported`); T1.2 (C-52, no
+>   hysteresis); T1.4 (see the update under it — C-22 `retired`, C-55 `supported`); T1.5 (C-45
+>   `retired`, C-57 `supported`); T2.1 and T2.1b (C-35 answered, C-58 and C-59 `supported`);
+>   **T2.2 — EXP-002 ran and is merged** (C-53 answered; C-60 – C-63), so the "Still unrun" in
+>   its own entry below is stale; T3.2 in substance (EXP-002 ran all twelve MLP
+>   down-projections, so "tooling landed in PR #35, never used" is also stale — C-64); and
+>   T3.3's cadence half (cadence 2 and 4 in T2.1, 4 and 12 in EXP-003 Stage 2 — C-58, C-64).
+> - **Superseded:** T0.2. The claim it was to be written up in support of, "both magnitude and
+>   sign are required", is itself `retired` — T1.4 took the sign clause down. What survives is
+>   C-55.
+> - **Still unrun:** T0.5 (margin discipline — C-55 records the gap), T0.6 (search artifacts —
+>   C-42), T1.3 (C-28 still `provisional`), T2.3 (C-54, issue #49), T2.4 (C-14
+>   `not-established`), T3.1 (0 of 12 attention projections and 0 of 144 head stripes have ever
+>   carried plasticity — C-64), and T3.3's drive-β / leak-α half.
+> - **Partly propagated:** T0.1 and T0.3. The register carries both answers (C-04 – C-07 for
+>   issue #31, C-56 for the ladder step), but `HANDOVER.md` §3.4, §5.3 and §5.4 still read the
+>   old way under a top-of-file notice rather than being corrected in place.
 
 ### Tier 1 — Cheap decisive experiments (CPU-minutes to hours)
 
@@ -880,6 +1093,15 @@ floor of 3.87e-04 against a documented 0.000e+00 (a stand-in figure; reproducing
 weights is part of this task) — and it sits on the
 path to `blocks.11.attn.head.7` — the site the parent project makes most interesting. Fix
 before the site sweep, not after. (F11)
+
+> *Update: **done**, and it no longer blocks T3.1 or T3.2.* Both halves ran — the fix (additive
+> reconstruction of the shared full output, `record.y + x @ delta`, gated on
+> `site.shared_post_activity`) and the head-site tests. **The stand-in floor was wrong by two
+> orders in the safe direction**: on real GPT-2 small at `blocks.11.attn.head.7` the pre-fix
+> severed floor is **4.9975e-02**, not 3.87e-04; post-fix it is **2.960e-08** with
+> `bit_identical` **False**, because exact zero was never available at a head site — that is a
+> whole-matrix property. C-45 `retired`, C-57 `supported`. Evidence:
+> `experiments/output_t1_5/T1_5_RESULTS.md`.
 
 ### Tier 2 — The experiments that make this a result
 
@@ -977,6 +1199,20 @@ unqualified.
 α-sweep refutes it, since scaling this exact ΔW at fixed direction produces three different
 basins. Both magnitude and sign matter; that is the claim, and it is the one the data carry.
 
+> *Update, 2026-08-05 — this is the review's closing statement of the claim, and its last
+> sentence is `retired`.* **C-22 fell to T1.4.** Magnitude still matters; **sign does not** — 4 of
+> the 6 displacement-matched arbitrary rank-1 directions flip the basin with no particular sign
+> on the `hebb`/`oja` axis, so the data do not carry the sign half. What the data do carry is
+> **C-55**, and the licensed closing form of the editability claim is one clause longer and one
+> clause weaker: *an arbitrary rank-1 direction at the same loop displacement usually moves the
+> basin too — but never to `hebb`'s destination (`comrade` 0 of 10 seeds, 0 of 74 probe
+> evaluations), and only at 66×–171× `hebb`'s weight cost.* So what is specific to the Hebbian
+> edit is **its efficiency and its destination**, not the bare fact that the basin moves. Both
+> observations the sentence above rests on remain true as measurements; the inference does not.
+> The two clauses of the §6 headline claim that are **untouched** are the ones this review
+> already bounded: the measured Hebbian flip (C-20) and the `A04` dynamical-class change (C-24),
+> which are observations rather than inferences.
+
 Every clause is measured, controlled and reproducible from committed artifacts. It is a claim
 about the **editability of iterated dynamics**, which:
 
@@ -1007,8 +1243,33 @@ experiment, and both currently hold:
 > generic" clause is gone (C-22 `retired`), exactly as bounded above: the measured Hebbian flip
 > and the `A04` dynamical-class change are untouched. The editability claim's surviving form is
 > C-55's — an arbitrary rank-1 direction at the same loop displacement usually moves the basin,
-> never to `hebb`'s destination, at 66×–172× the weight cost. The Status cells above are left
+> never to `hebb`'s destination, at 66×–171× the weight cost. The Status cells above are left
 > as written for the record.
+>
+> *Update, post-T2.1b — the **Coupling** column's "Behavioural consequence: none" no longer
+> holds, and this is the row that changed most.* **C-59: at 2.5× the working step size, ceiling
+> silent, feedback does change the outcome.** The connected loop settles into the period-2
+> `Divine` cycle (lag-1 0.685, lag-2 1.000, margin 2.36) while the feedback-severed arm ends on a
+> near-stationary trajectory reading out **`【`**, a token outside the five baseline basin
+> families. Drifts 0.0403 (closed) and 0.0465 (offline) against the 0.05 cap, **0 clip on all
+> arms**, 17/17 axes matched, both margins over the pre-registered 0.05-logit threshold by more
+> than 40×. This is **the first admissible feedback-changes-outcome observation in the project**,
+> and it also discharges the last row's *"T2.1 finding no growth into outcome change"*: the share
+> grows monotonically along all three coupling axes **and** crosses into changing the outcome, so
+> the two claims merge as this section's "prize" paragraph below anticipated.
+>
+> **C-33 is not refuted — it is bounded, and the boundary is narrow.** Through the whole T2.1
+> grid, **up to 2× eta and 240 steps**, the arms agreed on the settled basin at every
+> ceiling-silent cell (**C-58**), including two agreed changes of dynamical class into `Divine`.
+> The onset sits in the interval **(2×, 2.5×]** at 0.5× grid resolution. So the honest table cell
+> reads: *none up to 2× eta and 240 steps (C-33, C-58); the outcome diverges at 2.5× eta (C-59)*.
+> **Share does not predict divergence** — the agreeing 240-step cell carries share 0.3422 against
+> the diverging cell's 0.3496; which axis you push matters, not how large the share is. Limits:
+> n = 1 prompt, 1 site, 1 seed, `hebb` only; the severed arm's dynamical class is **unclassified**
+> (late-window lag-1 0.998 does not establish convergence), so the established contrast is the
+> basin-label disagreement plus the connected arm's verified period-2 signature, not a
+> class-versus-class statement. Evidence: `experiments/output_t2_1/T2_1B_RESULTS.md`,
+> pre-registered in `PREREGISTRATION_T2_1B.md` before the run.
 
 **The dependency runs one way, and that is the whole argument for the ordering.** If
 editability fails, coupling is worthless — feedback steering a weight change that changes
@@ -1030,6 +1291,17 @@ founding question, answered properly. It is the highest-value experiment in the 
 **So nothing is dropped.** Lead editability; report coupling in the same breath as C-33's limit
 — *"feedback measurably steers the update and does not, at this operating point, change the
 outcome"*; run T2.1 to promote coupling from refinement to co-headline.
+
+> *Update, 2026-08-05: **T2.1 and T2.1b have run**, so the prize named two paragraphs up is
+> collected and the instruction here is discharged.* The share grows monotonically along all
+> three coupling axes — eta 0.25×/0.5×/1×/2× gives 0.0262/0.0549/0.1204/0.2722, cadence 2/4 gives
+> 0.0543/0.0254, and episode length 60/120/240 gives 0.0266/0.1204/0.3422, compounding faster than
+> proportional (**C-58**) — **and** at 2.5× eta, ceiling silent, it crosses into changing the
+> outcome (**C-59**). The licensed replacement for the quoted sentence adds a boundary rather than
+> deleting a clause: *"feedback measurably steers the update; it does not change the outcome up
+> through 2× eta and 240 steps, and it does at 2.5× eta."* Coupling has therefore earned
+> co-headline status on **one prompt, one site, one seed, `hebb` only** — which is where the
+> caution belongs now, not on whether the effect exists.
 
 **One caution, from F10.** That last point cuts both ways: ROME already makes rank-1 edits to
 a mid-stack GPT-2 MLP down-projection. So the novel element is **not** "a rank-1 edit there

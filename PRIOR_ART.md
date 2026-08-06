@@ -1,6 +1,10 @@
 # Prior art
 
 *Search run 2026-07-27. Extended, verified and review-corrected 2026-07-28/29.
+Corrected again 2026-08-05 against `CLAIMS.md`: the verification claim re-audited entry by
+entry, the arm-to-arm floor replaced by C-30's exact zero, the Hebbian identity completed
+with its bias term (C-10), the ceiling-versus-rescaling gap closed at one site, and the
+three coverage gaps required by C-42 and C-43 added to the still-open list.
 What exists, in plain terms, and how close it gets.*
 
 ## The claim, stated at the strength the search supports
@@ -12,9 +16,10 @@ combination did not.
 
 That is still a statement about a search, not about the literature. **It is not "nobody
 has done this."** The forum gap and the citation-graph gap have been closed and turned up
-nothing, and every entry below has been verified against its source. The remaining
-coverage limits are recorded at the bottom and they are still real. The claim is
-provisional.
+nothing, and **thirteen of the seventeen entries below carry a verification status and are
+verified against the source. Four do not** — see "Verification status", which now names them.
+The remaining coverage limits are recorded at the bottom and they are still real. The claim is
+`provisional` (C-42).
 
 ## How the search was done
 
@@ -25,7 +30,7 @@ provisional.
 | Databases | Open web, arXiv API, Semantic Scholar (metadata + forward citations), PubMed Central, GitHub code and repository search |
 | Forums | LessWrong and the Alignment Forum searched directly through the site's own search API — 16 phrasings across posts, comments and wikitags. Plus general web and GitHub |
 | Inclusion | Any work combining two or more of: local unsupervised rule, pretrained frozen model, closed activation loop, no objective |
-| Verification | Every entry below carries a status, and all are verified against the source, most with a quote |
+| Verification | Thirteen of the seventeen entries carry a status and are verified against the source, most with a quote. **Four carry none**, two carry no author list, and one carries no identifier of any kind — audited entry by entry 2026-08-05 and named below |
 
 ## Verification status
 
@@ -46,6 +51,40 @@ provisional.
   An earlier revision of this file marked the number unsourced and guessed it belonged to
   a companion paper. That guess was wrong: the sentence is in this paper. Quoted in the
   stabilisers section.
+
+### What the status list does not cover
+
+**"Entry" here means a work this file names with a citation** — not the literatures named in the
+coverage gaps as *never searched*, which are recorded there precisely because they are absent.
+There are **seventeen** such entries. The two bullet lists above plus the inline statuses in the
+body account for **thirteen** of them. Re-audited entry by entry on 2026-08-05, **four carry no
+status at all**, and the count is unchanged since `ALIGNMENT_REVIEW.md` F7 recorded it:
+
+- **Nellessen & Jan, *Hebbian Natural Abstractions* (LessWrong, 2022)** — no status, and
+  **no identifier**: no URL, no post ID, and the title left sitting in unresolved brackets.
+  It is the load-bearing hit of the whole LessWrong search.
+- **arXiv:2605.04200**, the single forward citation of Cazalets & Dambre — a bare
+  identifier. No status, no authors, no title.
+- **An unnamed bioRxiv spiking-network paper**, the single forward citation of Gong et al.
+  — **no identifier of any kind**, no authors, no title, no status. It is dismissed as
+  "nothing near us" on the strength of a one-clause description.
+- **Zenke & Gerstner, Phil. Trans. R. Soc. B 372:20160259** — no status of its own. This one
+  is borderline and is counted anyway: it is named only to record a withdrawn misattribution,
+  not offered as prior art, so on a stricter definition of "entry" the count is three rather
+  than four. Either way the blanket claim is false.
+
+**Two entries carry no author list**: *Training-Free Looped Transformers*
+(arXiv:2605.23872) and *Where to Bind Matters* (arXiv:2605.02920). Both are **Verified**
+against identifier and abstract; neither says who wrote it.
+
+**Two further entries are located by venue and year only**, with no arXiv ID, DOI, volume
+or pages: Irie, Csordás & Schmidhuber (ICML 2022) and Lazar, Pipa & Triesch (Frontiers in
+Computational Neuroscience, 2009). Both are marked verified; neither is citable as written.
+
+None of this is a reason to doubt the thirteen that are verified. It is one of the reasons
+the verdict at the top of this file stays `provisional` (C-42), and it is why the blanket
+sentence this section used to carry — *every entry below carries a status, and all are
+verified against the source* — has been withdrawn wherever it appeared.
 
 ---
 
@@ -269,11 +308,24 @@ what counts as *no* effect. Replaced with:
    test over seeds (randomly flip the sign of each d(s); the null distribution is the
    distribution of the mean under exchangeability) or a bootstrap over seeds. Report the
    interval, not just a point estimate, and not just a p-value.
-4. **Check it against the harness noise floor first.** This harness's floor for
-   arm-to-arm agreement is **below 1e-8 relative Frobenius** — measured at **2.898e-09**
-   on this box and **4.757e-09** on the CI runner. A difference smaller than that bound is
-   numerical noise and **is not evidence of anything**, no matter what a significance test
-   says about it. The noise floor gates the test; it does not compete with it.
+4. **Check it against the severed-path null first — and know which null applies.** An
+   earlier revision of this file gave a noise floor here: "below 1e-8 relative Frobenius",
+   measured at 2.898e-09 on this box and 4.757e-09 on CI. **Those figures are withdrawn.**
+   They were a pre-fix, hardware-dependent floor from a naive reconstruction, and they do
+   not describe the harness. At a **whole-matrix** plastic site under
+   `y_source="recomputed"` the severed arms are **bit-identical**: `rel_fro_diff` and
+   `diff_over_drift` **exactly 0.0**, `torch.equal` True, on all five severed cells of
+   `output_exp001/exp001.jsonl` (**C-30**). So there is **no noise floor to gate against
+   and no ratio to quote** — the null is exact, which is stronger than any bound, and any
+   non-zero routed difference is attributable to feedback. **Three boundaries on that, and
+   all three travel with it:** exact zero is a **whole-matrix** property, because at a
+   per-head site `y` is a fused twelve-head einsum rebuilt additively, so the null there is
+   a measured float32 bound of **2.960e-08** with `bit_identical` False (**C-45**, **C-57**);
+   with plasticity at **more than one layer** the floor is not zero at all, since a lower
+   plastic layer's drift reaches a higher one inside a single forward pass and severing the
+   loop does not cut that path (**C-63**); and in `recorded` mode the severed cells are not
+   bit-identical and the comparison reverses sign, which is why `offline_control.py` itself
+   declares that mode uninterpretable as a feedback test (**C-30**).
 5. **To claim the arms are the same, state an equivalence margin.** Pick a margin δ that
    would be too small to matter scientifically, decided in advance, and show the
    uncertainty interval on the paired difference lies entirely inside ±δ. Without that,
@@ -460,8 +512,27 @@ the x that Oja consumes at `blocks.6.mlp.W_out`. GPT-2 small, float32, weights f
 
 The claim holds and is not marginal. The mean is negative, roughly a quarter of a standard
 deviation, and **85% of post-GELU entries are negative** — GELU's floor at −0.1700 shows up
-exactly as expected. So **Oja here targets the raw second moment, not the covariance**,
-unless centring is explicitly applied. Describe it that way.
+exactly as expected. So the input matrix the rule works on is **the raw second moment, not
+the covariance**, unless centring is explicitly applied.
+
+**That is necessary but not sufficient, and the shorter form of it is retired.** The site
+computes `y = x@W + b_out` — `x` is `blocks.6.mlp.hook_post`, `y` is
+`blocks.6.hook_mlp_out` — and the rule accumulates `ΔW = E[x yᵀ]` in
+`plasticity.py`'s `_hebb_term`, so the exact identity is
+
+> **ΔW = E[x xᵀ]·W + E[x]·b_outᵀ = C·W + x̄ b_outᵀ**
+
+— power iteration on the raw second moment **plus a rank-1 bias term that is not
+droppable**. `‖x̄ b_outᵀ‖_F / ‖ΔW‖_F = ‖b_out‖ / ‖ȳ‖ = 3.353 / 19.451 = **17%** at the routed
+working point, and position-uniformity *maximises* that share, because `E[x]` does not
+average down. **The bias-free form `ΔW = C·W` is `retired`** (**C-10**): the repo's own
+artifact refutes it by three to four orders of magnitude — `u_right_sign_ref_cos` gives
+cos(v₁, ȳ) = **0.999999** in the severed cells, where a bias-free `v₁ ∝ Wᵀx̄` would give
+**0.9975**. Two consequences. The output-side factor of the rank-1 edit is **ȳ**, not
+`Wᵀx̄`; and roughly 17% of the norm of the direction EXP-001 pushes through the unembedding
+is `b_out`, a prompt-independent constant of the layer, which is worth knowing before
+reading anything into a token list. Describe it that way — second moment **and** bias, not
+second moment alone.
 
 **Two further observations from the same measurement.** First, on ordinary text the mean
 term carries **79% of the second-moment matrix's Frobenius norm**. Centring is not a
@@ -671,9 +742,14 @@ Nobody in the surveyed work got away with a single mechanism.
   - Load enters separately: with J_max in place, they had to change *how* they normalise
     so that the norm of J does not depend on the load α.
   - **Both mechanisms are present in the ATR loop** — a norm ceiling and a rescaling —
-    and this is a documented case of the two interacting badly. Worth checking whether a
-    small number of entries in our drifted matrix are absorbing the ceiling and
-    flattening everything else.
+    and this is a documented case of the two interacting badly. **Checked here, and it does
+    not happen at this site.** `STEP_SIZE_MAP.md` §5, on the 23 cells where the ceiling
+    never fired: effective rank never below **642.4** against a frozen **642.6**, *rising*
+    to **646.7** under `anti_hebb` at 0.0% clip; max/mean |W| falling 33.4 → 31.7; and the
+    update's mass spread across entries rather than concentrated in a few (Oja's top 0.1% of
+    entries hold 0.0263 of the absolute mass, against the isotropic arm's 0.0044). No
+    runaway entries, so no J_max analogue is needed — at **one** site, one prompt, one seed,
+    one ceiling. See the coverage gaps for the scope limit.
 - **The reservoir work (Cazalets & Dambre): verified from the paper.** Mean-HAG holds a
   target mean firing rate with a permissible deviation band. Variance-HAG holds a target
   standard deviation *and* adds an explicit safeguard: if any neuron's state exceeds a
@@ -731,8 +807,11 @@ No published step size was found in this search to anchor the sweep.
 
 ## Coverage gaps
 
-These are the reasons the verdict at the top is still provisional. It is a shorter list
-than it was.
+These are the reasons the verdict at the top is still provisional. **The still-open list is
+longer than it was, not shorter**: three items required by C-42's caveat had never been
+written down here at all: the eleven absence claims with no preserved artifact, the six adjacent literatures
+a term-driven search never queried, and ROME specifically (C-43). One item did close, and one
+narrowed.
 
 **Closed since the last revision:**
 
@@ -744,8 +823,11 @@ than it was.
   in statistical physics; Chaudhary has 1, in vision transformers; Cazalets & Dambre has
   1, in theoretical neuroscience; Lee et al. has 0. None of the citing papers matched
   more inclusion criteria than the paper it cites.
-- ~~Most entries unverified.~~ **Closed.** Every entry now carries a status, and all are
-  verified against the source.
+- ~~Most entries unverified.~~ **Closed for thirteen of the seventeen entries**, which
+  carry a status and are verified against the source. **Not closed for four** — two forward
+  citations named by bare identifier or by description, the LessWrong sequence, and the
+  withdrawn Zenke & Gerstner attribution. See "What the status list does not cover"; the
+  residual is carried under "Still open" below rather than counted as closed here.
 - ~~The Chaudhary depth figures.~~ **Closed, and they say something different from what
   was recorded.** See the correction near the top of this file.
 - ~~The "10-20 seconds" homeostasis figure is not pinned to a source.~~ **Closed.** It is
@@ -755,6 +837,17 @@ than it was.
   Measured at the default site: mean −0.047 on ordinary text, 85% of entries negative, and
   the mean term carrying 79% of the second-moment matrix's Frobenius norm. Table in "The
   non-zero-mean claim, measured".
+- ~~We have not checked whether our norm ceiling and our rescaling interact badly.~~
+  **Closed at one site.** This is the Daydreaming failure — a few runaway entries, then
+  global normalisation flattening everything else — and it was pre-registered here as issue
+  #27 item 11. `STEP_SIZE_MAP.md` §5 measures it on the **23 cells in which the ceiling
+  never fired**: effective rank never falls below **642.4** against a frozen **642.6**, and
+  under `anti_hebb` at **0.0% clip** it *rises* to **646.7**, which is the opposite
+  direction from rank-1 collapse. Max/mean |W| falls 33.4 → 31.7, also on a ceiling-silent
+  cell, and the update's mass is spread across entries rather than concentrated (Oja's top
+  0.1% of entries hold 0.0263 of the absolute mass, against the isotropic arm's 0.0044). So
+  the two mechanisms are not destroying each other here, and no J_max analogue is needed at
+  this site. The scope limit is carried under "Still open" below.
 
 **Still open:**
 
@@ -780,10 +873,48 @@ than it was.
 - **The post-GELU measurements are one site, one layer, one box.** `blocks.6.mlp`, three
   ordinary prompts plus the `Divine` state, no sweep over sites, layers or seeds. Sign and
   order of magnitude are solid; the exact figures are indicative.
-- **We have not checked whether our norm ceiling and our rescaling interact badly.** The
-  Daydreaming authors hit exactly that failure — a few runaway entries plus global
-  normalisation flattening everything else — and needed a per-entry bound (J_max) to fix
-  it. Whether our matrix does the same thing is unmeasured.
+- **The ceiling-versus-rescaling check is one site, one prompt, one seed, one ceiling.**
+  It is measured (see the closed list above) at `blocks.6.mlp`, on `A01_physics`, seed 0,
+  120 steps, `max_delta_frac` 0.05. No other site has been tested; the eta anchoring does
+  not transfer between sites, so the ceiling-silent band has to be re-measured wherever the
+  check is repeated. It also says nothing about the multi-site runs, which lifted the
+  ceiling entirely (C-60) and so are not in the same regime. The Daydreaming failure is
+  ruled out **here**, not in general.
+- **Four cited works carry no verification status, two carry no author list, and one carries
+  no identifier of any kind.** Two more are located by venue and year only. Named in "What
+  the status list does not cover"; re-audited entry by entry 2026-08-05 and unchanged since
+  `ALIGNMENT_REVIEW.md` F7 recorded it. The blanket claim that every entry is verified has
+  been withdrawn from the three places in this file that carried it.
+- **Eleven absence claims still have no preserved search artifact.** The four-way-combination
+  claim at the top of this file, "16 forward citations of Daydreaming and not one applies it
+  to a transformer", and "no published Oja-family step size inside a pretrained transformer"
+  — which licenses the bespoke eta anchor and therefore every number in the repository — are
+  all assertions about searches whose query lists, dates, endpoints and returned IDs were
+  never preserved. Committing them costs hours and converts eleven assertions into a record.
+  This is the standing reason the verdict is `provisional` (**C-42**).
+- **The search was term-driven, not concept-driven, and six adjacent literatures were never
+  queried.** The stated inclusion rule — any work combining two or more of the four
+  ingredients — should have returned all of: **test-time adaptation** (TENT, TTT, SHOT);
+  **model editing** (ROME, MEMIT); **fast weights** (Ba et al. 2016, Schmidhuber 1992,
+  Irie's SRWM); **modern Hopfield** (Ramsauer 2020, which shows attention *is* a modern
+  Hopfield update and so shortens the Daydreaming-to-transformer bridge this file leans on);
+  **predictive coding and deep equilibrium models** (Whittington & Bogacz, Bai et al. —
+  iterate activations to equilibrium on a fixed network, then apply a local pre/post-activity
+  update, which is this protocol with an energy function attached); and **Hebbian-at-scale on
+  pretrained nets** (SoftHebb, Lagani/Amato, which publish step sizes and may contradict the
+  section above). None appears anywhere in this file. Remove any single ingredient from the
+  conjunction and one of them is where you land, which is why "no loss" is the only
+  load-bearing axis — and per C-11 that axis is softer than stated, since plain Hebb is
+  gradient ascent on output energy. (**C-42**.)
+- **ROME is the specific gap, and it is the one a reviewer will find first.** **C-43**:
+  ROME already makes a **rank-1 edit to a mid-stack GPT-2 MLP down-projection** — the same
+  matrix family, the same depth region and the same rank as this project's ΔW — and it is
+  **still absent from this file**. The differentiator is real but has to be stated rather
+  than assumed: ROME *solves* for ΔW from a target, whereas this project's ΔW *emerges* from
+  the model's own activation statistics with no target at all, and is read out on the
+  **iterated map's attractor structure** rather than on next-token output. State it that way
+  or a reviewer says ROME first. Until a named ROME/MEMIT section exists here, C-43 stays
+  `open` and the novelty framing at the top of this file is weaker than it reads.
 - **No equivalence margin has been chosen.** Until someone picks a δ in advance, this
   experiment can report "no detectable effect at this sample size" but cannot report that
   the two arms are the same.

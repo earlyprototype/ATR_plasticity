@@ -4,7 +4,7 @@ No plasticity. No weight updates. Nothing attached to the model. This is the ref
 
 - Prompts completed: **125** / 125
 - Iterations per prompt: **300** (fixed horizon, never early-stopped)
-- Wall clock: **2h 6m 20s wall (2 shards in parallel, 6h 17m 2s CPU)**
+- Wall clock: **2h 6m 20s wall (2 shards in parallel, 4h 10m 42s CPU)** — the CPU figure is the sum of the 125 per-prompt `seconds` fields, 15,041.9 s, which agrees with the two shards' `wall_clock_seconds` (7579.4 + 7463.9). An earlier "6h 17m 2s" here matched no committed field.
 
 ## Basin table (top-1 token at the last position, final iteration)
 
@@ -266,9 +266,11 @@ Position uniformity = mean off-diagonal cosine between token positions. Values n
 
 ## Settled states
 
-Saved: **125 / 125** prompts, as `experiments/output_baseline/states/<prompt_id>.npy` -- the full `(seq_len, 768)` float32 residual tensor at the final iteration. A second file `<prompt_id>__prev.npy` holds the iterate immediately before it: on a period-2 orbit the settled state is one of two, and a spread analysis that mixed phases across prompts would be measuring the cycle rather than the basin. The JSONL row for each prompt carries `state_file`, `state_prev_file` and `state_shape`.
+Written at run time for **125 / 125** prompts, as `experiments/output_baseline/states/<prompt_id>.npy` -- the full `(seq_len, 768)` float32 residual tensor at the final iteration. A second file `<prompt_id>__prev.npy` holds the iterate immediately before it: on a period-2 orbit the settled state is one of two, and a spread analysis that mixed phases across prompts would be measuring the cycle rather than the basin. The JSONL row for each prompt carries `state_file`, `state_prev_file` and `state_shape`.
 
-These files exist so within-basin spread can be measured with no further model time: if prompts sharing a basin land on bit-identical tensors, the settled state carries no more information than the label; if they land nearby but distinct, the difference is measurable.
+These files existed so within-basin spread could be measured within the run that produced them: if prompts sharing a basin land on bit-identical tensors, the settled state carries no more information than the label; if they land nearby but distinct, the difference is measurable.
+
+> **They are not in the repository, and the claim that they are is retired as register row C-47.** `.gitignore` excludes `experiments/**/states/` and `experiments/**/*.npy`, and the directory does not exist here; the JSONL rows still carry `state_file` paths that resolve to nothing. What survives is the summary statistics in the tables below, which is what C-04 to C-07 rest on. Anything sharper needs the roughly six CPU-hour baseline re-run. This document is the origin of the belief that the states are available, so it is corrected here rather than only in the register.
 
 ### Position uniformity at the final iteration
 
@@ -326,7 +328,7 @@ The between-basin mean below is dominated by whichever basin sits far away; the 
 
 A ratio near 1 would mean the basins are not separated at all; a ratio near 0 means prompts inside a basin are far closer to each other than to anything outside it. Measured: **1.80e-02**.
 
-Against the *nearest* basin pair rather than the mean: within-basin spread 3.319e-03 versus nearest-basin gap 2.874e-03, a ratio of **1.16** if the gap is nonzero. A ratio near or above 1 means the two nearest basins are no further apart than the prompts inside one of them.
+Against the *nearest* basin pair rather than the mean: **pooled** mean within-basin spread 3.319e-03, over 2337 pairs across all five basins, versus nearest-basin gap 2.874e-03, a ratio of **1.15** if the gap is nonzero. Read the population: this is the pooled figure, not any single basin's. `prolet`'s own within-basin spread is 2.773e-03, which is *below* the same gap, so a comparison stated for `prolet` alone reverses. A ratio near or above 1 means the two nearest basins are no further apart than the prompts inside one of them.
 
 For reference, the float32 round-off floor measured on the parent's committed cycle is `1 - cos` around 1.5e-14. The within-basin spread above is 2.2e+11 times that floor.
 
@@ -352,7 +354,7 @@ Participation ratio of the singular values of the (mean-centred, unit-normalised
 | `Anarch` | 16 | 1.000000 | 1.000000 | 16 | 100% |
 | `solidarity` | 1 | 1.000000 | 1.000000 | 1 | 100% |
 
-Raw states are in `states/` for any sharper analysis.
+Raw states were written to `states/` at run time but are **not committed** and are gone (C-47); a sharper analysis needs the baseline re-run.
 
 ## Basin by register
 
@@ -435,7 +437,7 @@ Single-threaded is also the reproducible choice, independently of speed: float32
 | numpy | 2.4.6 |
 | Python | 3.11.15 |
 | Platform | Linux 6.18.5 x86_64 |
-| Wall clock | 2h 6m 20s wall (2 shards in parallel, 6h 17m 2s CPU) |
+| Wall clock | 2h 6m 20s wall (2 shards in parallel, 4h 10m 42s CPU) |
 | Started / finished (UTC) | 2026-07-28T22:44:01Z / 2026-07-29T00:50:21Z |
 | Raw records | `experiments/output_baseline/basins.jsonl` |
 

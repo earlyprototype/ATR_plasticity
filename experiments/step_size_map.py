@@ -487,6 +487,21 @@ def _fmt(x, spec=".4g", none="--"):
     return format(x, spec)
 
 
+def _fmt_d(d, none="--"):
+    """The D column, at a precision that does not misstate the step size that ran.
+
+    `.0e` is lossless for the decade and 3-decade grid points, but it rounds the two
+    `hebb` refinement cells -- d_target 0.018 printed as `2e-02` and 0.056 as `6e-02`,
+    i.e. 0.02 and 0.06, neither of which was run. Keep `.0e` wherever it round-trips
+    (which is every grid point, so the committed table is unchanged there) and fall
+    back to `.3g` where it would not.
+    """
+    if d is None:
+        return none
+    s = format(d, ".0e")
+    return s if float(s) == d else format(d, ".3g")
+
+
 def is_hollowed(rec: dict) -> bool:
     """Effective rank down while ||W||_F flat -- issue #27 item 11 and nothing else."""
     return (rec["erank_pr_rel_drop"] > ERANK_DROP_FLAG
@@ -702,12 +717,21 @@ def _findings(recs: list, by_mode: dict, ref: dict | None) -> list:
              "through, not eating it."))
     A("")
 
-    A("### 5. No hollowing out anywhere in the sweep")
+    A("### 5. No hollowing out anywhere in the ceiling-silent band")
     A("")
-    worst = min(recs, key=lambda r: r["erank_pr_min"])
-    best = max(recs, key=lambda r: r["erank_pr_last"])
+    # Bound this on the ceiling-silent cells ONLY. A cell where the ceiling fired
+    # is a measurement of `max_delta_frac`, not of the rule, and the register's
+    # standing prohibition forbids quoting one as evidence. Selecting over `recs`
+    # unfiltered is how this section came to bound the effect with `hebb`@0.0393
+    # at 99.2% clip and `anti_hebb`@9.81e-05 at 60.8% clip; both figures were
+    # withdrawn on 2026-08-01 and the committed document was rewritten onto the
+    # 23 clean cells. This filter is what stops a regeneration reinstating them.
+    clean = [r for r in recs if r["clip_rate"] == 0.0]
+    worst = min(clean, key=lambda r: r["erank_pr_min"])
+    best = max(clean, key=lambda r: r["erank_pr_last"])
     A(f"Effective rank starts at {ref['erank_pr_first']:.1f} (of 768) and over "
-      f"every cell in the map never falls below {worst['erank_pr_min']:.1f} "
+      f"every one of the {len(clean)} ceiling-silent cells never falls below "
+      f"{worst['erank_pr_min']:.1f} "
       f"(`{worst['mode']}` at {worst['eta']:.3g}, a "
       f"{1 - worst['erank_pr_min'] / ref['erank_pr_first']:.2%} fall). Under "
       f"`oja` and `anti_hebb` it *rises*, to {best['erank_pr_last']:.1f} — the "
@@ -904,7 +928,7 @@ def build_report(recs: list, meta: dict) -> str:
             A("| `{m}` | {d} | {eta} | {rel} | {wn} | {clip} | {nf} | {er} | "
               "{der} | {mm} | {pp} | `{basin}` | {l1} | {l2} | {v} |".format(
                   m=r["mode"],
-                  d=_fmt(r["d_target"], ".0e"),
+                  d=_fmt_d(r["d_target"]),
                   eta=_fmt(r["eta"], ".3g"),
                   rel=_fmt(r["rel_weight_change"], ".3e"),
                   wn=_fmt(r["w_norm_last"], ".4f"),

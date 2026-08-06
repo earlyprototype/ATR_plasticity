@@ -1,14 +1,27 @@
 # Is "resonant LLM" a real architecture, or a regime?
 
-*A note on the idea, written before we have the results that would settle it. Plain
+*A note on the idea, written before we had the results that would settle it. Plain
 language, honest about which parts are strong.*
+
+> **Notice — the measurement this note was waiting on has run.** I wrote this with the
+> within-basin question open and treated it as the thing that would decide "different
+> animal". It has since been made, and it is committed in
+> `experiments/output_baseline/BASELINE.md`: the answer is **compression, not erasure**
+> (C-04, C-05); position uniformity holds for **every** basin, not only `Divine` (C-06); and
+> the basin construct itself now carries a resolution limit (C-07). The passages that turned
+> on the open question are corrected in place below and marked as superseded rather than
+> deleted, because what I believed at the time is part of the record. Every measured number I
+> quoted stands as a measurement — but the contraction figures needed a caveat they did not
+> have (C-03), and they now carry it.
 
 ## The short version
 
 The strong part of the idea is real and I think it is being undersold. The part that
 sounds most exciting — that a resonant model is "a different animal" — is the part that
-currently has the least evidence, and there is a specific measured number in the parent
-project that argues against it.
+had the least evidence when I wrote this, **[SUPERSEDED — see C-04.]** *and there is a
+specific measured number in the parent project that argues against it.* That number was the
+basin count, and it does not argue against it. It bounds the basin *label*; the settled state
+has since been measured and carries more than its label does.
 
 I'll take them separately.
 
@@ -68,9 +81,18 @@ returns, it does not fall into a different attractor, and it does not wander.
 
 Two details worth more than the verdict. Recovery takes about **71 iterations per decade of
 displacement**, a per-iteration contraction factor near 0.968 — slow, steady linear
-convergence rather than a snap-back. And the largest case is a displacement *as large as the
-state itself*, and it still comes home: the basin is not a narrow neighbourhood around the
-cycle.
+convergence rather than a snap-back.
+
+**That pair of numbers needs a caveat I did not give it, and C-03 carries it: contraction
+here is not a constant, and 0.968 / 71-per-decade is an endpoint slope rather than a fit.**
+Across the very ladder in the table above the per-decade rate ranges **4 to 124**, and its
+low end returns trivially; `EXP_001_RESULTS.md` §6 measures **0.9521, about 47 iterations per
+decade**, on a different trajectory. I wrote the single figure as though it were a property
+of the orbit. It is a property of one end of one ladder, and it should not be quoted without
+the range.
+
+And the largest case is a displacement *as large as the state itself*, and it still comes
+home: the basin is not a narrow neighbourhood around the cycle.
 
 A caution that survives all this: the first run of this test used a 200-iteration horizon
 and reported the largest perturbation as a failure to return. It was a horizon artifact. At
@@ -128,13 +150,20 @@ anything.
 
 ---
 
-## The weak claim, and the number that argues against it
+## The weak claim, and the number I thought argued against it
 
 The exciting version goes: once the model is resonant, and once we can bias which state
 it resonates in, it is a completely different animal — same weights, different behaviour.
 
-Here is the problem. **The Divine state is position-uniform.** Every token position holds
+Here is the problem. **The settled states are position-uniform.** Every token position holds
 essentially the same vector. And 125 prompts collapse into 5 basins.
+
+**[SUPERSEDED — see C-06.]** *I wrote that as a `Divine` property*, following the parent,
+which reports it there. It is not one: `BASELINE.md` finds every pair of token positions above
+cosine 0.999 on **125 of 125 prompts, in every basin** — worst pair-cosine 1.000000 and
+maximum spread 0.000000 in all five. So this corrects the parent's framing rather than
+qualifying it, and the problem below is a problem about the whole landscape, not about one
+basin.
 
 Put those together and ask what the settled state actually knows.
 
@@ -143,24 +172,54 @@ basins means the **basin label** carries at most log2(5) ≈ 2.32 bits about the
 does **not** bound the settled state itself. If prompts inside a basin settle onto
 distinct states, the state can carry a great deal more than its label does.
 
-So the correct statement is conditional, and it splits exactly along the measurement in
-the within-basin issue:
+So the correct statement was conditional, and it split exactly along the measurement in
+the within-basin issue — which has since been made:
 
 - If within-basin states are indistinguishable, the settled state *is* the label, and 2.32
   bits is the whole of it. The attractor has erased the prompt.
 - If within-basin states differ systematically, the attractor has compressed rather than
   erased, and the bound does not apply to the state at all.
 
-I don't know which, and neither does anyone else yet. I previously wrote that destroying
-information is what an attractor does *by definition*, and that is too strong — basins
-merge trajectories that started in the same basin, which constrains how much can survive
-but does not force it to zero. The amount actually destroyed is an empirical quantity, and
-it is the thing to go and measure.
+**[SUPERSEDED — it has been measured. See C-04, C-05.]** *I don't know which, and neither
+does anyone else yet.* It is the **second** branch. Prompts sharing a basin settle onto
+nearby-but-distinct states: mean `1−cos` of **3.32e-03** over 2337 pairs, which is eleven
+orders of magnitude above the float32 round-off floor measured on the parent's own cycle —
+of order 1e-14, and C-02 carries the probe range — so this is a real difference and not
+arithmetic. The attractor **compresses rather than erases**, and the 2.32-bit bound does not
+apply to the settled state at all.
 
-So "a different animal" needs care. *If* the erasure reading holds, the system is a
-different animal in the way that a struck bell is: it is doing something, doing it stably,
-and what it does is nearly independent of how you struck it. If the compression reading
-holds, that analogy is wrong and the picture is much more interesting.
+What it compresses onto is thin, and I would rather say so than oversell it: the within-basin
+variation is essentially **one-dimensional** — participation ratio **1.02 to 1.29** against a
+maximum of n−1 = **15 to 54**, with 87% to 99% of the variance in the top direction. A single
+direction of spread is not much room for a prompt to live in. But it is not zero, and zero is
+what the erasure reading needed.
+
+I previously wrote that destroying information is what an attractor does *by definition*, and
+that was too strong — basins merge trajectories that started in the same basin, which
+constrains how much can survive but does not force it to zero. The amount actually destroyed
+was an empirical quantity, and it has now been measured rather than argued.
+
+The same measurement handed back something I did not ask for, and it cuts the other way.
+**The basin taxonomy has a resolution limit comparable to the basin separation itself**
+(C-07): the **pooled** mean within-basin spread of 3.319e-03, taken over 2337 pairs across all
+five basins, is *larger* than the gap between the two nearest basins, `Anarch` and `prolet`, at
+2.874e-03 — a ratio of **1.15**. Two basins this project treats as distinct are no further
+apart than the prompts inside one of them. That caveat has to travel with every basin number in
+this note, including the five-basin count the argument above is built on.
+
+**Name the population when you use it, because the pooled figure is driven by one basin.** Per
+basin the spreads are `Divine` 6.128e-03, `prolet` 2.773e-03, `Anarch` 1.178e-03 and `till`
+3.493e-04. Only `Divine` exceeds the 2.874e-03 gap, and `Divine` is the period-2 basin whose
+spread is intrinsically the largest. So the two basins that are actually nearest each other
+both sit *below* their mutual gap and do resolve; the caveat bites on the pooled statistic and
+not on that pair. C-07 carries the same decomposition.
+
+So "a different animal" needs care, though not the care I expected. The erasure reading is
+out, so the struck-bell analogy — doing something, doing it stably, and doing it nearly
+independently of how you struck it — is the wrong picture. The compression reading is the one
+that holds, and it is the more interesting of the two. What the claim now rests on is how much
+that one-dimensional spread actually carries about the prompt, and whether any of it reaches
+the output. Neither has been measured.
 
 There is a second number often quoted alongside this — the readout invisibility ratio of
 0.295, taken to mean that a large share of what happens in the residual stream never
@@ -184,16 +243,24 @@ show to survive.**
 For the strong version of "different animal" to hold, three things all have to be true,
 and they are separable and independently testable.
 
-**1. The settled state has to carry more than a basin label.**
+**1. The settled state has to carry more than a basin label. — Measured. It does (C-04,
+C-05).**
 
 Test: within a single basin, do different prompts settle onto *exactly* the same state, or
 onto nearby-but-distinct states? If distinct, how much does the spread encode about the
-prompt? This is cheap — we already produce the states. If prompts within a basin are
-distinguishable, the attractor is a compression rather than an erasure, and everything
-downstream gets more interesting. If they are bit-identical, the state is a label and we
-should say so.
+prompt? **[SUPERSEDED — see C-47, `retired`.]** *This is cheap — we already produce the
+states.* We do not keep them, and the difference matters. `BASELINE.md` promises the 125
+settled tensors in `experiments/output_baseline/states/`, but `.gitignore` excludes
+`experiments/**/states/` and the directory is not in the repo. The **summary statistics
+survive**, which is why the first half of this test is answered; the raw states do not, so
+anything sharper than what `BASELINE.md` already reports costs the ~6 CPU-hour baseline
+re-run. Not expensive, but not free, and not what I said.
 
-This is the measurement I would run first, and it does not need plasticity at all.
+Answered, on the first half: prompts within a basin **are** distinguishable, so the attractor
+is a compression rather than an erasure, and everything downstream does get more interesting.
+They are not bit-identical, so the state is not merely a label. **Still open, and it is the
+half that carries the weight: *how much* the spread encodes about the prompt.** One
+dimension of variation is measured; what varies along it is not.
 
 **2. The state has to reach the output.**
 
@@ -265,18 +332,32 @@ be the first thing a reviewer went after.
 
 ## Where I actually land
 
-Three sentences.
+Three sentences — and the corrections one of them has since earned.
 
 The reframing from feedforward function to dynamical system is correct, is not a metaphor,
-and is enough on its own to justify the project. The evidence so far says these attractors
-are information-destroying rather than information-preserving, which makes "different
-animal" a claim that needs the within-basin spread measurement before anyone says it out
-loud. And the one modest version of the idea — that moving the weights moves the basin
-boundaries, measurably, in a way that is not explained by the rule simply drifting — is
-both the cheapest thing to test and the thing that would make everything else worth doing.
+and is enough on its own to justify the project. **[SUPERSEDED — the measurement has been
+made, and it says the opposite. See C-04, C-05.]** *The evidence so far says these attractors
+are information-destroying rather than information-preserving, which makes "different animal"
+a claim that needs the within-basin spread measurement before anyone says it out loud.* The
+attractors **compress rather than erase**: prompts in one basin settle onto nearby-but-distinct
+states, mean `1−cos` 3.32e-03 over 2337 pairs, and the variation is essentially
+one-dimensional, participation ratio 1.02 to 1.29 against a maximum of 15 to 54. The ~2.32-bit
+counting bound applies to the basin **label**, and never to the settled state — I let those two
+run together, and that is the error underneath the sentence above. And the one modest version
+of the idea — that moving the weights moves the basin boundaries, measurably, in a way that is
+not explained by the rule simply drifting — is both the cheapest thing to test and the thing
+that would make everything else worth doing.
 
-The first measurement I would run is the within-basin one, and it needs no plasticity at
-all.
+**[SUPERSEDED — it ran. See C-04 to C-07.]** *The first measurement I would run is the
+within-basin one, and it needs no plasticity at all.* It ran, and it is `BASELINE.md`. Two
+things go in its place. What "different animal" needs now is one step further out: how much of
+the prompt that one-dimensional spread actually carries, and whether any of it reaches the
+output. And the largest credibility gain available to the project is the **125-prompt library
+at the working point** — T2.3, register row C-54, issue #49 — which is what would move every
+basin-flip claim here off the 3 prompts it rests on. Read either against C-07 first:
+pooled mean within-basin spread 3.319e-03, across all five basins, against a nearest-basin gap
+of 2.874e-03, ratio 1.15, which is the load-bearing caveat on anything in this note that uses
+the word basin — and read its decomposition above before applying it to a particular pair.
 
 ---
 

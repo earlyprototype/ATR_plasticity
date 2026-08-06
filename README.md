@@ -3,33 +3,38 @@
 *What happens to a model's attractor landscape when the weights are allowed to
 change under the loop?*
 
-> **Status: the plasticity scaffold now composes with the parent ATR engine, and
-> the first experiment has been run.** A TransformerLens site adapter
-> (`_TransformerLensMLPSite` in [plasticity.py](plasticity.py)) attaches the rule
-> to the parent's bare `W_out` parameter, and a per-step bridge
-> ([atr_bridge.py](atr_bridge.py)) hands `controls.py` the `atr_step(model, r)` it
-> expects by extracting one iteration of the parent loop verbatim. CI checks out
-> the parent repo and runs the bridge's acceptance test under `ATR_REQUIRE_PARENT=1`
-> ([.github/workflows/tests.yml](.github/workflows/tests.yml)), so the extracted
-> step is held to reproducing `run_atr_loop` bit-exactly rather than merely
-> importing. The first experiment has since been run: results in
-> [EXP_001_RESULTS.md](EXP_001_RESULTS.md), the frozen baseline in
-> [BASELINE.md](experiments/output_baseline/BASELINE.md), the step-size map in
-> [STEP_SIZE_MAP.md](STEP_SIZE_MAP.md). Arriving cold? Read
-> [ORIENTATION.md](ORIENTATION.md) first, then [EXP_001_SPEC.md](EXP_001_SPEC.md).
+> **Status: eleven write-ups have landed, and [CLAIMS.md](CLAIMS.md) is what says what they
+> mean.**
+> The plasticity layer composes with the parent ATR engine: a TransformerLens site adapter
+> (`_TransformerLensMLPSite` in [plasticity.py](plasticity.py)) attaches the rule to the
+> parent's bare `W_out` parameter, and a per-step bridge ([atr_bridge.py](atr_bridge.py))
+> extracts one iteration of the parent loop verbatim. CI checks out the parent repo and runs
+> the bridge's acceptance test under `ATR_REQUIRE_PARENT=1`
+> ([.github/workflows/tests.yml](.github/workflows/tests.yml)), so the extracted step is held
+> to reproducing `run_atr_loop` bit-exactly rather than merely importing. Suite: 320 tests.
 >
-> The suite found three defects, all since fixed and each now held by a test that
-> fails if it returns:
+> **Arriving cold? Read [ORIENTATION.md](ORIENTATION.md) first, then
+> [CLAIMS.md](CLAIMS.md), then [HANDOVER.md](HANDOVER.md).** The register outranks every
+> prose file here, including this one.
 >
-> 1. `transposed=True` never transposed — `_hook`'s branch was a bare `pass`, so
->    non-square `nn.Linear` raised in `apply()` and square `nn.Linear` silently
->    learned the update transposed. The flip now happens in `apply()`.
-> 2. `mode="random"` was norm-matched to the raw Hebb term rather than to Oja,
->    which **biased C2** — worst at the large eta C2 is actually run at. The
->    decay term is now subtracted for `"random"` as well as `"oja"`.
-> 3. C1, C2 and C3 leaked their forward hook and left the weights drifted if
->    `atr_step` raised, where C0 used a `with` block and did not. All three now
->    remove the hook and revert the weights on the way out.
+> Where the results are: the frozen reference in
+> [BASELINE.md](experiments/output_baseline/BASELINE.md); which step sizes do anything in
+> [STEP_SIZE_MAP.md](STEP_SIZE_MAP.md); the connected-versus-offline comparison in
+> [EXP_001_RESULTS.md](EXP_001_RESULTS.md); what kind of move the basin change is in
+> [BASIN_BIFURCATION.md](BASIN_BIFURCATION.md) **followed by**
+> [T1_1_RESULTS.md](experiments/output_t1_1/T1_1_RESULTS.md), which refutes its conclusion;
+> the coupling sweep in [T2_1_RESULTS.md](experiments/output_t2_1/T2_1_RESULTS.md); twelve
+> plastic layers and a reprompt in
+> [EXP_002_RESULTS.md](experiments/output_exp002/EXP_002_RESULTS.md); and three
+> pre-registered stages in [output_exp003/](experiments/output_exp003/), whose measurements are
+> claims C-65 to C-67 and whose most consequential result is a **refutation**: the mechanism
+> this project proposed for its own collapse fell by its own pre-registered threshold.
+>
+> **Two boundaries cut across all of it.** Everything up to and including T2.1b ran under a
+> 5% drift ceiling; EXP-002 and EXP-003 ran with it **lifted**, so numbers from the two
+> groups are not continuous (C-60). And the severed-path control's exact-zero no-feedback
+> floor holds at **one** plastic site only, because within a single forward pass a lower
+> plastic layer reaches a higher one by a route that severing the loop does not cut (C-63).
 >
 > A green suite is not C0 passing. Control C0 must still pass bit-exactly
 > against real weights for anything here to count as a result worth recording.
@@ -41,17 +46,25 @@ iterates a frozen transformer's forward map and characterises the attractors.
 The weights never move. That is the fast loop of a neural system studied in
 isolation, with the slow loop switched off.
 
-This repo turns the slow loop back on, minimally: **one weight matrix, one local
-learning rule, driven by the activations passing through it during iteration.**
+This repo turns the slow loop back on, minimally at first: **one weight matrix, one local
+learning rule, driven by the activations passing through it during iteration.** Most of the
+work is at that scale. One experiment, EXP-002, went to twelve matrices at once.
 
 The specific question is whether the landscape's structure is a static property
 of a trained artifact or something the loop can reshape:
 
 - Do basins **deepen** — wider basins of attraction, i.e. consolidation?
 - Or does the landscape **collapse further** — fewer basins, the model-collapse
-  direction?
-- Does the `Divine` period-2 limit cycle become a fixed point, or survive?
-- Does GPT-2 Medium's single `D` funnel open, or tighten?
+  direction? **Answered, in the twelve-layer regime: it collapses.** Against a five-word
+  frozen census over 31 fresh prompts, the three arms that still settle give **three, two and
+  one** distinct word, and the fourth arm gives 19 words with only 4 of 31 at rest at the
+  120-iteration readout, which is failure to converge rather than surviving structure (claim
+  C-62).
+- Does the `Divine` period-2 limit cycle become a fixed point, or survive? Still open as
+  posed. What has been measured is the reverse direction: fixed points becoming that cycle
+  (claims C-24, C-28, C-58).
+- Does GPT-2 Medium's single `D` funnel open, or tighten? **Unrun.** Every number here is
+  GPT-2 small (claim C-64).
 
 ## What the project can say so far
 
@@ -90,18 +103,52 @@ same size usually moves the settled word too, in 4 of the 6 cases that could be
 size-matched, so the edit is not special merely for having structure (claim C-55, which
 retired the earlier "the right sign is required" claim, C-22). But no random direction
 ever reaches the Hebbian rule's own destination, 0 of 10 random seeds, and matching its
-effect costs 66 to 172 times as much weight change. So direction does not decide whether
+effect costs 66 to 171 times as much weight change. So direction does not decide whether
 the landscape moves; it decides where it moves to, and how cheaply.
 
-**Coupling is reported as a refinement, not the headline.** The project's founding
+**Coupling: measurably present, outcome-neutral up to a boundary that has now been located.** The project's founding
 interest is coupling: the weights changing while the activations they change feed back
 into them. That has been measured (claim C-31): the feedback-attributable part of the
 weight change is 12% of the total, against a severed-path control whose floor is exactly
-zero, not a small number. But at the operating point tested, feedback changes the weights
+zero, not a small number — and that exact zero holds at **one** plastic site only, which is
+why the twelve-layer numbers cannot be put in the same series (claim C-63). But at the operating point tested, feedback changes the weights
 without changing the outcome, since the connected and disconnected runs settle on the
 same word (claim C-33). The honest one-line form is that feedback measurably steers the
-update and does not, at this operating point, change the result. Whether that holds as
-coupling grows is the highest-value open experiment, T2.1 (issue #48).
+update and does not, at this operating point, change the result.
+
+**Whether that holds as coupling grows has since been measured, and it does not hold
+everywhere.** T2.1 swept the three ways of increasing coupling, namely step size, how often
+the rule fires, and how long the episode runs. The feedback-attributable share grows
+monotonically along all three, and faster than proportionally in episode length, yet the
+outcome stayed feedback-independent everywhere inside that grid, up through twice the step
+size and twice the episode length (claim C-58). T2.1b then found the first place it breaks:
+at **2.5 times** the step size, with nothing clipping, the connected loop settles into the
+two-step `Divine` cycle while the feedback-severed arm ends somewhere outside the five
+baseline families altogether (claim C-59). That is the first admissible observation in the
+project of feedback changing the outcome rather than only the weights. It is one prompt, one
+site, one seed, and the share alone does not predict it: an agreeing cell carries a share of
+0.342 against this one's 0.350, so which axis you push matters more than how far the share
+has moved.
+
+**What happened when twelve layers were made plastic at once, and it is not a happy
+result.** EXP-002 was the pre-registered primary experiment: drive one prompt through a
+plastic episode, freeze the weights, then run 31 fresh prompts the drift never saw. All 31
+reproduce the frozen census beforehand, and afterwards **the word each one reads out has
+changed**: 31 of 31 in three arms and 30 of 31 in the fourth. Since the residual stream is
+destroyed at a prompt boundary, the weights are the only channel that could have carried it
+(claim C-61). **But what carried is destruction, not direction** (claim C-62). The untouched
+model puts those 31 prompts on 5 distinct words, all 31 at rest. Afterwards the reinforcing
+rule with feedback gives 3 words with 27 of 31 on one of them, the reinforcing rule without
+feedback gives 2 words with 30 of 31 on `comrade`, and the eroding rule without feedback
+gives a single word for all 31. The eroding rule **with** feedback is different in kind: 19
+words, but only 4 of 31 at rest at the 120-iteration readout, so those readouts are snapshots
+of trajectories still in motion rather than settled states. Its return test failed at 5 of 5
+perturbation magnitudes, which rules out a missed cycle but does not establish that the
+trajectories would never settle given longer. C-61 may never be quoted without C-62. This
+matters because the recorded plan
+said in advance that collapse would not count as a finding, and that the interesting
+direction was **escape**, lifting a state back out of a well. Escape has not been attempted:
+it needs the balanced rule, and the balanced rule has never been run.
 
 **Two honest limits on the lead.** First, on what the edit actually does: the
 "created attractor" reading is retired (claim C-26). The coexistence test (T1.1, issue
@@ -114,6 +161,19 @@ a mid-stack GPT-2 projection, so the new element is not "a rank-1 edit changes
 behaviour." It is that this edit is derived with no target, from the model's own
 activity, and is read out on the iterated map's settled-state structure rather than on
 next-token output. Stated any other way, the comparison to prior work is lost.
+
+**Four limits on the whole body of work, and none of them is small.** The sample sizes are
+tiny: three independent prompts for the basin flip and one for most of the rest, since the
+Hebbian rule has no stochastic term and repeated seeds are one run repeated rather than three
+runs (claim C-41). The site coverage is twelve of 168 candidates, all of them MLP output
+projections, with no plasticity ever applied at an attention projection or at any of the 144
+individual attention heads, and one model throughout (claim C-64). The basin labels have a
+resolution limit comparable to the distances they are resolving, so two basins this project
+treats as distinct can be no further apart than the prompts inside one of them (claim C-07).
+And the results split across two regimes that must not be mixed: everything up to the
+coupling sweep ran under a 5% drift ceiling, while the twelve-layer work ran with that
+ceiling lifted, which also cost it the exactly-zero control baseline that every single-site
+coupling number is measured against (claims C-60 and C-63).
 
 ## Where this sits
 
@@ -245,7 +305,7 @@ In order. Do not skip.
 |:---|:---|:---|
 | **C0** | At `eta=0`, do the hooks perturb the trajectory? | **Stop.** Contamination; nothing downstream is interpretable |
 | **C1** | Does `revert()` restore the original trajectory? | Hidden state accumulating somewhere |
-| **C2** | Does a random update of matched norm do the same thing? | You've measured "perturbing weights changes things", not Hebbian learning |
+| **C2** | Does a random update of matched **Frobenius** norm do the same thing? (diagnostic — see below) | You've measured "perturbing weights changes things", not Hebbian learning |
 | **C3** | With the ceiling lifted and a large step size, does Hebb's drift keep growing where Oja's saturates? | The decay term isn't doing its job |
 
 ```python
@@ -254,9 +314,23 @@ from controls import c0_identity, c1_revert, c2_random_direction, c3_divergence_
 print(c0_identity(model, r0, atr_step, site="transformer.h.6.mlp.c_proj"))
 ```
 
-**C2 is the one that decides whether this branch is interesting.** If Oja and a
-norm-matched random matrix produce the same landscape change, the finding is
-about perturbation magnitude, not about learning.
+**C2 is a diagnostic, not the decision.** This section used to call it "the one that
+decides whether this branch is interesting", and that framing is retired as claim
+C-23: the arm is matched on the wrong quantity. An isotropic random matrix spreads
+its Frobenius mass across the whole spectrum, so its **operator** norm never reaches
+the Hebbian arm's anywhere in the sweep — σ₁/‖ΔW‖_F holds 0.054 against `hebb`'s
+0.979, 4× to 11× short — and two arms that far apart in the norm that actually moves
+a state cannot establish direction-specificity. What C2 still catches is the crude
+failure it was built for: if the two arms produce the same landscape change, the
+finding is about perturbation magnitude and not about learning.
+
+**The control that can decide is the rank-1 matched-displacement arm**,
+`experiments/rank1_random_control.py`, which matches `hebb`'s loop-state
+displacement rather than a matrix norm. It found that arbitrary directions usually
+**do** move the basin — 4 of the 6 seeds it could match — but never to `hebb`'s
+destination `comrade` (0 of 10 seeds), and only at 66× to 171× `hebb`'s relative
+weight change (claim C-55, which retired C-22). Cite that one for direction; run
+this one as the cheap magnitude check.
 
 ## Learning rate
 
@@ -296,7 +370,7 @@ code that runs them. **Every test runs against real GPT-2 small.**
 python3 -m venv .venv
 .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest                 # 295 tests (4 skip without the parent repo), ~2-3 min on CPU; downloads gpt2 (~500MB) once
+.venv/bin/pytest                 # 320 tests (4 skip without the parent repo), ~2-3 min on CPU; downloads gpt2 (~500MB) once
 ```
 
 A Claude Code session does this for you: `.claude/hooks/session-start.sh` builds
@@ -320,9 +394,23 @@ One `nn.Linear` fixture survives, clearly labelled as a code-path fixture rather
 than a model: GPT-2 is Conv1D at all 48 of its candidate sites, so nothing real
 exercises `transposed=True`.
 
+**Three defects the suite caught, kept on the page because each one is now held by a test
+that fails if it comes back.** This list used to sit in the status banner at the top; it is
+here now because it is about the suite rather than about where the project stands.
+
+1. `transposed=True` never transposed — `_hook`'s branch was a bare `pass`, so non-square
+   `nn.Linear` raised in `apply()` and square `nn.Linear` silently learned the update
+   transposed. The flip now happens in `apply()`.
+2. `mode="random"` was norm-matched to the raw Hebb term rather than to Oja, which **biased
+   C2**, and worst at the large eta C2 is actually run at. The decay term is now subtracted
+   for `"random"` as well as `"oja"`.
+3. C1, C2 and C3 leaked their forward hook and left the weights drifted if `atr_step` raised,
+   where C0 used a `with` block and did not. All three now remove the hook and revert the
+   weights on the way out.
+
 CI runs the whole suite on every push, with the checkpoint cached. It sets
 `ATR_REQUIRE_MODEL=1`, which turns "GPT-2 unavailable" from a skip into a
-failure — without it a runner missing the model skips all 295 tests and exits 0,
+failure — without it a runner missing the model skips all 320 tests and exits 0,
 and a check that cannot fail is worse than no check.
 
 **Hebb and Oja invert between the toy and the real model.** At the real weight
@@ -351,11 +439,27 @@ against real weights, and it is still the first thing to run.
 ## Files
 
 ```
-plasticity.py   OjaPlasticity: hooks, Oja/Hebb/random rules, delta tracking, revert
-controls.py     C0-C3, each taking your atr_step as an argument
-tests/          pytest suite, all of it against real GPT-2 small
-EXP_001_SPEC.md the proposed first experiment, and the bridge it needs first
-DESIGN.md       measurement plan, failure modes, what would falsify what
+CLAIMS.md       the claim register -- the authority over every other file here
+ORIENTATION.md  the apparatus, for someone arriving cold
+HANDOVER.md     where the project is, what has run, what has not, what is next
+
+plasticity.py     OjaPlasticity: hooks, the four rules, TermSpec composed rules,
+                  ceiling, bit-exact revert, per-head site adapters
+multi_site.py     MultiSitePlasticity: N sites at once, overlap rejected
+atr_bridge.py     one iteration of the parent loop, extracted verbatim
+controls.py       C0-C3, each taking your atr_step as an argument
+offline_control.py  matched closed-vs-offline arms, the 17-axis verifier,
+                  and the severed-path control
+mea_grid.py       the 12x12 addressable grid and its activity centroid
+mea_stim.py       signal injection at a site, scaled to local activity
+experiments/      the runners, and output_*/ holding every committed artifact
+tests/            pytest suite, 320 tests, all of it against real GPT-2 small
+
+ALIGNMENT_REVIEW.md  how the claim layer and the evidence layer came apart once
+DESIGN.md         measurement plan, failure modes, what would falsify what
+PRIOR_ART.md      the literature search, with each entry's verification status
+EXP_001_SPEC.md   the matched-axes table; its title and status are a known
+                  inconsistency, see HANDOVER.md section 6
 requirements.txt        torch, transformers -- the experiment
 requirements-dev.txt    pytest and transformers -- the suite
 pyproject.toml          pytest configuration

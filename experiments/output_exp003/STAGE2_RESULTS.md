@@ -1,8 +1,14 @@
 # EXP-003 Stage 2 results
 
 *Measurements only. Registered in `PREREGISTRATION.md` and amended by Amendment 1 there,
-both before this run. Run artifact: `stage2.jsonl`. Nothing here enters the claim
-register.*
+both before this run. Run artifact: `stage2.jsonl`.*
+
+> **This file used to say that nothing in it entered the claim register. That has changed.**
+> The **measurement** is register row **C-67**: census agreement is 0 of 31 at all three
+> cadences. The **cadence comparison** this stage was built to make is not in the register and
+> is not established, because the registered drift guard fired at a spread of 6.03× against a
+> required factor of 2, so cadence is confounded with drift here. `CLAIMS.md` is the
+> authority; where it and this file disagree, it wins.
 
 ## What was run
 

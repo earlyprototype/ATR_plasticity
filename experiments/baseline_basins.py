@@ -1105,7 +1105,9 @@ def _validation_section(meta):
     if ex:
         tr = ex["trend"]
         c2, c1 = ex["lag2"][0], ex["lag1"][0]
-        A("### Is the period-2 cycle exact? No -- and the residual is stationary")
+        # The heading asserted stationarity too, and the committed document's heading
+        # ("Exactness probe: bitwise equality and residual trend") had already dropped it.
+        A("### Exactness probe: bitwise equality and residual trend")
         A("")
         A("A cosine that prints as `1.000000` establishes six decimal places of display "
           "precision, not equality. It is equally consistent with `f(f(A))` being bit-for-bit "
@@ -1147,14 +1149,37 @@ def _validation_section(meta):
           f"{tr['l2_rel_last_third_mean'] / tr['float32_eps']:.2f} x float32 epsilon "
           f"({tr['float32_eps']:.3e}) and stays there.")
         A("")
-        A("**Statement of the result, at the strength the numbers support.** The `Divine` orbit is "
-          "an *attracting* period-2 cycle in float32 arithmetic, not a bitwise-periodic one. "
-          "`f o f` is not the identity on `A`: it moves 87% of the entries and lands about 1.6 "
-          "float32 ulps away in relative L2. But it does not move *further* with iteration, and "
-          "it does not move *closer*: the residual is stationary round-off jitter around the "
-          "cycle, not convergence toward it and not divergence from it. So the correct claim is "
-          "\"a fixed point of the squared map to within float32 arithmetic\", and the incorrect "
-          "claims are both \"bit-identical\" and \"still drifting\". A `1.000000` printout could "
+        # Two corrections, both of which the committed BASELINE.md already carries and
+        # this generator did not. (1) The percentage was hardcoded at 87% while the
+        # table four rows up computes `100 * n_differing / n_elements` at `.0f`, which
+        # is 6727/7680 = 88% -- so a regeneration made the document contradict its own
+        # table. It is interpolated from the same fields now. (2) The orbit was called
+        # *attracting*, which the very next sentence withdraws: a residual that moves
+        # neither closer nor further is not evidence of attraction. Recurrence is what
+        # was measured.
+        #
+        # (3) And the replacement wording overshot in the other direction, calling the
+        # residual "stationary round-off jitter". A finite window with no detected trend
+        # does not establish stationarity as a property -- the same finite-horizon
+        # confusion as C-56, one scale down. The trend record's own `verdict` field reads
+        # "no trend detected" and the note below already calls that the honest phrasing,
+        # so the strong wording contradicted both. The committed BASELINE.md had already
+        # been corrected to "No trend in the residual was detected over the N-iteration
+        # window"; this is the generator catching up to its own document. The window
+        # length is `n_probe` (40), the number of iterations stepped -- NOT len(lag2),
+        # which is 39, because `iters` holds the initial state plus `n_probe` more and
+        # the lag-2 series is two shorter. Emitting the derived count would have made
+        # the generator say "39" where its document says 40. Dropped with it: "the
+        # incorrect claims are both `bit-identical` and `still drifting`", which the
+        # document also dropped -- ruling out "still drifting" is exactly the assertion
+        # an undetected trend does not license.
+        A("**Result.** The `Divine` orbit "
+          "recurs at period 2 to within float32 arithmetic and is not bitwise-periodic. "
+          "`f o f` is not the identity on `A`: it moves "
+          f"{100 * c2['n_elements_differing'] / c2['n_elements']:.0f}% of the entries and lands "
+          "about 1.6 "
+          "float32 ulps away in relative L2. No trend in the residual was detected over the "
+          f"{ex['n_probe']}-iteration window. A `1.000000` printout could "
           "not have distinguished these; `1 - cos = "
           f"{c2['one_minus_cos']:.2e}` in float64 does.")
         A("")
@@ -2012,11 +2037,33 @@ def _git_rev(path: Path) -> str:
 
 
 def _hms(sec: float) -> str:
-    sec = int(sec)
+    """A duration in seconds, in the `Xh Ym Zs` form BASELINE.md quotes it in.
+
+    Not a general-purpose formatter: hours are not carried into days, because the
+    longest thing this measures is one sweep.
+    """
+    # Round rather than truncate. `int()` discarded the fraction, so the CPU total
+    # 15041.9 s rendered as "4h 10m 41s" where BASELINE.md states 4h 10m 42s -- a
+    # one-second disagreement between the document and its own generator. The wall
+    # span is a whole number of seconds either way, so this changes only the fraction.
+    sec = round(sec)
     return f"{sec // 3600}h {(sec % 3600) // 60}m {sec % 60}s"
 
 
 def main(argv=None):
+    """Run the basin sweep, or rebuild `BASELINE.md` from a run already on disk.
+
+    `--report-only` is **not** read-only, and the name invites the opposite
+    assumption. It rewrites `<out>/basins.jsonl` from whatever shards it finds and,
+    once every requested prompt is present, `unlink()`s the shard files -- so a
+    rebuild consumes the raw run it read. Point `--out` at a *copy* of the run
+    directory, never at the committed one.
+
+    Nor is the emitted report byte-identical to the committed document: several
+    figures were hand-corrected after emission and the generator was only brought
+    back into agreement with them later. Diff before replacing anything. Both
+    hazards are recorded under "Standing prohibitions" in `CLAIMS.md`.
+    """
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--iters", type=int, default=int(os.environ.get("BASELINE_ITERS", DEFAULT_ITERS)))
@@ -2105,8 +2152,16 @@ def main(argv=None):
             missing = [p for p in prompt_ids if p not in {r["prompt_id"] for r in recs}]
             print(f"[merge] {len(missing)} prompt(s) still missing; shard files kept "
                   f"(first missing: {missing[:5]})")
-        metas = [json.loads(p.read_text()) for p in
-                 sorted(out_dir.glob("run_meta*.json")) if p.stat().st_size]
+        # A sharded run writes BOTH `run_meta.shard{N}.json` and, via `meta_path`,
+        # `run_meta.json` -- so the latter is a copy of whichever shard finished last
+        # and `run_meta*.json` returns that shard twice. Summing over the glob
+        # double-counted one shard and reported "6h 17m 2s CPU" against a true
+        # 4h 10m 42s, a figure that matched no committed field. Prefer the per-shard
+        # files where they exist; keep the aggregate only for unsharded runs.
+        meta_files = sorted(out_dir.glob("run_meta*.json"))
+        shard_files = [p for p in meta_files if ".shard" in p.name]
+        metas = [json.loads(p.read_text()) for p in (shard_files or meta_files)
+                 if p.stat().st_size]
         if metas:
             meta.update(metas[0])
             # Wall clock across shards is the span from the first start to the
@@ -2119,10 +2174,15 @@ def main(argv=None):
                 meta["started"], meta["finished"] = min(starts), max(ends)
                 meta["wall_clock_seconds"] = round(t_b - t_a, 1)
                 nsh = max(m.get("shards", 1) for m in metas)
+                # CPU total from the per-prompt `seconds` fields rather than from the
+                # shard metas: it is the direct measure, it cannot be skewed by a
+                # duplicated meta file, and it is what BASELINE.md states. On the
+                # committed run it gives 15041.9 s, agreeing with the two shards'
+                # own wall clocks (7579.4 + 7463.9 = 15043.3).
+                cpu_seconds = sum(r.get("seconds", 0.0) for r in recs)
                 meta["wall_clock_str"] = (
                     f"{_hms(t_b - t_a)} wall"
-                    + (f" ({nsh} shards in parallel, "
-                       f"{_hms(sum(m.get('wall_clock_seconds', 0) for m in metas))} CPU)"
+                    + (f" ({nsh} shards in parallel, {_hms(cpu_seconds)} CPU)"
                        if nsh > 1 else ""))
             meta["shards"] = max(m.get("shards", 1) for m in metas)
         vpath = out_dir / "instrument_validation.json"
