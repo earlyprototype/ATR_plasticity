@@ -218,6 +218,16 @@ negotiable and they are why the rows above are worth anything.
   records what ran and is not edited afterwards, and a re-run supersedes it. Swept
   2026-08-05 across all 31 committed `.json`/`.jsonl` artifacts, this is the only retired
   reading left anywhere in the evidence layer.
+  **The `stays` arm carried the same defect one level down** and was corrected on 2026-08-06:
+  it read "comrade IS a fixed point of the original frozen map: the frozen loop holds it for
+  all N steps", where `stays` only tests that the *readout* did not leave within N steps. A
+  finite run of identical labels cannot establish a fixed point — the distinction C-56 turns
+  on — and the report's own D1 bullet already said so, so the field would have contradicted
+  the document built from the same record. That defect was **latent, not realized**: this run
+  has `stays_comrade: false`, so the committed artifact carries the leave-branch string quoted
+  above and never the fixed-point one. It would have been written by the first run whose
+  readout held. Both arms now state the readout result and stop; the committed artifact is
+  left unedited, as the record of what ran.
 - **No committed report is byte-reproducible from its generator. Never run a `--report-only`
   path without diffing the result first.** Exactly four scripts emit markdown, and all four
   were regenerated into scratch paths on 2026-08-05: `step_size_map.py` → `STEP_SIZE_MAP.md`,

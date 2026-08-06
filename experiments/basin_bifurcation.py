@@ -456,13 +456,22 @@ def run(model, out_dir: Path, meta: dict) -> tuple[list, dict]:
         # interpretations D1 alone cannot license (see the comment above the
         # loop), and the step-4 one is C-26, `retired`. What the ladder step is
         # belongs to CLAIMS.md -- C-56 -- not to this record.
+        #
+        # "IS a fixed point" was the same overreach one level down. `stays` is
+        # `first_leave is None and last["basin"] == "comrade"`: it says the *readout*
+        # did not leave comrade within D1_N steps, which a finite run cannot promote
+        # into a statement that the state is fixed -- the distinction C-56 turns on,
+        # and the one the report's own D1 bullet already draws. Because this string
+        # lands in the committed jsonl, the strong wording put a claim the register
+        # had retired into the evidence layer, where a later reader meets it as data.
+        # Both arms now state the readout result and stop.
         "verdict": (
-            f"comrade IS a fixed point of the original frozen map: the frozen "
-            f"loop holds it for all {D1_N} steps"
+            f"comrade readout does not leave within {D1_N} steps of the original "
+            f"frozen map: a finite-horizon readout result, not a demonstration "
+            f"that the state is fixed"
             if stays else
-            f"comrade is NOT an attractor of the original frozen map: the frozen "
-            f"loop leaves it at iteration {first_leave['iter']} and settles at "
-            f"{last['basin']}"),
+            f"comrade readout leaves the original frozen map at iteration "
+            f"{first_leave['iter']} and settles at {last['basin']}"),
     }
     records.append(d1_summary)
     print(f"[D1] VERDICT: {d1_summary['verdict']}", flush=True)
@@ -872,18 +881,23 @@ def build_report(records: list, meta: dict) -> str:
               f"lag-1 cosine **collapses** from ~"
               f"{_fmt(max(r['final_lag1_cos'] for r in d2), '.4f')} (a fixed "
               f"point) to {_fmt(c0['final_lag1_cos'], '.4f')} — the fixed point "
-              f"gives way to the period-2 cycle `{c0['basin']}` sits on in the "
-              f"baseline. So the `alpha`-axis reads `{d2s['base_basin']}` (fixed "
+              f"gives way to a period-2 trajectory whose readout is "
+              f"`{c0['basin']}`. So the `alpha`-axis reads `{d2s['base_basin']}` (fixed "
               f"point) → `comrade` (fixed point) → `{c0['basin']}` (period-2): "
               f"**two transitions along one line, and neither is a created "
               f"attractor.** The first is a relabelling of the readout while the "
               f"settled branch moves smoothly — ladder step 2, and no longer "
               f"pending: T1.1 established it (C-26 `retired`, C-56 `supported`), "
               f"with C-68 the open discrepancy at `alpha` = 0.50. The second is a "
-              f"genuine change of dynamical class into the **pre-existing** "
-              f"`{c0['basin']}` orbit, which `{c0['basin']}` already holds in the "
-              f"frozen baseline — step 3, **C-28**, `provisional` — and it sits "
-              f"at 1.5× the ΔW the episode produced.")
+              f"genuine change of dynamical class — step 3, **C-28**, "
+              f"`provisional` — and it sits at 1.5× the ΔW the episode produced. "
+              f"That it lands on the **same** period-2 orbit `{c0['basin']}` holds "
+              f"in the frozen baseline is **not established here**: this sweep "
+              f"records a readout label and a lag-1 collapse, and no committed "
+              f"artifact compares the two trajectories' states. Orbit identity is "
+              f"consistent with these numbers, which is not the same as shown by "
+              f"them — the readout-label-for-state-identity substitution is exactly "
+              f"what retired C-26.")
         else:
             A(f"Across this grid the lag-1 cosine stays near 1.0 at every alpha "
               f"(min {_fmt(d2s['lag1_min'], '.4f')}); no period-2 cycle appears "
@@ -935,9 +949,17 @@ def build_report(records: list, meta: dict) -> str:
     A("**Superseded readings, kept in place as the record:**")
     A("")
     if d2s and d1s:
+        # Same `None` case as the Establishes bullet above. This does not raise --
+        # `_fmt` returns "--" and the key is always written -- so the failure is
+        # quieter than a crash and worse to read: on a sweep with no label change the
+        # sentence becomes "a threshold at alpha* = --", which states a superseded
+        # figure the run does not have. Name the reading without pretending to a value.
+        _as = d2s.get("alpha_star_first_change")
         A(f"- **[SUPERSEDED] Closes issue #32 section 5.** This file answered "
-          f"*smooth bias or a threshold?* with **a threshold** at alpha\\* = "
-          f"{_fmt(d2s['alpha_star_first_change'], '.2f')}. That reading is "
+          f"*smooth bias or a threshold?* with **a threshold**"
+          + (f" at alpha\\* = {_fmt(_as, '.2f')}" if _as is not None
+             else " at the sweep's first change of label (no such change in this run)")
+          + f". That reading is "
           f"`CLAIMS.md` **C-27**, `not-established`, and is **not quotable**: an "
           f"argmax changes discretely even under perfectly smooth motion, and "
           f"here the underlying logit gap is smooth and monotone through the "

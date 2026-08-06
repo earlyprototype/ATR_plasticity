@@ -1105,7 +1105,9 @@ def _validation_section(meta):
     if ex:
         tr = ex["trend"]
         c2, c1 = ex["lag2"][0], ex["lag1"][0]
-        A("### Is the period-2 cycle exact? No -- and the residual is stationary")
+        # The heading asserted stationarity too, and the committed document's heading
+        # ("Exactness probe: bitwise equality and residual trend") had already dropped it.
+        A("### Exactness probe: bitwise equality and residual trend")
         A("")
         A("A cosine that prints as `1.000000` establishes six decimal places of display "
           "precision, not equality. It is equally consistent with `f(f(A))` being bit-for-bit "
@@ -1153,18 +1155,31 @@ def _validation_section(meta):
         # is 6727/7680 = 88% -- so a regeneration made the document contradict its own
         # table. It is interpolated from the same fields now. (2) The orbit was called
         # *attracting*, which the very next sentence withdraws: a residual that moves
-        # neither closer nor further is stationary jitter, and stationary jitter is not
-        # evidence of attraction. Recurrence is what was measured.
-        A("**Statement of the result, at the strength the numbers support.** The `Divine` orbit "
+        # neither closer nor further is not evidence of attraction. Recurrence is what
+        # was measured.
+        #
+        # (3) And the replacement wording overshot in the other direction, calling the
+        # residual "stationary round-off jitter". A finite window with no detected trend
+        # does not establish stationarity as a property -- the same finite-horizon
+        # confusion as C-56, one scale down. The trend record's own `verdict` field reads
+        # "no trend detected" and the note below already calls that the honest phrasing,
+        # so the strong wording contradicted both. The committed BASELINE.md had already
+        # been corrected to "No trend in the residual was detected over the N-iteration
+        # window"; this is the generator catching up to its own document. The window
+        # length is `n_probe` (40), the number of iterations stepped -- NOT len(lag2),
+        # which is 39, because `iters` holds the initial state plus `n_probe` more and
+        # the lag-2 series is two shorter. Emitting the derived count would have made
+        # the generator say "39" where its document says 40. Dropped with it: "the
+        # incorrect claims are both `bit-identical` and `still drifting`", which the
+        # document also dropped -- ruling out "still drifting" is exactly the assertion
+        # an undetected trend does not license.
+        A("**Result.** The `Divine` orbit "
           "recurs at period 2 to within float32 arithmetic and is not bitwise-periodic. "
           "`f o f` is not the identity on `A`: it moves "
           f"{100 * c2['n_elements_differing'] / c2['n_elements']:.0f}% of the entries and lands "
           "about 1.6 "
-          "float32 ulps away in relative L2. But it does not move *further* with iteration, and "
-          "it does not move *closer*: the residual is stationary round-off jitter around the "
-          "cycle, not convergence toward it and not divergence from it. So the correct claim is "
-          "\"a fixed point of the squared map to within float32 arithmetic\", and the incorrect "
-          "claims are both \"bit-identical\" and \"still drifting\". A `1.000000` printout could "
+          "float32 ulps away in relative L2. No trend in the residual was detected over the "
+          f"{ex['n_probe']}-iteration window. A `1.000000` printout could "
           "not have distinguished these; `1 - cos = "
           f"{c2['one_minus_cos']:.2e}` in float64 does.")
         A("")
