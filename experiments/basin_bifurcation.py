@@ -553,6 +553,16 @@ def _by_kind(records: list, kind: str) -> list:
 
 
 def build_report(records: list, meta: dict) -> str:
+    """The whole of `BASIN_BIFURCATION.md` as one string, read off `records`.
+
+    Two things about this document are deliberate and will look like defects. Its
+    title and framing keep the *retired* attractor-creation reading in the words it
+    was written in, marked superseded, because this repo does not delete a claim it
+    has withdrawn -- the durable displacement reading is **C-56** and sits beside it.
+    And the emitted text is not byte-identical to the committed file: prose was
+    edited after emission. No *measured* value disagrees, which is the property worth
+    protecting, so diff any regenerated output before it replaces the committed one.
+    """
     rep = next(iter(_by_kind(records, "reproduce")), None)
     d1 = _by_kind(records, "d1")
     d1s = next(iter(_by_kind(records, "d1_summary")), None)

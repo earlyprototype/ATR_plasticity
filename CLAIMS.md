@@ -224,18 +224,29 @@ negotiable and they are why the rows above are worth anything.
   `exp001_hebb.py` → `EXP_001_RESULTS.md`, `basin_bifurcation.py` → `BASIN_BIFURCATION.md`,
   `baseline_basins.py` → `output_baseline/BASELINE.md`. Every one differs, and the drift
   predates this branch. **After the fixes in this branch no measured value disagrees in any
-  pair** (verified by numeric-token comparison; `STEP_SIZE_MAP.md`'s 35-row table matches
-  across all fifteen columns and `BASIN_BIFURCATION.md` has no regenerated-only numeric token
-  at all). What remains is prose — and in three places it is a deliberate hand-written
-  correction the generator does not emit: §5 of `STEP_SIZE_MAP.md`, the "Corrected 2026-08-05"
-  paragraphs in `EXP_001_RESULTS.md`, and the C-26-retirement and C-68 discrepancy notices in
-  `BASIN_BIFURCATION.md`. A blind regeneration deletes all three. Treat these documents as
-  hand-maintained descendants of their generators, not as their output.
-- **`--report-only` is not read-only.** `baseline_basins.py` rewrites `<out>/basins.jsonl` and
-  `unlink()`s the shard files on its way to building the report, and it takes no `--report`
-  argument, so it writes `BASELINE.md` in place. Point `--out` at a *copy* before running it.
-  Its report path also needs the parent repo's `prompt_library.py`, so a from-scratch
-  reproduction is not possible from this repository alone.
+  pair, and no generator emits a number its document does not carry** (verified by
+  numeric-token comparison on the three that run here; `STEP_SIZE_MAP.md`'s 35-row table
+  matches across all fifteen columns). The last regenerated-only token was
+  `EXP_001_RESULTS.md`'s `0.576796`, the *gap* between the within- and between-basin median
+  cosines: a derived statistic the document deliberately does not quote, since its position is
+  that the comparison is unregistered and confounded. Heading the paragraph with it was the
+  withdrawn "directions separate by basin" reading in a quieter voice. The generator now emits
+  the document's own two paragraphs, byte for byte. What remains is prose — and in three
+  places it is a deliberate hand-written correction the generator does not emit: §5 of
+  `STEP_SIZE_MAP.md`, the "Corrected 2026-08-05" paragraphs in `EXP_001_RESULTS.md`, and the
+  C-26-retirement and C-68 discrepancy notices in `BASIN_BIFURCATION.md`. A blind regeneration
+  deletes all three. Treat these documents as hand-maintained descendants of their generators,
+  not as their output.
+- **`--report-only` is not read-only, in three of the four generators.** On its way to building
+  the report it rewrites the canonical `.jsonl` from whatever shards it finds and then
+  `unlink()`s those shard files, so a rebuild consumes the raw run it read:
+  `baseline_basins.py` (`basins.jsonl`), `exp001_hebb.py` (`exp001.jsonl`) and
+  `step_size_map.py` (`step_size_map.jsonl`). Only `basin_bifurcation.py` is what the flag
+  name implies — it reads the jsonl and meta and writes nothing but the report. **Point `--out`
+  at a *copy* before running any of the other three.** `baseline_basins.py` is the sharpest
+  case: it takes no `--report` argument, so it writes `BASELINE.md` in place. Its report path
+  also needs the parent repo's `prompt_library.py`, so a from-scratch reproduction is not
+  possible from this repository alone, and it is the one generator that cannot be checked here.
 - **Never use an even-only snapshot schedule.** Log lag-1 *and* lag-2.
 - **Use tolerance, not `torch.equal`,** except where asserting bit-identity on purpose.
 - **Don't tune to match the parent's basin percentages.** The bridge is bit-exact and

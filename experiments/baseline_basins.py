@@ -2022,6 +2022,11 @@ def _git_rev(path: Path) -> str:
 
 
 def _hms(sec: float) -> str:
+    """A duration in seconds, in the `Xh Ym Zs` form BASELINE.md quotes it in.
+
+    Not a general-purpose formatter: hours are not carried into days, because the
+    longest thing this measures is one sweep.
+    """
     # Round rather than truncate. `int()` discarded the fraction, so the CPU total
     # 15041.9 s rendered as "4h 10m 41s" where BASELINE.md states 4h 10m 42s -- a
     # one-second disagreement between the document and its own generator. The wall
@@ -2031,6 +2036,19 @@ def _hms(sec: float) -> str:
 
 
 def main(argv=None):
+    """Run the basin sweep, or rebuild `BASELINE.md` from a run already on disk.
+
+    `--report-only` is **not** read-only, and the name invites the opposite
+    assumption. It rewrites `<out>/basins.jsonl` from whatever shards it finds and,
+    once every requested prompt is present, `unlink()`s the shard files -- so a
+    rebuild consumes the raw run it read. Point `--out` at a *copy* of the run
+    directory, never at the committed one.
+
+    Nor is the emitted report byte-identical to the committed document: several
+    figures were hand-corrected after emission and the generator was only brought
+    back into agreement with them later. Diff before replacing anything. Both
+    hazards are recorded under "Standing prohibitions" in `CLAIMS.md`.
+    """
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--iters", type=int, default=int(os.environ.get("BASELINE_ITERS", DEFAULT_ITERS)))

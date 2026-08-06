@@ -822,6 +822,23 @@ def _lens_section(lens: dict, main: dict) -> list:
 
 
 def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
+    """The whole of `EXP_001_RESULTS.md` as one string, read off `recs`.
+
+    Figures are computed from the records wherever the records contain them. That is a
+    correction, not a style preference: the ones this function used to write in by hand
+    had since been withdrawn from the document by later claims, so regenerating
+    reinstated readings the register had retired.
+
+    Two figures are still written in, and deliberately. The ΔW effective-rank range
+    comes from the *step-size map's* artifact rather than this experiment's, so `recs`
+    cannot reproduce it, and it is filtered to ceiling-silent cells — a cell where the
+    drift ceiling fired measures `max_delta_frac` rather than the rule, and quoting one
+    as evidence is forbidden outright (`CLAIMS.md`, standing prohibitions). Do not
+    "simplify" either back to an all-cells range.
+
+    `lens` is optional per-token null-band data; absent, those paragraphs are
+    omitted. `recs` empty yields a one-line report and none of the findings below.
+    """
     # Guard FIRST, before any prose. `--report-only` hands this function whatever
     # is in the chosen output directory, so on an empty or foreign dataset the
     # opening paragraphs below would assert this experiment's specific findings --
@@ -1253,10 +1270,6 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
                 c = _cos(vecs[i], vecs[j])
                 (within if labels[i][1] == labels[j][1] else between).append(c)
         if within and between:
-            A(f"Within-basin median cosine {statistics.median(within):+.6f} "
-              f"({len(within)} pairs); between-basin median "
-              f"{statistics.median(between):+.6f} ({len(between)} pairs).")
-            A("")
             # Neither direction is a licensed conclusion, so emit neither. This
             # branched on a hardcoded 0.02 threshold and bolded whichever side it
             # landed on. The `else` arm printed "**The directions separate by
@@ -1264,17 +1277,39 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
             # drawn in prose with no register row, from 4 within-basin pairs against
             # 6 between-basin, in a design this same section declares confounded two
             # paragraphs further down. The `if` arm is the same overreach mirrored.
-            # The cosines are the measurement; the reading is not, and until a
-            # register row licenses one, the report states the gap and stops.
-            _wm, _bm = statistics.median(within), statistics.median(between)
-            A(f"**Neither reading is licensed by this comparison.** The gap between "
-              f"the two medians is {abs(_wm - _bm):.6f} on {len(within)} "
-              f"within-basin pairs against {len(between)} between-basin ones, and "
-              f"no register row decides what a gap that size means. The cosines "
-              f"above are the measurement; \"the directions separate by basin\" and "
-              f"\"the directions do not separate by basin\" are both conclusions "
-              f"this section cannot reach, the more so because it declares its own "
-              f"design confounded two paragraphs below.")
+            #
+            # Its replacement must not head the paragraph with the *gap* between the
+            # medians either. The document's position is that the whole comparison is
+            # unregistered and confounded; leading with a derived statistic is the
+            # same overreach in a quieter voice, and the gap is a number no register
+            # row carries. Emit what the document emits: the two medians in prose,
+            # the register rule, the confound, and the withdrawal note kept visible.
+            _sizes = sorted(
+                (sum(1 for _, b in labels if b == k)
+                 for k in dict.fromkeys(b for _, b in labels)), reverse=True)
+            _words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
+                      6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
+            A(f"**Exploratory, and unregistered.** Within-basin median cosine is "
+              f"{statistics.median(within):+.6f} ({len(within)} pairs) against "
+              f"between-basin {statistics.median(between):+.6f} "
+              f"({len(between)} pairs). No row in `CLAIMS.md` covers this "
+              f"comparison, and that file's first rule is that a claim enters the "
+              f"register before it enters any prose document — so this is a "
+              f"measurement the repository has taken, not something it asserts, and "
+              f"it may not be cited as a finding. **Prompt similarity and basin "
+              f"membership are confounded in this design**, and that confound is why "
+              f"the comparison cannot become a register row on this evidence: with "
+              f"{_words.get(len(labels), len(labels))} prompts split "
+              f"{'/'.join(str(s) for s in _sizes)}, the within-basin pairs are also "
+              f"the pairs of most similar prompts, and nothing here separates the "
+              f"two.")
+            A("")
+            A(f"**Superseded 2026-08-05.** This paragraph used to head the same two "
+              f"cosines with the bolded conclusion \"The directions separate by "
+              f"basin\". The cosines stand as measurements. The conclusion was drawn "
+              f"in prose without a register row, from {len(within)} pairs against "
+              f"{len(between)}, in a design this section itself declares confounded "
+              f"two paragraphs later, and it is withdrawn.")
             A("")
             A("Two things have to be said about that before it is worth "
               "anything. First, issue #32's two branches — \"ΔW fingerprints "
