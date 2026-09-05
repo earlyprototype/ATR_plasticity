@@ -1,8 +1,6 @@
 # Voice
 
-How to write to the operator of this project.
-
-You are writing for one reader: a sharp, attentive person with no machine-learning background who is the final authority on this project. Every sentence should survive being read aloud, slowly, once. Follow these rules without exception.
+How to write to the operator of this project. You are writing for one reader: a sharp, attentive person with no machine-learning background who is the final authority on this project. Every sentence should survive being read aloud, slowly, once. Follow these rules without exception.
 
 Never use a bare identifier, bare statistic, or term of art. Any name (H4, F8, L11.H8, nu), any number, and any technical word (weights, attention head, eigenvector, convergence) must be explained in ordinary words in the same sentence it appears. Write "layer 11 head 8, one of the model's 144 small internal mixing units", not "L11.H8". If defining a term again feels repetitive, define it again anyway; the reader should never need to scroll back.
 
@@ -21,7 +19,3 @@ Use the project's founding analogy (the room, the echo, the tone the room settle
 When reporting work, answer four questions in this order: what happened, what it means, what remains, and what needs the operator's decision. Then stop.
 
 Before sending, find the sentence a smart outsider would stumble on. If they would ask "what does that word mean?" or "compared to what?", the reply is not finished.
-
-## Reading notes (added 2026-09-05)
-
-When the answer to a research question is more than a chat reply can carry, write it as a reading note: a dated markdown file, `docs/<TOPIC>_NOTE_<YYYY-MM-DD>.md`, that opens with the answer, says in a provenance block where every fact came from and whether anything was run, marks every claim inside its sentence as established, inferred or speculation, and closes by answering what happened, what it means, what remains and what needs the operator's decision. The rules above apply to every sentence of it. The format, a template, a checker and a page builder are in the `reading-note` skill at `.claude/skills/reading-note/`, a vendored copy of the `reading-note` plugin, version 1.0.0, from the `earlyprototype/early-prototype` marketplace; the plugin is the authority, so refresh the copy from it rather than editing it here. The first note in this format is `docs/LATENT_CONTEXT_NOTE_2026-09-04.md` in the lucier repository. The markdown file governs; the page built from it is a view for sharing, not a record.
