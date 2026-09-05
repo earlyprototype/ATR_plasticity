@@ -185,3 +185,5 @@ the clip state are not showing it.
 6. `EXP_001_RESULTS.md` — the comparison.
 7. `RESONANCE_NOTE.md` — the open question about what the loop is, kept separate from the
    measurements on purpose.
+8. `docs/CONTEXT_TO_WEIGHT_NOTE_2026-09-05.md` and `EXP_004_SPEC.md`, a proposal, not a
+   result: whether the write channel can carry a context the model was given.
