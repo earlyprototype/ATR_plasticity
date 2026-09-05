@@ -99,18 +99,22 @@ at the same eta varies more than twenty-fold across sites (measured in review: 0
 percent at `blocks.6.mlp` against 10.96 percent at `blocks.11.attn.head.7` at eta 1e-2),
 so a shared eta ladder would put some sites out of range in both directions.
 
-**Class screening.** A context enters the fact or format class only if the reference
-assigns the bound token a log probability at least 2 nats above the baseline's at the
-final query position. The first pilot's fact context failed this: GPT-2 Small gave
-"Marrowgate" a log probability of minus 11.3 with the context present against minus 9.0
-without, so that query could not test binding on this model whatever the write did.
-Screening is run on the frozen model before any fold and the screened set is written into
-the run record.
+**The fact format, and class screening.** A fact context names an invented entity and binds
+it to a **common, single-token** answer, stated verbatim ("The capital of Veltoria is
+Oslo."), and its query restates the entity ("The capital of Veltoria is"). GPT-2 Small
+binds this format in context: on the frozen model, screening eight candidates gave the
+answer a log probability 2.5 to 13.9 nats above the no-context baseline for the seven
+that used a common single-token answer, and 1.2 nats for the one that used a rare
+multi-token name ("Marrowgate"), which the model does not reproduce even with the
+context present. So every fact or format context enters its class only if the reference
+gives the bound token a log probability at least 2 nats above the baseline's at the final
+query position, and the bound answer must be one token. Screening runs on the frozen
+model before any fold, and the screened set with its gaps is written into the run record.
 
 **Context classes.** Three, twenty contexts each, of which ten are the **development set**
 and ten the **held-out set**, split by a fixed seed before any run:
 
-- **Fact.** An invented entity and one attribute, followed by a query for the attribute.
+- **Fact.** An invented entity bound to a common single-token attribute, in the format above, followed by a query that restates the entity.
 - **Format.** Four demonstrations of a mechanical transformation, followed by a fifth
   input.
 - **Topic.** Three sentences on a subject, followed by a query that continues it.
@@ -277,13 +281,17 @@ mean KL on the topic context, sat entirely at the first query position and rever
 the final one; that its fact query asked for the country rather than the bound word; and
 that its random control was the one C-23 retired. The topic result is **withdrawn**.
 
-**Second pilot, 2026-09-05.** The same three contexts with joint tokenisation, scores at
-the final position, the bound token recorded, seeded rank-one random writes matched on
-`σ₁`, swapped-context writes, and the temperature-matched baseline. Recorded as
-`pilot_v2.json`, script `experiments/exp004_pilot.py`, results and limits in `PILOT.md`.
-It motivated the class screening rule, the swapped-context primary null, and the
-final-position score. It is a pilot: one site, one seed set, one context per class,
-and the operator has ruled it is to be given little weight.
+**Second and third pilots, 2026-09-05.** The same measurement with joint tokenisation,
+scores at the final position, the bound token recorded, seeded rank-one random writes
+matched on `σ₁`, swapped-context writes, and the temperature-matched baseline. The second
+run's fact context bound an invented country to a rare multi-token name the model does
+not reproduce in context; it is recorded as `pilot_v2.json` and its fact rows mean
+nothing. The third run replaced that context with one in the fact format above and is
+recorded as `pilot_v3.json`, script `experiments/exp004_pilot.py`, results and limits in
+`PILOT.md`. Together they motivated the fact format, the screening rule, the
+swapped-context primary null, and the final-position score. They are pilots: one site,
+one seed set, one context per class, and the operator has ruled they are to be given
+little weight.
 
 **What the first draft of this file got wrong**, for the record: it decided hypotheses on
 a 95th percentile of ten random draws across 384 scanned cells, which the review computed

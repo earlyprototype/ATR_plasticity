@@ -9,12 +9,15 @@ KL over all query positions, which let the first query token (adjacent to BOS in
 the query-alone run) dominate; asked a fact query whose answer was the country,
 not the bound attribute; and compared only against an isotropic random write,
 the control register row C-23 retired. This version fixes each of those and adds
-the swapped-context control. It remains a pilot: three contexts, one site, no
-loop. Nothing from it enters the claim register.
+the swapped-context control. Its first run (``pilot_v2.json``) used a fact
+context whose answer GPT-2 Small cannot reproduce in context; the fact context
+was replaced by one in the spec's fact format and the run repeated
+(``pilot_v3.json``). It remains a pilot: three contexts, one site, no loop.
+Nothing from it enters the claim register.
 
 Run from the repository root:
 
-    .venv/bin/python experiments/exp004_pilot.py experiments/output_exp004/pilot_v2.json
+    .venv/bin/python experiments/exp004_pilot.py experiments/output_exp004/pilot_v3.json
 """
 import json
 import os
@@ -40,10 +43,13 @@ N_RANDOM = 10
 # ``bound`` is the answer the context binds, whose first token is scored.
 CASES = {
     "fact": dict(
-        C="The capital of the small nation of Veltoria is a city called Marrowgate. "
-          "Marrowgate sits on the river Oss and is famous for its glass bridges.",
+        # An invented entity bound to a common single-token answer, the fact
+        # format EXP_004_SPEC.md defines. The earlier "Marrowgate" context
+        # (pilot_v2.json) failed the screening rule: a rare multi-token answer
+        # GPT-2 Small does not reproduce even with the context present.
+        C="The capital of Veltoria is Oslo. Oslo lies on a fjord and is known for its museums.",
         Q=" The capital of Veltoria is",
-        bound=" Marrowgate",
+        bound=" Oslo",
     ),
     "format": dict(
         C="apple -> APPLE\nriver -> RIVER\nstone -> STONE\ncloud -> CLOUD",

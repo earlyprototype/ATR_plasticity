@@ -1,9 +1,10 @@
 # EXP-004 pilots
 
-*Two scratch runs of the Stage 1 measurement, both made 2026-09-05, both at
+*Three scratch runs of the Stage 1 measurement, all made 2026-09-05, all at
 `blocks.6.mlp`, one context per class, no loop. Run artifacts: `pilot_v1.json`
-(superseded) and `pilot_v2.json`. Script for the second: `experiments/exp004_pilot.py`;
-the first's script is at commit 7288f32. The operator has ruled that these runs are to be
+(superseded), `pilot_v2.json` (its fact context failed screening), `pilot_v3.json` (the
+run reported below). Script for the second and third: `experiments/exp004_pilot.py`; the
+first's script is at commit 7288f32. The operator has ruled that these runs are to be
 given little weight. Nothing here enters the claim register.*
 
 ## The first pilot, superseded
@@ -23,11 +24,27 @@ got worse, 1.73 to 1.80. That reading is withdrawn. The file `pilot_v1.json` is 
 the record of what ran; an independent reproduction of its fact row at eta 0.1 matched it
 bit for bit.
 
-## The second pilot
+## The second pilot, and the fact context that failed screening
+
+The second run fixed the tokenisation, scored at the final position, recorded the bound
+token, and added the swapped-context, rank-one random and temperature-matched controls.
+Its fact context bound the invented country Veltoria to the invented city "Marrowgate".
+With that context present, GPT-2 Small gave the bound token ` Mar` a log probability of
+minus 11.32, below the minus 8.95 it gave with no context at all, and predicted ` a` as
+the next word. The model does not reproduce a rare multi-token name in context, so no
+write could carry it. `pilot_v2.json` is kept as the record; its fact rows say nothing
+about binding, and its format and topic rows are reproduced in the third run below.
+
+Screening eight candidate fact formats on the frozen model gave the answer a log
+probability 2.5 to 13.9 nats above the no-context baseline for the seven that bound an
+invented entity to a common single-token answer, and 1.2 nats for "Marrowgate". The spec
+now requires that format and that screening.
+
+## The third pilot
 
 **Limits, stated first.** One site. One forward pass over each context, then one apply.
 One context per class. Ten seeded rank-one random writes per cell. No loop. The ceiling
-was set to 1.0, so its "clipped" flag is vacuous. Run once on CPU, 85 seconds.
+was set to 1.0, so its "clipped" flag is vacuous. Run once on CPU, 79 seconds.
 
 **What was done.** Context and query tokenised jointly, with the context's tokens checked
 to be a prefix. Reference: the model on context plus query. Baseline: the query alone
@@ -40,64 +57,71 @@ rescaled in temperature to the test's final-position entropy (temp). Scores at t
 query position only: KL divergence from the reference in nats, and, where the context
 binds an answer, the log probability of its first token.
 
-**Screening result.** The fact context fails the screening rule the spec now carries. With
-the context present, GPT-2 Small gives the bound token ` Mar` (of "Marrowgate") a log
-probability of minus 11.32, below the minus 8.95 it gives with no context at all, and its
-most likely next token is ` a`. The model does not perform this binding in context, so
-no write could be expected to carry it. The fact rows below are reported for the record
-and mean nothing about binding.
+**Contexts.** Fact: "The capital of Veltoria is Oslo. Oslo lies on a fjord and is known
+for its museums." Query: "The capital of Veltoria is". Bound token ` Oslo`, which the
+reference makes its most likely next word at log probability minus 0.10 against minus
+11.17 with no context. Format: four lines each giving a word and the same word in
+capitals; query "garden ->"; bound token ` G`, the reference's most likely next word at
+minus 1.05 against minus 6.54. Topic: three sentences about a reactor; query "The
+engineers checked the"; no bound answer.
+
+**Log probability of the bound token at the final position, higher is better.**
+
+| Context | Drift | Own write | Swap from format | Swap from topic | Swap from fact | Rank-one random, best of 10 | Temperature-matched |
+|---|---|---|---|---|---|---|---|
+| fact (baseline minus 11.17) | 0.6% | minus 11.43 | minus 11.12 | minus 11.06 | | minus 11.17 | minus 11.22 |
+| fact | 1.8% | minus 11.77 | minus 10.99 | minus 10.83 | | minus 11.12 | minus 11.27 |
+| fact | 5.9% | minus 11.88 | minus 10.58 | minus 10.27 | | minus 11.13 | minus 11.24 |
+| fact | 17.7% | minus 12.60 | minus 10.53 | minus 11.19 | | minus 10.89 | minus 11.15 |
+| format (baseline minus 6.54) | 1.2% | minus 6.54 | | minus 6.58 | minus 6.50 | minus 6.53 | minus 6.55 |
+| format | 4.1% | minus 6.44 | | minus 6.65 | minus 6.46 | minus 6.51 | minus 6.55 |
+| format | 12.2% | minus 6.22 | | minus 7.04 | minus 6.47 | minus 6.50 | minus 6.53 |
 
 **Final-position KL divergence, nats, lower is closer to the reference.**
 
 | Context | Baseline | Drift | Own write | Swap from fact | Swap from format | Swap from topic | Rank-one random, median of 10 | Temperature-matched |
 |---|---|---|---|---|---|---|---|---|
-| fact | 2.503 | 0.5% | 2.450 | | 2.470 | 2.493 | 2.503 | 2.480 |
-| fact | | 1.6% | 2.382 | | 2.404 | 2.461 | 2.500 | 2.456 |
-| fact | | 5.2% | 2.333 | | 2.176 | 2.270 | 2.501 | 2.482 |
-| fact | | 15.5% | 2.407 | | 2.064 | 1.738 | 2.497 | 2.586 |
-| format | 4.978 | 0.4% | 4.949 | 4.964 | | 4.988 | 4.978 | 4.973 |
-| format | | 1.2% | 4.881 | 4.937 | | 5.005 | 4.978 | 4.964 |
-| format | | 4.1% | 4.597 | 4.844 | | 5.052 | 4.977 | 4.958 |
-| format | | 12.2% | 4.001 | 4.514 | | 5.341 | 4.981 | 4.992 |
-| topic | 1.839 | 0.4% | 1.826 | 1.838 | 1.845 | | 1.839 | 1.839 |
-| topic | | 1.1% | 1.802 | 1.839 | 1.859 | | 1.839 | 1.840 |
-| topic | | 3.7% | 1.750 | 1.872 | 1.942 | | 1.839 | 1.841 |
-| topic | | 11.1% | 1.829 | 2.197 | 2.382 | | 1.838 | 1.846 |
+| fact | 10.110 | 0.6% | 10.353 | | 10.054 | 10.000 | 10.111 | 10.153 |
+| fact | | 1.8% | 10.672 | | 9.937 | 9.781 | 10.104 | 10.205 |
+| fact | | 5.9% | 10.773 | | 9.553 | 9.252 | 10.130 | 10.172 |
+| fact | | 17.7% | 11.460 | | 9.532 | 10.143 | 10.067 | 10.088 |
+| format | 4.978 | 0.4% | 4.949 | 4.963 | | 4.988 | 4.978 | 4.973 |
+| format | | 1.2% | 4.881 | 4.938 | | 5.005 | 4.978 | 4.964 |
+| format | | 4.1% | 4.597 | 4.876 | | 5.052 | 4.977 | 4.958 |
+| format | | 12.2% | 4.001 | 4.751 | | 5.341 | 4.981 | 4.992 |
+| topic | 1.839 | 0.4% | 1.826 | 1.841 | 1.845 | | 1.839 | 1.839 |
+| topic | | 1.1% | 1.802 | 1.845 | 1.859 | | 1.839 | 1.840 |
+| topic | | 3.7% | 1.750 | 1.876 | 1.942 | | 1.839 | 1.841 |
+| topic | | 11.1% | 1.829 | 2.081 | 2.382 | | 1.838 | 1.846 |
 
-The two smallest step sizes, at drift below 0.05 percent, moved no score by more than
-0.003 and are omitted from the table; they are in the JSON.
+The two smallest step sizes, at drift below 0.1 percent, moved no score by more than
+0.03 and are omitted from the tables; they are in the JSON.
 
-**Log probability of the bound token at the final position, higher is better.**
-
-| Context | Reference | Baseline | Drift | Own write | Best swap | Rank-one random, best of 10 | Temperature-matched |
-|---|---|---|---|---|---|---|---|
-| fact (fails screening) | minus 11.32 | minus 8.95 | 5.2% | minus 9.49 | minus 9.19 | minus 8.93 | minus 8.97 |
-| format | minus 1.05 | minus 6.54 | 4.1% | minus 6.44 | minus 6.35 | minus 6.51 | minus 6.55 |
-| format | | | 12.2% | minus 6.22 | minus 6.06 | minus 6.50 | minus 6.53 |
-
-**Per-position baseline KL, first query position to last.** Fact: 3.02, 0.46, 1.44, 8.12,
-4.75, 1.71, 2.50. Format: 4.34, 1.00, 8.61, 4.98. Topic: 4.48, 1.53, 0.56, 1.84. The first
-position is large in every case, which is the reason the mean over positions is no longer
-a score.
+**Per-position baseline KL, first query position to last.** Fact: 2.88, 0.55, 3.89, 8.03,
+4.77, 1.73, 10.11. Format: 4.34, 1.00, 8.61, 4.98. Topic: 4.48, 1.53, 0.56, 1.84. The
+first position is large in every case, which is the reason the mean over positions is no
+longer a score.
 
 ## Reading, marked as a pilot reading
 
-On the topic context the own write lowers the final-position KL by 0.09 nats at 3.7
-percent drift, 1.839 to 1.750, where both swapped writes raise it, the random writes do
-not move it, and the temperature-matched baseline does not move it. That is the one
-own-context-specific signal in the run, and it is one context, one site, one seed set.
-At 11 percent drift the own write holds near baseline while the swapped writes degrade
-by 0.4 to 0.5 nats.
+On the fact context, where the model binds the answer in context with a gap of 11 nats,
+the own-context write moves the bound token the wrong way at every drift: minus 11.17 to
+minus 11.88 at 5.9 percent, while the writes from the other two contexts move it the
+right way, to minus 10.58 and minus 10.27, and the random and temperature controls do not
+move it. The same holds on KL: the own write raises it, the swapped writes lower it. So
+a single Hebbian write at this site, made from a context the model can bind in context,
+carries no binding and is worse for the bound answer than a write made from an unrelated
+context.
 
 On the format context the own write lowers the final-position KL below both swapped
-writes at every drift, by 0.5 and 1.3 nats at 12 percent, but the bound token's log
-probability rises less under the own write than under the swap from the fact context,
-minus 6.22 against minus 6.06. The distribution moves in shape toward the reference; the
-bound answer is not specifically recovered. The reference itself has the bound token as
-its most likely next word at minus 1.05, so the target was reachable in principle.
+writes at every drift, by 0.75 and 1.34 nats at 12 percent, and raises the bound token's
+log probability by 0.32 nats where the swapped writes lower it or leave it. That is a
+context-specific movement toward the reference on the one format context tested, of a
+size that leaves the bound token 5 nats short of the reference.
 
-On the fact context the write lowers the bound token's probability, and swapped writes
-beat the own write on KL; the context failed screening, so this says nothing about
-binding.
+On the topic context the own write lowers the final-position KL by 0.09 nats at 3.7
+percent drift, where both swapped writes raise it and neither random nor temperature
+moves it. At 11 percent the own write holds near baseline while the swapped writes
+degrade by 0.2 to 0.5 nats.
 
 Any of this could change with a second context per class or a second site.
