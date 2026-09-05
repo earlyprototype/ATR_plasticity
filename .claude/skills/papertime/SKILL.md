@@ -1,11 +1,11 @@
 ---
-name: reading-note
-description: Write an operator-facing reading note that answers research questions from the record and the literature in the ATR house format, then check it and build its shareable page. Use whenever the user asks a research question that deserves a written answer rather than a chat reply, asks for a note, briefing, primer, write-up, reading note or explainer on a paper, method, model or tool, asks "how different is X from Y", "could our harness run on Z", "does this technique apply to our model", "where does this sit in the literature", or asks to turn an answer you already gave into a document or a page. Also use when asked to check an existing note against the format, to rebuild a note's page, or when a repository's rules say operator-facing answers land as reading notes. Reach for it even when the user does not say "note": a multi-part research question with a knowledgeable but non-specialist reader is this skill's case.
+name: papertime
+description: Papertime. Write an operator-facing reading note (the paper format) that answers research questions from the record and the literature in the ATR house format, then check it and build its shareable page. Use whenever the user asks a research question that deserves a written answer rather than a chat reply, asks for a note, briefing, primer, write-up, reading note or explainer on a paper, method, model or tool, asks "how different is X from Y", "could our harness run on Z", "does this technique apply to our model", "where does this sit in the literature", or asks to turn an answer you already gave into a document or a page. Triggers on "papertime", "/papertime", "paper time", "paper format", "reading note". Also use when asked to check an existing note against the format, to rebuild a note's page, or when a repository's rules say operator-facing answers land as reading notes. Reach for it even when the user does not say "note": a multi-part research question with a knowledgeable but non-specialist reader is this skill's case.
 ---
 
-# Reading note
+# Papertime
 
-A reading note is the written form of a research answer for one reader: the
+Papertime writes a reading note. A reading note is the written form of a research answer for one reader: the
 operator of a project, sharp and attentive, without a machine-learning
 background, and the final authority on what happens next. The note exists so
 that person can decide something. Everything in the format serves that: the
@@ -61,9 +61,9 @@ python3 scripts/check_note.py docs/MY_NOTE_2026-09-05.md [--register path/to/REG
 ```
 
 Paths here are relative to this skill's directory: installed as a plugin the
-script is `${CLAUDE_PLUGIN_ROOT}/skills/reading-note/scripts/check_note.py`,
+script is `${CLAUDE_PLUGIN_ROOT}/skills/papertime/scripts/check_note.py`,
 and vendored into a repository it is
-`.claude/skills/reading-note/scripts/check_note.py`. `--self-test` runs the
+`.claude/skills/papertime/scripts/check_note.py`. `--self-test` runs the
 checker's own tests.
 
 It fails on em dashes, missing structural parts (title, standfirst,
