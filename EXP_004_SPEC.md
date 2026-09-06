@@ -403,7 +403,11 @@ second draft quoted 0.98 and cited nothing; these are the committed values. Leng
 held fixed in this stage so the swapped null cannot be beaten on length alone.
 
 - **H4.4, nothing context-specific survives the loop, at the selected cell.** At `N = 10`
-  and at `N = 100`, against swapped-context loop writes at the same `N`. **Refuted** if
+  and at `N = 100`, against swapped-context loop writes at the same `N`, under the Stage
+  1b predicate in full: a context counts only if the loop write's transfer beats all nine
+  swapped loop writes, beats the C5 transfer recorded beside it, and is itself at least
+  0.1 nats, the same floor and the same control as the direct write, so that the loop
+  stage cannot claim survival on a weaker test than the direct stage. **Refuted** if
   seven or more of ten held-out contexts show specific transfer under the loop write at
   either `N`. **Supported** if at most two do at both `N` and the median specific transfer
   is below 0.1 nats at both. Otherwise not established. Register row C-70, which is
@@ -429,8 +433,13 @@ methods at matched size, each scored by the same specific transfer:
 
 1. **Best target-free write.** Whichever of `hebb` and `oja` Stage 1 selected. The two
    see the same activity and differ only in a brake, so they are one rung.
-2. **Ridge least squares, query-blind.** Twenty probe queries per context, drawn from a
-   fixed pool disjoint from the scored query. At the site, with `y = x·W + b`: regress
+2. **Ridge least squares, query-blind.** Twenty probe queries, the same twenty for every
+   context of every class, fixed here and not drawn: " The", " It is", " In the", " She
+   said", " There was", " On the other hand", " The city", " The man", " Yesterday",
+   " Nobody", " We went", " He was", " They", " One of", " After the", " Because", " The
+   history", " Many people", " According to", " The first". None is a scored or control
+   query of any class, none names any entity, and the list is not to be changed once a
+   context has been screened. At the site, with `y = x·W + b`: regress
    the with-context output `y_ctx` on the probe-alone input `x_probe` to solve
    `ΔW = argmin ‖x_probe·(W0 + ΔW) + b − y_ctx‖² + λ‖ΔW‖²`, with the ridge weight `λ`
    chosen so that `‖ΔW‖_F` equals rung 1's. The system is about forty rows (the probe
@@ -444,9 +453,14 @@ methods at matched size, each scored by the same specific transfer:
    next-word predictions.
 3. **Gradient-trained low-rank adapter, query-blind.** A rank-8 adapter `ΔW = A·B` on
    the same site, `A` of shape (3,072 by 8) and `B` of (8 by 768) at a feed-forward site,
-   trained to minimise the mean final-position KL divergence to the reference over the
-   twenty probe queries, with `ΔW` rescaled to rung 1's Frobenius norm after every step,
-   then scored on the held-out query. The procedure is fixed here so that two
+   trained to minimise the mean KL divergence to the reference over the twenty probe
+   queries, with `ΔW` rescaled to rung 1's Frobenius norm after every step, then scored
+   on the held-out query. The positions the loss covers match the positions the score
+   covers: for the topic class, each probe's final position; for the fact and format
+   classes, each probe's final position **and** the positions of the reference's own
+   greedy continuation of that probe, teacher-forced, for as many tokens as the bound
+   answer has, so that a multi-token answer is trained on every position the
+   whole-answer score reads and not only on its first token. The procedure is fixed here so that two
    implementations give one answer: `A` initialised from a normal distribution with
    standard deviation 0.01 under seed 0, `B` likewise from the same generator (a zero
    `B` would give a zero product that no rescaling can bring to the target norm), then
@@ -459,16 +473,25 @@ methods at matched size, each scored by the same specific transfer:
    expected price of writing with no target, not a finding; the finding is the size of
    the gap.
 
+**Attention-selected cells.** The ridge and adapter rungs are defined for a feed-forward
+output matrix. If a class's Stage 1 cell is a twelve-stripe attention site, Stage 3 for
+that class runs at the class's best **feed-forward** cell from the Stage 1 map instead,
+with rung 1 re-taken there on the held-out contexts, and the record says so; a stacked
+rank-8 edit across stripes and twelve per-stripe edits are different objects and neither
+is pre-registered here.
+
 **Matched size, stated precisely.** All three rungs share `‖ΔW‖_F`. Their largest singular
 values differ by construction (a rank-8 write at matched Frobenius norm has a smaller
 largest singular value than a near-rank-one write), so `σ₁`, the largest singular value,
 is reported beside every rung and the C2 distribution is run at each rung's own `σ₁`.
 Reporting `σ₁` records the mismatch; it does not remove it, and C-71 says so.
 
-- **H4.5, transfer is ordered by what the method knows.** Rung 3 exceeds rung 2, and rung
-  2 exceeds rung 1, in specific transfer on seven or more of ten decidable held-out
-  contexts, per class. **Refuted** if either ordering fails on seven or more. Between
-  those counts the row records "not decided" with the counts. Register row C-71. The row
+- **H4.5, transfer is ordered by what the method knows.** A context **shows the ladder**
+  when the whole chain holds on it: rung 3 exceeds rung 2 **and** rung 2 exceeds rung 1,
+  in specific transfer, on that one context. One count per class, of contexts showing the
+  ladder among the decidable held-out contexts, and not two marginal counts. **Supported**
+  if seven or more of ten show it. **Refuted** if seven or more fail it. Between those
+  counts the row records "not decided" with the count. Register row C-71. The row
   records the ordering and the size of each gap; the gap between rung 1 and rung 3 is the
   price of writing with no target.
 
@@ -546,7 +569,12 @@ fixed: the adapter's zero-initialised factor could not be rescaled; the screenin
 did not enforce the per-token condition the spec had just added, and one committed
 format candidate passed that should not have; control queries did not put the answer at
 the same token position as the entity query; Stage 1's three swaps per cell had no fixed
-mapping; and C5 used one temperature for every answer position.
+mapping; and C5 used one temperature for every answer position. Codex round seven added
+six more, also fixed: H4.4 counted loop writes on a weaker predicate than Stage 1b; the
+Stage 3 probe queries were not fixed; H4.5 could be read as two marginal counts; Stage 3
+was undefined at an attention-selected cell; the adapter's loss covered only the first
+answer token; and PILOT.md called the format pilot "context-specific" on cross-class
+swaps alone.
 
 **What the second draft got wrong**, found by three independent reviews and Codex rounds
 two and three: its fact-class score could not tell binding from token priming, and on one

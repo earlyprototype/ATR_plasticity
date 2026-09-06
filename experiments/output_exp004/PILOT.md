@@ -188,9 +188,13 @@ worse than the baseline and worse than the swap from the fact context. On KL the
 write is below both swapped writes at every drift, by 0.75 and 1.34 nats at 12.2 percent.
 On the first token alone, the third run's score, the own write gains 0.31 nats at 12.2
 percent; the whole-answer score shows that gain is paid for on the following tokens.
-So there is a context-specific movement toward the reference at drifts up to 4.1 percent,
-of a size that leaves the whole answer 8.6 nats short of the reference, and it reverses
-at 12.2 percent.
+So at drifts up to 4.1 percent the own write moves the whole answer toward the reference
+where the two cross-class swapped writes do not, of a size that leaves it 8.6 nats short
+of the reference, and the movement reverses at 12.2 percent. Whether that movement is
+specific to this context or to the class of uppercase-transformation contexts cannot be
+told here: the pilot has one format context, no same-class swap, and no format control
+query, and a write that strengthened the transformation in general would beat both
+available swaps just the same.
 
 On the topic context the own write lowers the final-position KL by 0.09 nats at 3.7
 percent drift, where both swapped writes raise it and neither random nor temperature
