@@ -231,8 +231,12 @@ answer token sits at minus 2.2 in the reference despite a 7.5-nat gap)
 **Candidate pool and split.** A pool of at least forty candidates per class is written
 before any run and screened on the frozen model. The first twenty that pass, in pool
 order, form the class; the pool, every pass or fail and every gap go to the run record.
-Each class is then split by a fixed seed into ten **development** contexts and ten
-**held-out** contexts. Topic contexts are written to one fixed token count, checked at
+Each class is then split into ten **development** contexts and ten **held-out** contexts
+by one fixed procedure: the twenty passing contexts, in pool order, are permuted by
+`numpy.random.default_rng(4).permutation(20)`; the first ten of the permuted order are
+development and the last ten held-out, and that order is also the index order the
+Stage 1 swap mapping uses. The resulting membership is written to the run record before
+any cell is scored. Topic contexts are written to one fixed token count, checked at
 screening, because the loop keeps a context's length (Stage 2).
 
 **Context classes.**
@@ -409,7 +413,10 @@ held fixed in this stage so the swapped null cannot be beaten on length alone.
   0.1 nats, the same floor and the same control as the direct write, so that the loop
   stage cannot claim survival on a weaker test than the direct stage. **Refuted** if
   seven or more of ten held-out contexts show specific transfer under the loop write at
-  either `N`. **Supported** if at most two do at both `N` and the median specific transfer
+  either `N`, with the two loop lengths calibrated **jointly**: the permutation of write
+  labels is applied to both ten-by-ten score matrices at once and the null statistic is
+  the larger of the two counts, so that testing two lengths and taking either does not
+  inflate the chance of a spurious refutation. **Supported** if at most two do at both `N` and the median specific transfer
   is below 0.1 nats at both. Otherwise not established. Register row C-70, which is
   restricted to this one cell:
   a cell that best writes a context directly need not be the cell that best keeps it
@@ -457,10 +464,12 @@ methods at matched size, each scored by the same specific transfer:
    queries, with `ΔW` rescaled to rung 1's Frobenius norm after every step, then scored
    on the held-out query. The positions the loss covers match the positions the score
    covers: for the topic class, each probe's final position; for the fact and format
-   classes, each probe's final position **and** the positions of the reference's own
-   greedy continuation of that probe, teacher-forced, for as many tokens as the bound
-   answer has, so that a multi-token answer is trained on every position the
-   whole-answer score reads and not only on its first token. The procedure is fixed here so that two
+   classes, each probe's final position **and** the positions of the context's own
+   bound answer appended to that probe and teacher-forced, all but its last token, so
+   that the adapter is trained on the same conditional distributions the whole-answer
+   score reads (query, then the answer's gold prefix) and not on a greedy continuation
+   that may differ from the answer. The bound answer is known to the fold and the
+   training alike; the scored query is seen by neither. The procedure is fixed here so that two
    implementations give one answer: `A` initialised from a normal distribution with
    standard deviation 0.01 under seed 0, `B` likewise from the same generator (a zero
    `B` would give a zero product that no rescaling can bring to the target norm), then
@@ -487,11 +496,14 @@ is reported beside every rung and the C2 distribution is run at each rung's own 
 Reporting `σ₁` records the mismatch; it does not remove it, and C-71 says so.
 
 - **H4.5, transfer is ordered by what the method knows.** A context **shows the ladder**
-  when the whole chain holds on it: rung 3 exceeds rung 2 **and** rung 2 exceeds rung 1,
-  in specific transfer, on that one context. One count per class, of contexts showing the
-  ladder among the decidable held-out contexts, and not two marginal counts. **Supported**
-  if seven or more of ten show it. **Refuted** if seven or more fail it. Between those
-  counts the row records "not decided" with the count. Register row C-71. The row
+  when the whole chain holds on it with the same floor as every other decision: rung 3
+  exceeds rung 2 by at least 0.1 nats **and** rung 2 exceeds rung 1 by at least 0.1
+  nats, in specific transfer, on that one context. A context **breaks the ladder** when
+  either inequality is reversed by at least 0.1 nats. One count per class of each, among
+  the decidable held-out contexts, and not two marginal counts. **Supported** if seven
+  or more of ten show it. **Refuted** if seven or more break it. Contexts whose gaps sit
+  within 0.1 nats of zero count for neither, and any other outcome is recorded as "not
+  decided" with both counts. Register row C-71. The row
   records the ordering and the size of each gap; the gap between rung 1 and rung 3 is the
   price of writing with no target.
 
@@ -574,7 +586,11 @@ six more, also fixed: H4.4 counted loop writes on a weaker predicate than Stage 
 Stage 3 probe queries were not fixed; H4.5 could be read as two marginal counts; Stage 3
 was undefined at an attention-selected cell; the adapter's loss covered only the first
 answer token; and PILOT.md called the format pilot "context-specific" on cross-class
-swaps alone.
+swaps alone. Codex round eight added four more, also fixed: the split's "fixed seed"
+named no seed, generator or procedure; the ladder counted any strict ordering without
+the 0.1-nat floor or an equivalence rule; the adapter's loss used a greedy continuation
+rather than the bound answer's own tokens; and H4.4's two loop lengths were calibrated
+one at a time.
 
 **What the second draft got wrong**, found by three independent reviews and Codex rounds
 two and three: its fact-class score could not tell binding from token priming, and on one
