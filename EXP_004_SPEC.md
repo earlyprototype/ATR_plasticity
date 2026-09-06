@@ -10,10 +10,10 @@ registry by `agent:ctx-to-weight` on 2026-09-05. Rows C-64 to C-68 are claimed o
 branches and pull requests (EXP-003 on PR #59, the register reconciliation on PR #61),
 which is why this experiment's rows begin at C-69.
 **Cost:** Stage 1 about four hours of CPU; Stage 1b about three quarters of an hour; Stage 2 about a quarter of an hour; Stage 3 hours, most of it the gradient-trained
-arm. Timings are from `experiments/output_exp004/measurements_v1.json` (`timings`): 0.34
-seconds per fold on a 24-token context at a feed-forward site, 0.37 at a twelve-stripe
-attention site, and 0.30 seconds per seven-token query pass, on the session's CPU with
-four threads. Every cost below is that arithmetic.
+arm. Timings are from `experiments/output_exp004/measurements_v1.json` (`timings`): 0.32
+seconds per fold on a 24-token context at a feed-forward site, 0.33 at a twelve-stripe
+attention site, and 0.28 seconds per seven-token query pass, on the session's CPU with
+four threads; the file's earlier runs on the same machine gave 0.34, 0.37 and 0.30. Every cost below is that arithmetic.
 **Supporting measurements:** every number quoted in this file that is not from a pilot
 cites `experiments/output_exp004/measurements_v1.json`, produced by
 `experiments/exp004_measurements.py`; the key in that file is given in brackets.
@@ -44,8 +44,8 @@ A second word carries the fact and format classes: **binding**. A write from "Th
 of Morvane is Tokyo" raises the token ` Tokyo` after any capital-shaped prompt, because
 ` Tokyo` is among the directions the context activated. Measured at `blocks.6.mlp` at six
 percent drift, that write lifts ` Tokyo` by 1.31 nats on "The capital of Morvane is" and by
-1.54 and 1.59 nats on "The capital of Norway is" and "The capital of France is", which
-never name Morvane [`binding_vs_priming`]. A score that reads only the entity query would
+1.72 and 1.98 nats on "The capital of Spain is" and "The capital of Egypt is", which
+never name Morvane and whose true answers are not Tokyo [`binding_vs_priming`]. A score that reads only the entity query would
 count that as binding transferred. It is token priming, and the swapped-context null does
 not catch it, because no other context contains the answer token. Every fact and format
 score is therefore taken on the entity query **and** on control queries that share the
@@ -105,9 +105,13 @@ it is excluded from every decision.
   be re-derived.
 
 **Control queries, for the fact and format classes.** Each fact context carries two
-control queries in the same frame as its query that name a different, real entity ("The
-capital of Norway is", "The capital of France is" for a capital-city fact), screened so
-the frozen model does not already favour the bound answer on them. Each format context
+control queries in the same frame as its query that name a different, real entity **whose
+true answer is not the bound answer** ("The capital of Spain is", "The capital of Egypt
+is" for a fact bound to Oslo), screened so the frozen model's top prediction on each is
+not the bound token. A control whose true answer is the bound token ("The capital of
+Norway is" for Oslo, which the previous revision used) would let a write that merely
+strengthens the real association lift the token there, and subtracting that lift would
+erase genuine entity-specific transfer. Each format context
 carries two control queries in the same frame with a different input word ("water ->" for
 a query "garden ->"), scored on the original bound answer. A write that raises the bound
 answer on the control queries as much as on the entity query has primed a token, not
@@ -124,7 +128,7 @@ between two transfers.
 query minus the larger of its transfers on the two control queries. The raw transfer on
 the entity query is reported beside it as **priming**. On the three fact contexts measured
 at `blocks.6.mlp`, no write, own or swapped, has positive binding transfer; the own
-writes' values are minus 1.01, minus 1.05 and minus 0.29 nats [`binding_vs_priming`].
+writes' values are minus 1.12, minus 0.71 and minus 0.68 nats [`binding_vs_priming`].
 That is a measurement at one site and one drift, and it is why the decision cannot be
 made on the entity query alone.
 
@@ -134,7 +138,13 @@ For the fact and format classes, the same with binding transfer in place of tran
 context **shows specific transfer** when this quantity is positive, that is, when the own
 write beats every swapped write. With nine swapped writes, the probability of that under
 no effect is exactly one in ten per context; with the three swaps Stage 1 uses for
-selection it is one in four. The second draft's "95th percentile of twenty-nine swaps"
+selection it is one in four. The ten decisions in a class share one pool of ten writes,
+so the ten indicators are not independent trials: the null distribution of the
+**count** of contexts showing specific transfer is obtained by permuting the write labels
+over the ten-by-ten matrix of scores (every context scored under every write) and
+counting, over ten thousand permutations, how often seven or more contexts have their
+assigned write beat the other nine. The binomial figures quoted below are the
+independent-trials approximation and the permutation count is what decides. The second draft's "95th percentile of twenty-nine swaps"
 gave a probability that depended on a percentile convention it never named (0.033 for
 the maximum, 0.067 for the second largest, 0.078 for linear interpolation), and is
 replaced by the maximum, which needs no convention.
@@ -153,9 +163,12 @@ the rule observes the site's input and output activity at every context position
 the rule. Call `apply()` once. The rule is never installed during a query pass. The
 position mean the rule takes **includes the beginning-of-sequence position**, whose
 activity at `blocks.6.mlp` is two and a half times the median token's (output norm 60.6
-against 19 to 24) and is identical for every context: it carries 5 to 20 percent of each
-pilot write's squared norm, and the writes' pairwise cosines fall by up to 0.10 when it
-is removed [`bos_share`]. Excluding it would need a position mask the adapter does not
+against 19 to 24) and is identical for every context: its projection onto each pilot
+write accounts for 4 to 20 percent of the write's squared norm (the projection of the
+rest accounts for the remainder, so the two sum to one; a squared ratio of norms, which
+the previous push quoted, is not a decomposition because the two parts are not
+orthogonal), and the writes' pairwise cosines fall by up to 0.10 when it is removed
+[`bos_share`]. Excluding it would need a position mask the adapter does not
 have, so this spec records the share per write instead and states that every write shares
 that component; the swapped-context null shares it too, which is the point of that null.
 
@@ -236,8 +249,9 @@ rest, together with the rule's `n_applied` unchanged. The rule object's own coun
 not the detector: they read zero whenever the object is not installed, and the third
 pilot's assertion on them sat after `revert()`, which zeroes them, so it could not fail.
 One **deliberate-leak arm** per stage installs the rule during a query pass and shows the
-detector at two hooks with the score bit-identical, because the hook only accumulates,
-then calls `apply()` and shows the score move. The fourth pilot runs this arm
+detector at the installed count, two hooks per stripe (two for a feed-forward site,
+twenty-four for a twelve-stripe attention site), with the score bit-identical, because
+the hook only accumulates, then calls `apply()` and shows the score move. The fourth pilot runs this arm
 (`pilot_v4.json`, `c3_deliberate_leak`).
 
 **C4, swapped-context writes.** The primary null. For a query from context `i`, install
@@ -293,19 +307,29 @@ the two control queries for fact and format.
 
 **Decision rule.** A held-out context **shows specific transfer** if its own-context
 transfer (binding transfer for fact and format) exceeds all nine same-class swapped
-transfers and exceeds the C5 transfer, and, for the topic class, is at least 0.1 nats.
-Under no effect a context does the first with probability one in ten; seven of ten by
-chance has probability about nine in a million, and three classes are tested. The 0.1-nat
-floor for topic is a pre-registered effect size: the pilot's topic effect was 0.09 nats
-on a reference-to-baseline gap of 1.84, and a sign test without a floor would let an
-effect of that size count.
+transfers and exceeds the C5 transfer on the same scale (the C5 binding transfer for fact
+and format, computed from C5 on the entity query and on the control queries by the same
+subtraction), and, for the topic class, is at least 0.1 nats. Under no effect a context
+does the first with probability one in ten; seven of ten by chance has probability about
+nine in a million under independence, and the permutation count of section 2 is what
+decides; three classes are tested. The 0.1-nat floor for topic is a pre-registered
+effect size: the pilot's topic effect was 0.09 nats on a reference-to-baseline gap of
+1.84, and a sign test without a floor would let an effect of that size count.
 
-- **H4.1, binding does not transfer.** For the fact class and for the format class, fewer
-  than seven of ten held-out contexts show specific transfer at the selected cell.
-  **Refuted** if seven or more do in either class. Register row C-69.
-- **H4.2, colouring transfers.** For the topic class, seven or more of ten held-out
-  contexts show specific transfer at the selected cell. **Refuted** if fewer do. Register
-  row C-69.
+**Three outcomes, not two.** Missing seven of ten does not establish absence: six
+swap-beating contexts would mean most held-out contexts transferred. Each hypothesis
+below therefore has a refuting count, a supporting count with an equivalence bound, and
+a zone between them recorded as **not established**.
+
+- **H4.1, binding does not transfer.** For the fact class and for the format class.
+  **Refuted** if seven or more of ten held-out contexts show specific transfer at the
+  selected cell. **Supported** if at most two of ten do and the median binding transfer
+  over the ten is below 0.1 nats, the equivalence bound. Three to six of ten, or a median
+  at or above the bound, is not established. Register row C-69.
+- **H4.2, colouring transfers.** For the topic class. **Supported** if seven or more of
+  ten held-out contexts show specific transfer at the selected cell. **Refuted** if at
+  most two do and the median specific transfer is below 0.1 nats. Otherwise not
+  established. Register row C-69.
 
 The Stage 1 map also reports, descriptively and without a hypothesis, whether the selected
 cells fall on feed-forward or attention sites, and the priming lifts beside every binding
@@ -329,8 +353,13 @@ average would dilute a context write by `1/(N+1)`. Swapped-context loop writes a
 `N` from the nine other held-out topic contexts, rescaled as in C4.
 
 **What the loop does to the context, measured.** The injection overwrites the first
-block's input wholesale, so from the first iteration the context survives only as a
-sequence length (`atr_bridge.py`, citing the parent's `docs/TECHNICAL.md`). Measured at
+block's input wholesale, so the context's **tokens** are never read again after the
+context pass, and the prompt string survives only as a sequence length (`atr_bridge.py`,
+citing the parent's `docs/TECHNICAL.md`). The **state** the loop starts from is the
+context's own residual stream, so whatever the loop keeps of that state is context
+information, and how much of it survives is exactly what this stage measures; the
+previous revision's "survives only as a sequence length" would have read a surviving
+effect as impossible. Measured at
 `blocks.6.mlp` with `hebb` at step size 1e-3 on two topic contexts of different length:
 the loop writes from the two contexts have cosine 0.72 at one iteration and 0.96 at ten,
 against 0.41 for their context writes; each loop write's cosine with its own context write
@@ -340,9 +369,11 @@ second draft quoted 0.98 and cited nothing; these are the committed values. Leng
 held fixed in this stage so the swapped null cannot be beaten on length alone.
 
 - **H4.4, nothing context-specific survives the loop, at the selected cell.** At `N = 10`
-  and at `N = 100`, fewer than seven of ten held-out contexts show specific transfer under
-  the loop write, against swapped-context loop writes at the same `N`. **Refuted** if
-  seven or more do at either `N`. Register row C-70, which is restricted to this one cell:
+  and at `N = 100`, against swapped-context loop writes at the same `N`. **Refuted** if
+  seven or more of ten held-out contexts show specific transfer under the loop write at
+  either `N`. **Supported** if at most two do at both `N` and the median specific transfer
+  is below 0.1 nats at both. Otherwise not established. Register row C-70, which is
+  restricted to this one cell:
   a cell that best writes a context directly need not be the cell that best keeps it
   through the loop, and selecting loop cells on the development set would cost a second
   map. The restriction is stated in the row.
@@ -353,7 +384,9 @@ Whether a free-running loop keeps anything of the context that seeded it is a qu
 published work has asked, and either answer is a result.
 
 **Cost.** Ten contexts, three trajectories of 1, 10 and 100 iterations each, thirty loop
-writes and three hundred query passes: about a quarter of an hour.
+writes, three hundred own and swapped query passes, and C2's one hundred random writes at
+each of the two deciding cells (`N = 10` and `N = 100`) for each context, two thousand
+more passes, with C5 beside each: about half an hour.
 
 ## 7. Stage 3: the fidelity ladder
 
@@ -449,6 +482,17 @@ cannot construct; it selected and tested Stage 2 on the same contexts; it promis
 drift across rules without saying how; it undercounted the control cost five-fold; and it
 attributed to the parent a "position-uniform by iteration 10" finding that is not in the
 parent's record.
+
+**What the third revision's first push got wrong**, found by Codex round four on
+2026-09-06 and fixed the same day: its control queries could name the real entity whose
+capital is the bound answer, so a strengthened real association would have been
+subtracted as priming; its C5 comparison for fact and format put a raw transfer against
+a binding transfer; its hypotheses read a miss of seven of ten as support for absence; its
+seven-of-ten tail assumed ten independent trials where the ten decisions share one write
+pool; its leak detector expected two hooks at a twelve-stripe site that installs
+twenty-four; its Stage 2 cost omitted C2; its beginning-of-sequence share was a squared
+ratio that is not a decomposition; and it said the context "survives only as a sequence
+length" through the loop, which would have read a surviving effect as impossible.
 
 **What the second draft got wrong**, found by three independent reviews and Codex rounds
 two and three: its fact-class score could not tell binding from token priming, and on one

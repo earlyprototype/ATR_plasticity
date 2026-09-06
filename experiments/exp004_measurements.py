@@ -185,7 +185,10 @@ print("screening done", flush=True)
 
 # ------------------------------------------------------- binding vs priming
 ETA = 0.1
-CONTROL_QUERIES = [" The capital of Norway is", " The capital of France is"]
+# Control queries keep the frame but name real entities whose true capital is
+# not any of the three bound answers (Oslo, Paris, Tokyo), so a write that
+# strengthens a real association cannot raise the bound token on a control.
+CONTROL_QUERIES = [" The capital of Spain is", " The capital of Egypt is"]
 facts3 = ["Veltoria/Oslo", "Brannock/Paris", "Morvane/Tokyo"]
 writes = {}
 for name in facts3:
@@ -193,7 +196,14 @@ for name in facts3:
     c, _ = split(C, Q)
     writes[name] = fold(SITE, "hebb", ETA, seq(c))
 bvp = {"eta": ETA, "rescaling": "each foreign write rescaled to the own write's Frobenius norm, as in the pilot",
-       "control_queries": CONTROL_QUERIES, "rows": {}}
+       "control_queries": CONTROL_QUERIES,
+       "control_rule": "control entities are real, their true capital is none of the bound answers, and the "
+                       "frozen model's top prediction on each control query is not the bound token",
+       "rows": {}}
+for cq in CONTROL_QUERIES:
+    top = tok.decode([logits(seq(ids(cq)))[-1].argmax().item()])
+    bvp.setdefault("control_top1", {})[cq] = top
+    assert top not in (" Oslo", " Paris", " Tokyo"), f"control query {cq!r} predicts a bound answer: {top!r}"
 for name in facts3:
     C, Q, A = FACT_CANDIDATES[name]
     c, q = split(C, Q)
@@ -280,7 +290,10 @@ print("c0", c0, flush=True)
 
 # ---------------------------------------------------------------- BOS share
 bos = {"site": SITE, "rows": {}, "note": "x is blocks.6.mlp.hook_post, y is blocks.6.hook_mlp_out; the Hebbian "
-       "term is the position mean of x y^T; the BOS row is position 0"}
+       "term is the position mean of x y^T; the BOS row is position 0. The write is full = bos + rest. "
+       "'bos_projection_share' is <bos, full> / |full|^2, which with rest's projection sums to one and is "
+       "the decomposition; 'bos_relative_magnitude' is |bos| / |full|; 'bos_term_squared_share' is "
+       "|bos|^2 / |full|^2 and is NOT a decomposition because bos and rest are not orthogonal"}
 bos_terms, full_terms = {}, {}
 for name, C in PILOT_CONTEXTS.items():
     with torch.no_grad():
@@ -293,6 +306,9 @@ for name, C in PILOT_CONTEXTS.items():
     bos["rows"][name] = {"n_positions": x.shape[0], "y_norm_bos": y[0].norm().item(),
                          "y_norm_median_others": y[1:].norm(dim=1).median().item(),
                          "bos_term_squared_share": (b.norm() ** 2 / full.norm() ** 2).item(),
+                         "bos_relative_magnitude": (b.norm() / full.norm()).item(),
+                         "bos_projection_share": ((b * full).sum() / full.norm() ** 2).item(),
+                         "rest_projection_share": ((rest * full).sum() / full.norm() ** 2).item(),
                          "cosine_full_vs_without_bos": cos(full, rest)}
 bos["cosines_between_bos_terms"] = {f"{a} | {b_}": cos(bos_terms[a], bos_terms[b_]) for i, a in enumerate(names) for b_ in names[i + 1:]}
 bos["cosines_between_writes_without_bos"] = {f"{a} | {b_}": cos(full_terms[a] - bos_terms[a], full_terms[b_] - bos_terms[b_])

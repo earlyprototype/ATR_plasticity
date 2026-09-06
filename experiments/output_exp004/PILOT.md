@@ -177,7 +177,8 @@ carries no binding and is worse for the bound answer than a write made from an u
 context. A further measurement on three fact contexts in the same format
 (`measurements_v1.json`, `binding_vs_priming`) shows why the entity-query score alone
 cannot settle binding: a write from "The capital of Morvane is Tokyo" lifts ` Tokyo` by
-1.31 nats on its own query and by more on queries naming Norway and France.
+1.31 nats on its own query and by 1.72 and 1.98 nats on queries naming Spain and Egypt,
+whose true answers are not Tokyo.
 
 On the format context the reading depends on the score. On the whole answer, the own
 write is the best arm at 0.4, 1.2 and 4.1 percent drift, reaching minus 10.27 at 4.1

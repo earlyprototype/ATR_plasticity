@@ -287,41 +287,42 @@
   "eta": 0.1,
   "rescaling": "each foreign write rescaled to the own write's Frobenius norm, as in the pilot",
   "control_queries": [
-   " The capital of Norway is",
-   " The capital of France is"
+   " The capital of Spain is",
+   " The capital of Egypt is"
   ],
+  "control_rule": "control entities are real, their true capital is none of the bound answers, and the frozen model's top prediction on each control query is not the bound token",
   "rows": {
    "Veltoria/Oslo": {
     "drift": 0.05911117392594049,
     "baseline_entity_query": -11.17478666049562,
     "baseline_control_queries": {
-     " The capital of Norway is": -7.773532554020684,
-     " The capital of France is": -13.478742331726561
+     " The capital of Spain is": -13.117672436208204,
+     " The capital of Egypt is": -14.768051535815182
     },
     "writes": {
      "Veltoria/Oslo": {
       "lift_entity_query": -0.7043259294267781,
       "lift_control_queries": {
-       " The capital of Norway is": -0.870820706199491,
-       " The capital of France is": 0.3074229463120517
+       " The capital of Spain is": 0.17016812026136385,
+       " The capital of Egypt is": 0.41581772679568907
       },
-      "binding_transfer": -1.0117488757388298
+      "binding_transfer": -1.1201436562224671
      },
      "Brannock/Paris": {
       "lift_entity_query": 0.08596092528449084,
       "lift_control_queries": {
-       " The capital of Norway is": 0.07592214240160544,
-       " The capital of France is": 1.0628200049270013
+       " The capital of Spain is": 0.8839169865433316,
+       " The capital of Egypt is": 1.3147648934850693
       },
-      "binding_transfer": -0.9768590796425105
+      "binding_transfer": -1.2288039682005785
      },
      "Morvane/Tokyo": {
       "lift_entity_query": 0.27934589736563353,
       "lift_control_queries": {
-       " The capital of Norway is": 0.18021219290652635,
-       " The capital of France is": 1.3491610686428093
+       " The capital of Spain is": 1.1996116929011915,
+       " The capital of Egypt is": 1.6381104683288896
       },
-      "binding_transfer": -1.0698151712771757
+      "binding_transfer": -1.358764570963256
      }
     }
    },
@@ -329,33 +330,33 @@
     "drift": 0.06193895441057124,
     "baseline_entity_query": -8.866454115135845,
     "baseline_control_queries": {
-     " The capital of Norway is": -9.66598431717376,
-     " The capital of France is": -5.792413443787109
+     " The capital of Spain is": -8.109941952199415,
+     " The capital of Egypt is": -10.10832300874609
     },
     "writes": {
      "Veltoria/Oslo": {
       "lift_entity_query": 0.22850785666698492,
       "lift_control_queries": {
-       " The capital of Norway is": 1.0511180732181824,
-       " The capital of France is": -0.3584943798319138
+       " The capital of Spain is": 0.28492763955391887,
+       " The capital of Egypt is": 0.6529162206583425
       },
-      "binding_transfer": -0.8226102165511975
+      "binding_transfer": -0.4244083639913576
      },
      "Brannock/Paris": {
       "lift_entity_query": 0.3999935133926531,
       "lift_control_queries": {
-       " The capital of Norway is": 1.4484831234457207,
-       " The capital of France is": 0.2377694336480003
+       " The capital of Spain is": 0.7182338408513766,
+       " The capital of Egypt is": 1.1050437509554456
       },
-      "binding_transfer": -1.0484896100530676
+      "binding_transfer": -0.7050502375627925
      },
      "Morvane/Tokyo": {
       "lift_entity_query": 0.8549497786844746,
       "lift_control_queries": {
-       " The capital of Norway is": 1.7393436900094716,
-       " The capital of France is": 0.5671491481977258
+       " The capital of Spain is": 1.0251898388939633,
+       " The capital of Egypt is": 1.5118900454358393
       },
-      "binding_transfer": -0.884393911324997
+      "binding_transfer": -0.6569402667513646
      }
     }
    },
@@ -363,36 +364,40 @@
     "drift": 0.06099035346400826,
     "baseline_entity_query": -9.159551164903618,
     "baseline_control_queries": {
-     " The capital of Norway is": -9.481918975224296,
-     " The capital of France is": -10.067520350677977
+     " The capital of Spain is": -9.79080104109712,
+     " The capital of Egypt is": -11.473545939654294
     },
     "writes": {
      "Veltoria/Oslo": {
       "lift_entity_query": 0.031659457428141025,
       "lift_control_queries": {
-       " The capital of Norway is": 0.35268553311559714,
-       " The capital of France is": 0.5934885278823714
+       " The capital of Spain is": 0.6441475222090514,
+       " The capital of Egypt is": 0.6493723713612045
       },
-      "binding_transfer": -0.5618290704542304
+      "binding_transfer": -0.6177129139330635
      },
      "Brannock/Paris": {
       "lift_entity_query": 0.4236107988505644,
       "lift_control_queries": {
-       " The capital of Norway is": 0.6522007883062688,
-       " The capital of France is": 0.7616655013515672
+       " The capital of Spain is": 0.8481312272033659,
+       " The capital of Egypt is": 0.9846368956742566
       },
-      "binding_transfer": -0.3380547025010028
+      "binding_transfer": -0.5610260968236922
      },
      "Morvane/Tokyo": {
       "lift_entity_query": 1.3060900180489368,
       "lift_control_queries": {
-       " The capital of Norway is": 1.5376985995429227,
-       " The capital of France is": 1.5917989960165926
+       " The capital of Spain is": 1.7209862070096822,
+       " The capital of Egypt is": 1.9832811714353156
       },
-      "binding_transfer": -0.2857089779676558
+      "binding_transfer": -0.6771911533863788
      }
     }
    }
+  },
+  "control_top1": {
+   " The capital of Spain is": " the",
+   " The capital of Egypt is": " the"
   }
  },
  "sigma1_share": {
@@ -873,6 +878,9 @@
     "y_norm_bos": 60.6182083465515,
     "y_norm_median_others": 24.243284378254426,
     "bos_term_squared_share": 0.07401052996114285,
+    "bos_relative_magnitude": 0.27204876393974453,
+    "bos_projection_share": 0.05922442062380257,
+    "rest_projection_share": 0.9407755793762266,
     "cosine_full_vs_without_bos": 0.9624023412231337
    },
    "fact (pilot_v2, Marrowgate)": {
@@ -880,6 +888,9 @@
     "y_norm_bos": 60.6182083465515,
     "y_norm_median_others": 22.316616456059602,
     "bos_term_squared_share": 0.04552012823918001,
+    "bos_relative_magnitude": 0.21335446618053255,
+    "bos_projection_share": 0.034580047786119145,
+    "rest_projection_share": 0.9654199522138687,
     "cosine_full_vs_without_bos": 0.9770375913876297
    },
    "format (pilot_v2, v3)": {
@@ -887,6 +898,9 @@
     "y_norm_bos": 60.6182083465515,
     "y_norm_median_others": 19.061929877407465,
     "bos_term_squared_share": 0.2038516031738555,
+    "bos_relative_magnitude": 0.45149928369140907,
+    "bos_projection_share": 0.20028933166126106,
+    "rest_projection_share": 0.7997106683387286,
     "cosine_full_vs_without_bos": 0.8922803339860942
    },
    "topic (pilot_v2, v3)": {
@@ -894,10 +908,13 @@
     "y_norm_bos": 60.6182083465515,
     "y_norm_median_others": 19.139414901294295,
     "bos_term_squared_share": 0.10080170159526891,
+    "bos_relative_magnitude": 0.31749283707710463,
+    "bos_projection_share": 0.0776049733395327,
+    "rest_projection_share": 0.9223950266604546,
     "cosine_full_vs_without_bos": 0.9485606715298175
    }
   },
-  "note": "x is blocks.6.mlp.hook_post, y is blocks.6.hook_mlp_out; the Hebbian term is the position mean of x y^T; the BOS row is position 0",
+  "note": "x is blocks.6.mlp.hook_post, y is blocks.6.hook_mlp_out; the Hebbian term is the position mean of x y^T; the BOS row is position 0. The write is full = bos + rest. 'bos_projection_share' is <bos, full> / |full|^2, which with rest's projection sums to one and is the decomposition; 'bos_relative_magnitude' is |bos| / |full|; 'bos_term_squared_share' is |bos|^2 / |full|^2 and is NOT a decomposition because bos and rest are not orthogonal",
   "cosines_between_bos_terms": {
    "fact (pilot_v3) | fact (pilot_v2, Marrowgate)": 1.0000000000000064,
    "fact (pilot_v3) | format (pilot_v2, v3)": 1.0000000000000193,
@@ -977,10 +994,10 @@
   }
  },
  "timings": {
-  "seconds_per_fold_mlp": 0.33814163208007814,
-  "seconds_per_fold_12_stripes": 0.37140798568725586,
-  "seconds_per_query_pass_7_tokens": 0.30173941850662234,
+  "seconds_per_fold_mlp": 0.3227752685546875,
+  "seconds_per_fold_12_stripes": 0.3348393440246582,
+  "seconds_per_query_pass_7_tokens": 0.2780466914176941,
   "context_tokens": 24
  },
- "elapsed_s": 118.01368260383606
+ "elapsed_s": 119.83224534988403
 }
