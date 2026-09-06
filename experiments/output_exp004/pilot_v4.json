@@ -152,7 +152,13 @@
       "T": 0.9999063072392438,
       "kl_final": 10.110279645748317,
       "bound_logprob": -11.175292026035818,
-      "bound_logprob_full": -11.175292026035818
+      "bound_logprob_full": -11.175292026035818,
+      "bound_logprob_per_token": [
+       -11.175292026035818
+      ],
+      "T_per_position": [
+       0.9999063072392438
+      ]
      }
     },
     {
@@ -244,7 +250,13 @@
       "T": 0.9990734792300122,
       "kl_final": 10.114574089754694,
       "bound_logprob": -11.179791489574976,
-      "bound_logprob_full": -11.179791489574976
+      "bound_logprob_full": -11.179791489574976,
+      "bound_logprob_per_token": [
+       -11.179791489574976
+      ],
+      "T_per_position": [
+       0.9990734792300122
+      ]
      }
     },
     {
@@ -336,7 +348,13 @@
       "T": 0.9917920325333134,
       "kl_final": 10.152670723402522,
       "bound_logprob": -11.219695281886553,
-      "bound_logprob_full": -11.219695281886553
+      "bound_logprob_full": -11.219695281886553,
+      "bound_logprob_per_token": [
+       -11.219695281886553
+      ],
+      "T_per_position": [
+       0.9917920325333134
+      ]
      }
     },
     {
@@ -428,7 +446,13 @@
       "T": 0.982125825416575,
       "kl_final": 10.204801650527662,
       "bound_logprob": -11.274266631427638,
-      "bound_logprob_full": -11.274266631427638
+      "bound_logprob_full": -11.274266631427638,
+      "bound_logprob_per_token": [
+       -11.274266631427638
+      ],
+      "T_per_position": [
+       0.982125825416575
+      ]
      }
     },
     {
@@ -520,7 +544,13 @@
       "T": 0.988162845762433,
       "kl_final": 10.172032433335463,
       "bound_logprob": -11.239967653030622,
-      "bound_logprob_full": -11.239967653030622
+      "bound_logprob_full": -11.239967653030622,
+      "bound_logprob_per_token": [
+       -11.239967653030622
+      ],
+      "T_per_position": [
+       0.988162845762433
+      ]
      }
     },
     {
@@ -612,7 +642,13 @@
       "T": 1.0042339615105527,
       "kl_final": 10.088169237686825,
       "bound_logprob": -11.152121742112426,
-      "bound_logprob_full": -11.152121742112426
+      "bound_logprob_full": -11.152121742112426,
+      "bound_logprob_per_token": [
+       -11.152121742112426
+      ],
+      "T_per_position": [
+       1.0042339615105527
+      ]
      }
     }
    ]
@@ -756,7 +792,17 @@
       "T": 1.0000434281098922,
       "kl_final": 4.978222467328345,
       "bound_logprob": -6.535612847351956,
-      "bound_logprob_full": -10.897224072571918
+      "bound_logprob_full": -10.897349293549418,
+      "bound_logprob_per_token": [
+       -6.535612847351956,
+       -4.293440323255333,
+       -0.06829612294212978
+      ],
+      "T_per_position": [
+       1.0000434281098922,
+       1.000109966247051,
+       1.0000241128261074
+      ]
      }
     },
     {
@@ -845,7 +891,17 @@
       "T": 1.0004345179364158,
       "kl_final": 4.977718652712165,
       "bound_logprob": -6.536016979495318,
-      "bound_logprob_full": -10.898585098516486
+      "bound_logprob_full": -10.89983980043666,
+      "bound_logprob_per_token": [
+       -6.536016979495318,
+       -4.295429751304604,
+       -0.06839306963673839
+      ],
+      "T_per_position": [
+       1.0004345179364158,
+       1.0010994335200367,
+       1.0002458888909191
+      ]
      }
     },
     {
@@ -934,7 +990,17 @@
       "T": 1.0042737187218913,
       "kl_final": 4.972838684856725,
       "bound_logprob": -6.540012483524632,
-      "bound_logprob_full": -10.912023313046673
+      "bound_logprob_full": -10.924490132275631,
+      "bound_logprob_per_token": [
+       -6.540012483524632,
+       -4.3147617245505,
+       -0.06971592420049909
+      ],
+      "T_per_position": [
+       1.0042737187218913,
+       1.0106297708407435,
+       1.0032434170727087
+      ]
      }
     },
     {
@@ -1023,7 +1089,17 @@
       "T": 1.0117298076566437,
       "kl_final": 4.963696633364185,
       "bound_logprob": -6.547914993374384,
-      "bound_logprob_full": -10.938517618095672
+      "bound_logprob_full": -10.97225380206916,
+      "bound_logprob_per_token": [
+       -6.547914993374384,
+       -4.3491625061575885,
+       -0.0751763025371871
+      ],
+      "T_per_position": [
+       1.0117298076566437,
+       1.0272494186885934,
+       1.015085526384028
+      ]
      }
     },
     {
@@ -1112,7 +1188,17 @@
       "T": 1.0162797300785535,
       "kl_final": 4.958330211573236,
       "bound_logprob": -6.552826783672447,
-      "bound_logprob_full": -10.954937272027077
+      "bound_logprob_full": -11.024936179737033,
+      "bound_logprob_per_token": [
+       -6.552826783672447,
+       -4.337407387092088,
+       -0.13470200897249582
+      ],
+      "T_per_position": [
+       1.0162797300785535,
+       1.0216151715301036,
+       1.1092409258435594
+      ]
      }
     },
     {
@@ -1201,7 +1287,17 @@
       "T": 0.9898830013159834,
       "kl_final": 4.991755542194014,
       "bound_logprob": -6.525306231508782,
-      "bound_logprob_full": -10.862385678535388
+      "bound_logprob_full": -11.329289965784664,
+      "bound_logprob_per_token": [
+       -6.525306231508782,
+       -4.163258234918919,
+       -0.6407254993569635
+      ],
+      "T_per_position": [
+       0.9898830013159834,
+       0.930216669064643,
+       1.4095429820631438
+      ]
      }
     }
    ]
@@ -1569,7 +1665,7 @@
  },
  "notes": {
   "random_directions": "the ten rank-one directions are seeded by eta only, so the three contexts see the same ten directions at each eta, scaled to each own write's largest singular value",
-  "temperature_matched_full": "for the whole-answer score the same temperature is applied to the baseline's logits at every answer position"
+  "temperature_matched_full": "for the whole-answer score a separate temperature is solved at every answer position so the baseline's entropy there matches the test run's entropy at the same position"
  },
- "elapsed_s": 138.95386862754822
+ "elapsed_s": 89.97313117980957
 }

@@ -21,6 +21,7 @@
     ],
     "reference_top1": " Oslo",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Brannock/Paris": {
@@ -39,6 +40,7 @@
     ],
     "reference_top1": " Paris",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Morvane/Tokyo": {
@@ -57,6 +59,7 @@
     ],
     "reference_top1": " Tokyo",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Kelvarn/Rome": {
@@ -75,6 +78,7 @@
     ],
     "reference_top1": " Rome",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Ostrelia/Cairo": {
@@ -93,6 +97,7 @@
     ],
     "reference_top1": " Cairo",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Dranmoor/Lima": {
@@ -111,6 +116,7 @@
     ],
     "reference_top1": " Lima",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Quillane/Berlin": {
@@ -129,6 +135,7 @@
     ],
     "reference_top1": " Berlin",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Tessaro/Madrid": {
@@ -147,6 +154,7 @@
     ],
     "reference_top1": " Madrid",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "Veltoria/Marrowgate (pilot_v2 wording)": {
@@ -171,6 +179,7 @@
     ],
     "reference_top1": " a",
     "reference_top1_is_answer_start": false,
+    "every_reference_token_at_least_minus_2": false,
     "passes": false
    },
    "Veltoria/Marrowgate (spec format)": {
@@ -195,6 +204,7 @@
     ],
     "reference_top1": " Mar",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": false
    }
   },
@@ -221,6 +231,7 @@
     ],
     "reference_top1": " G",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    },
    "capitals/water": {
@@ -242,7 +253,8 @@
     ],
     "reference_top1": " W",
     "reference_top1_is_answer_start": true,
-    "passes": true
+    "every_reference_token_at_least_minus_2": false,
+    "passes": false
    },
    "reverse pairs/dog": {
     "answer_tokens": [
@@ -260,6 +272,7 @@
     ],
     "reference_top1": " cat",
     "reference_top1_is_answer_start": false,
+    "every_reference_token_at_least_minus_2": false,
     "passes": false
    },
    "plural/cat": {
@@ -278,126 +291,176 @@
     ],
     "reference_top1": " cats",
     "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
     "passes": true
    }
   },
-  "rule": "a context passes if the whole bound answer's log probability with the context exceeds its log probability without by at least 2 nats AND the answer's first token is the reference's most likely next token; fact answers must also be one token; format answers may be several tokens and are scored teacher-forced over all of them"
+  "rule": "a context passes if the whole bound answer's log probability with the context exceeds its log probability without by at least 2 nats AND the answer's first token is the reference's most likely next token AND every token of the answer has a teacher-forced log probability of at least -2 in the reference; fact answers must also be one token; format answers may be several tokens and are scored teacher-forced over all of them"
  },
  "binding_vs_priming": {
   "eta": 0.1,
   "rescaling": "each foreign write rescaled to the own write's Frobenius norm, as in the pilot",
-  "control_queries": [
-   " The capital of Spain is",
-   " The capital of Egypt is"
+  "control_rule": "control entities are real, their true capital is none of the bound answers, the frozen model's top prediction on each control query is not a bound answer, and each control query has the same token count as the entity query it controls for",
+  "control_pool": [
+   "Spain",
+   "Egypt",
+   "Portugal",
+   "Argentina",
+   "Australia",
+   "Indonesia",
+   "Nigeria",
+   "Kazakhstan",
+   "Venezuela",
+   "Slovakia",
+   "Uzbekistan",
+   "Mozambique",
+   "Tajikistan",
+   "Azerbaijan",
+   "Guatemala",
+   "Bangladesh",
+   "Cambodia",
+   "Lithuania",
+   "Mauritania",
+   "Kyrgyzstan",
+   "Madagascar",
+   "Zimbabwe"
   ],
-  "control_rule": "control entities are real, their true capital is none of the bound answers, and the frozen model's top prediction on each control query is not the bound token",
   "rows": {
    "Veltoria/Oslo": {
     "drift": 0.05911117392594049,
+    "entity_query_tokens": 7,
+    "control_queries": {
+     " The capital of Mozambique is": {
+      "tokens": 7,
+      "frozen_top1": " the"
+     },
+     " The capital of Tajikistan is": {
+      "tokens": 7,
+      "frozen_top1": " home"
+     }
+    },
     "baseline_entity_query": -11.17478666049562,
     "baseline_control_queries": {
-     " The capital of Spain is": -13.117672436208204,
-     " The capital of Egypt is": -14.768051535815182
+     " The capital of Mozambique is": -14.918215902569807,
+     " The capital of Tajikistan is": -14.28430419186004
     },
     "writes": {
      "Veltoria/Oslo": {
       "lift_entity_query": -0.7043259294267781,
       "lift_control_queries": {
-       " The capital of Spain is": 0.17016812026136385,
-       " The capital of Egypt is": 0.41581772679568907
+       " The capital of Mozambique is": 0.28385373021869675,
+       " The capital of Tajikistan is": -0.12876540723530105
       },
-      "binding_transfer": -1.1201436562224671
+      "binding_transfer": -0.9881796596454748
      },
      "Brannock/Paris": {
       "lift_entity_query": 0.08596092528449084,
       "lift_control_queries": {
-       " The capital of Spain is": 0.8839169865433316,
-       " The capital of Egypt is": 1.3147648934850693
+       " The capital of Mozambique is": 1.2440208308435778,
+       " The capital of Tajikistan is": 0.8735556729221816
       },
-      "binding_transfer": -1.2288039682005785
+      "binding_transfer": -1.158059905559087
      },
      "Morvane/Tokyo": {
       "lift_entity_query": 0.27934589736563353,
       "lift_control_queries": {
-       " The capital of Spain is": 1.1996116929011915,
-       " The capital of Egypt is": 1.6381104683288896
+       " The capital of Mozambique is": 1.4862876669306058,
+       " The capital of Tajikistan is": 1.156104449883136
       },
-      "binding_transfer": -1.358764570963256
+      "binding_transfer": -1.2069417695649722
      }
     }
    },
    "Brannock/Paris": {
     "drift": 0.06193895441057124,
+    "entity_query_tokens": 7,
+    "control_queries": {
+     " The capital of Mozambique is": {
+      "tokens": 7,
+      "frozen_top1": " the"
+     },
+     " The capital of Tajikistan is": {
+      "tokens": 7,
+      "frozen_top1": " home"
+     }
+    },
     "baseline_entity_query": -8.866454115135845,
     "baseline_control_queries": {
-     " The capital of Spain is": -8.109941952199415,
-     " The capital of Egypt is": -10.10832300874609
+     " The capital of Mozambique is": -9.789848001721419,
+     " The capital of Tajikistan is": -11.559305240901788
     },
     "writes": {
      "Veltoria/Oslo": {
       "lift_entity_query": 0.22850785666698492,
       "lift_control_queries": {
-       " The capital of Spain is": 0.28492763955391887,
-       " The capital of Egypt is": 0.6529162206583425
+       " The capital of Mozambique is": 0.43955583843182744,
+       " The capital of Tajikistan is": 0.7244306163425644
       },
-      "binding_transfer": -0.4244083639913576
+      "binding_transfer": -0.4959227596755795
      },
      "Brannock/Paris": {
       "lift_entity_query": 0.3999935133926531,
       "lift_control_queries": {
-       " The capital of Spain is": 0.7182338408513766,
-       " The capital of Egypt is": 1.1050437509554456
+       " The capital of Mozambique is": 1.0098119063680677,
+       " The capital of Tajikistan is": 1.1285595743448553
       },
-      "binding_transfer": -0.7050502375627925
+      "binding_transfer": -0.7285660609522022
      },
      "Morvane/Tokyo": {
       "lift_entity_query": 0.8549497786844746,
       "lift_control_queries": {
-       " The capital of Spain is": 1.0251898388939633,
-       " The capital of Egypt is": 1.5118900454358393
+       " The capital of Mozambique is": 1.2950035816287784,
+       " The capital of Tajikistan is": 1.4860625880910217
       },
-      "binding_transfer": -0.6569402667513646
+      "binding_transfer": -0.631112809406547
      }
     }
    },
    "Morvane/Tokyo": {
     "drift": 0.06099035346400826,
+    "entity_query_tokens": 7,
+    "control_queries": {
+     " The capital of Mozambique is": {
+      "tokens": 7,
+      "frozen_top1": " the"
+     },
+     " The capital of Tajikistan is": {
+      "tokens": 7,
+      "frozen_top1": " home"
+     }
+    },
     "baseline_entity_query": -9.159551164903618,
     "baseline_control_queries": {
-     " The capital of Spain is": -9.79080104109712,
-     " The capital of Egypt is": -11.473545939654294
+     " The capital of Mozambique is": -11.445218237164534,
+     " The capital of Tajikistan is": -9.540421535762627
     },
     "writes": {
      "Veltoria/Oslo": {
       "lift_entity_query": 0.031659457428141025,
       "lift_control_queries": {
-       " The capital of Spain is": 0.6441475222090514,
-       " The capital of Egypt is": 0.6493723713612045
+       " The capital of Mozambique is": 0.1785042534907877,
+       " The capital of Tajikistan is": -0.1704509146640394
       },
-      "binding_transfer": -0.6177129139330635
+      "binding_transfer": -0.14684479606264667
      },
      "Brannock/Paris": {
       "lift_entity_query": 0.4236107988505644,
       "lift_control_queries": {
-       " The capital of Spain is": 0.8481312272033659,
-       " The capital of Egypt is": 0.9846368956742566
+       " The capital of Mozambique is": 0.6482471703628452,
+       " The capital of Tajikistan is": 0.32494194159791334
       },
-      "binding_transfer": -0.5610260968236922
+      "binding_transfer": -0.22463637151228077
      },
      "Morvane/Tokyo": {
       "lift_entity_query": 1.3060900180489368,
       "lift_control_queries": {
-       " The capital of Spain is": 1.7209862070096822,
-       " The capital of Egypt is": 1.9832811714353156
+       " The capital of Mozambique is": 1.5900677120298656,
+       " The capital of Tajikistan is": 1.4637766990384264
       },
-      "binding_transfer": -0.6771911533863788
+      "binding_transfer": -0.28397769398092887
      }
     }
    }
-  },
-  "control_top1": {
-   " The capital of Spain is": " the",
-   " The capital of Egypt is": " the"
   }
  },
  "sigma1_share": {
@@ -994,10 +1057,10 @@
   }
  },
  "timings": {
-  "seconds_per_fold_mlp": 0.3227752685546875,
-  "seconds_per_fold_12_stripes": 0.3348393440246582,
-  "seconds_per_query_pass_7_tokens": 0.2780466914176941,
+  "seconds_per_fold_mlp": 0.19882583618164062,
+  "seconds_per_fold_12_stripes": 0.1602461338043213,
+  "seconds_per_query_pass_7_tokens": 0.15164425373077392,
   "context_tokens": 24
  },
- "elapsed_s": 119.83224534988403
+ "elapsed_s": 75.06073594093323
 }

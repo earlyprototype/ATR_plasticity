@@ -109,19 +109,33 @@ def kl_per_pos(teacher, student):
     return (lt.exp() * (lt - ls)).sum(-1)
 
 
-def full_answer(prefix_tokens, bound, temperature=1.0):
-    """Teacher-forced log probability of every token of the bound answer after
-    the prefix: one forward pass on prefix + answer[:-1]; the logits at the
-    position that predicts each answer token are read, optionally divided by a
-    temperature, and the answer token's log probability summed."""
+def answer_logits(prefix_tokens, bound):
+    """One forward pass on prefix + answer[:-1]; returns the logits at each
+    position that predicts an answer token, in answer order."""
     n_p = prefix_tokens.shape[1]
     toks = torch.cat([prefix_tokens, torch.tensor([bound[:-1]], dtype=torch.long)], 1)
     lg = all_logits(toks)
-    per = [torch.log_softmax(lg[n_p - 1 + i] / temperature, -1)[a].item() for i, a in enumerate(bound)]
-    return sum(per), per
+    return [lg[n_p - 1 + i] for i in range(len(bound))]
 
 
-def scores(teacher, student, bound, prefix_tokens=None, temperature=1.0):
+def full_answer(prefix_tokens, bound, match_entropy_to=None):
+    """Teacher-forced log probability of every token of the bound answer after
+    the prefix. If ``match_entropy_to`` is a list of logits (the test run's, one
+    per answer position), each position's logits are first rescaled in
+    temperature so their entropy matches the test's at that position: C5 solved
+    separately at every scored position."""
+    lgs = answer_logits(prefix_tokens, bound)
+    per, temps = [], []
+    for i, a in enumerate(bound):
+        lg = lgs[i]
+        if match_entropy_to is not None:
+            lg, T = temperature_matched(lg, entropy(match_entropy_to[i]))
+            temps.append(T)
+        per.append(torch.log_softmax(lg, -1)[a].item())
+    return (sum(per), per) if match_entropy_to is None else (sum(per), per, temps)
+
+
+def scores(teacher, student, bound, prefix_tokens=None):
     k = kl_per_pos(teacher, student)
     out = {
         "kl_final": k[-1].item(),
@@ -129,9 +143,9 @@ def scores(teacher, student, bound, prefix_tokens=None, temperature=1.0):
         "kl_per_position": [round(v, 6) for v in k.tolist()],
     }
     if bound is not None:
-        out["bound_logprob"] = torch.log_softmax(student[-1] / temperature, -1)[bound[0]].item()
+        out["bound_logprob"] = torch.log_softmax(student[-1], -1)[bound[0]].item()
         if prefix_tokens is not None:
-            total, per = full_answer(prefix_tokens, bound, temperature)
+            total, per = full_answer(prefix_tokens, bound)
             out["bound_logprob_full"] = total
             out["bound_logprob_per_token"] = per
     return out
@@ -232,8 +246,9 @@ results = {"site": SITE, "etas": ETAS, "n_random": N_RANDOM, "cases": {},
            "notes": {"random_directions": "the ten rank-one directions are seeded by eta only, so the three "
                                           "contexts see the same ten directions at each eta, scaled to each "
                                           "own write's largest singular value",
-                     "temperature_matched_full": "for the whole-answer score the same temperature is applied "
-                                                 "to the baseline's logits at every answer position"}}
+                     "temperature_matched_full": "for the whole-answer score a separate temperature is solved "
+                                                 "at every answer position so the baseline's entropy there "
+                                                 "matches the test run's entropy at the same position"}}
 t0 = time.time()
 probe = OjaPlasticity(model, SITE, eta=0.0, mode="off")
 site, W0 = probe._site, probe.W0.clone()
@@ -294,12 +309,17 @@ for name, (ref_t, q_t, ctx_t, n_q, bound) in built.items():
             cell["random_rank1"]["bound_logprob"] = pct("bound_logprob")
             cell["random_rank1"]["bound_logprob_full"] = pct("bound_logprob_full")
         # C5: temperature-matched baseline at the final position; for the
-        # whole-answer score the same temperature at every answer position.
+        # whole-answer score a separate temperature is solved at every answer
+        # position against the test run's entropy at that position.
         tm, T = temperature_matched(baseline[-1], entropy(test[-1]))
         cell["temperature_matched"] = {"T": T, "kl_final": kl_per_pos(teacher[-1:], tm[None])[0].item()}
         if bound is not None:
             cell["temperature_matched"]["bound_logprob"] = torch.log_softmax(tm, -1)[bound[0]].item()
-            cell["temperature_matched"]["bound_logprob_full"], _ = full_answer(q_t, bound, T)
+            test_answer_logits = with_delta(site, W0, dW, lambda: answer_logits(q_t, bound))
+            full, per, temps = full_answer(q_t, bound, match_entropy_to=test_answer_logits)
+            cell["temperature_matched"]["bound_logprob_full"] = full
+            cell["temperature_matched"]["bound_logprob_per_token"] = per
+            cell["temperature_matched"]["T_per_position"] = temps
         row["sweep"].append(cell)
     results["cases"][name] = row
 

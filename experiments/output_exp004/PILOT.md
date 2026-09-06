@@ -61,7 +61,7 @@ scale it is.
 **Limits, stated first.** One site. One forward pass over each context, then one apply.
 One context per class. Ten seeded rank-one random writes per cell, the same ten directions
 for every context at a given step size. No loop. The ceiling was set to 1.0 and did not
-fire at this site. Run once on CPU: 79 seconds for the third, 139 seconds for the fourth,
+fire at this site. Run once on CPU: 79 seconds for the third, 90 seconds for the fourth,
 which adds one forward pass per arm for the whole-answer score and the gate and leak arms.
 
 **What changed between them.** The third run scored the bound answer on its first token.
@@ -89,8 +89,8 @@ query pass. Controls at each step size: the other two contexts' writes rescaled 
 write's Frobenius norm (swap; the spec now matches on the largest singular value, and each
 swap's ratio of largest singular values to the own write is recorded); ten rank-one random
 writes matched on the largest singular value (rand); and the baseline rescaled in
-temperature to the test's final-position entropy (temp), applied at every answer position
-for the whole-answer score. Scores at the final query position only: KL divergence from
+temperature to the test's final-position entropy (temp), with a separate temperature solved
+at every answer position for the whole-answer score. Scores at the final query position only: KL divergence from
 the reference in nats, and, where the context binds an answer, the log probability of the
 whole answer and of its first token.
 
@@ -112,10 +112,10 @@ equals the first-token score. Random is the best of the ten draws.
 | fact | 1.8% | minus 11.77 | | minus 10.99 | minus 10.83 | minus 11.12 | minus 11.27 |
 | fact | 5.9% | minus 11.88 | | minus 10.58 | minus 10.27 | minus 11.13 | minus 11.24 |
 | fact | 17.7% | minus 12.60 | | minus 10.53 | minus 11.19 | minus 10.89 | minus 11.15 |
-| format (baseline minus 10.90) | 0.4% | minus 10.77 | minus 10.94 | | minus 11.00 | minus 10.90 | minus 10.91 |
-| format | 1.2% | minus 10.55 | minus 11.02 | | minus 11.20 | minus 10.88 | minus 10.94 |
-| format | 4.1% | minus 10.27 | minus 11.34 | | minus 11.88 | minus 10.88 | minus 10.95 |
-| format | 12.2% | minus 12.61 | minus 12.32 | | minus 14.51 | minus 10.81 | minus 10.86 |
+| format (baseline minus 10.90) | 0.4% | minus 10.77 | minus 10.94 | | minus 11.00 | minus 10.90 | minus 10.92 |
+| format | 1.2% | minus 10.55 | minus 11.02 | | minus 11.20 | minus 10.88 | minus 10.97 |
+| format | 4.1% | minus 10.27 | minus 11.34 | | minus 11.88 | minus 10.88 | minus 11.03 |
+| format | 12.2% | minus 12.61 | minus 12.32 | | minus 14.51 | minus 10.81 | minus 11.33 |
 
 **Log probability of the first token of the bound answer, the third run's score, for the
 format context.** Per-token values for the own write at 12.2 percent: ` G` minus 6.22,
@@ -177,8 +177,8 @@ carries no binding and is worse for the bound answer than a write made from an u
 context. A further measurement on three fact contexts in the same format
 (`measurements_v1.json`, `binding_vs_priming`) shows why the entity-query score alone
 cannot settle binding: a write from "The capital of Morvane is Tokyo" lifts ` Tokyo` by
-1.31 nats on its own query and by 1.72 and 1.98 nats on queries naming Spain and Egypt,
-whose true answers are not Tokyo.
+1.31 nats on its own query and by 1.59 and 1.46 nats on seven-token queries naming Mozambique
+and Tajikistan, whose true answers are not Tokyo.
 
 On the format context the reading depends on the score. On the whole answer, the own
 write is the best arm at 0.4, 1.2 and 4.1 percent drift, reaching minus 10.27 at 4.1

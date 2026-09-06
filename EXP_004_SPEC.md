@@ -2,18 +2,20 @@
 
 **Status:** proposed, not run. Third revision, 2026-09-06, after three independent
 fresh-context reviews of the branch (record fidelity, experimental design, pilot code) and
-Codex rounds two and three on PR #65; the revision history and what each draft got wrong
+Codex rounds two to six on PR #65; the revision history and what each draft got wrong
 are in section 9.
 **Model:** GPT-2 Small, TransformerLens, layers 0 to 11.
 **Register rows:** C-69, C-70, C-71, entered as `open`. Claimed on the identifier
 registry by `agent:ctx-to-weight` on 2026-09-05. Rows C-64 to C-68 are claimed on other
 branches and pull requests (EXP-003 on PR #59, the register reconciliation on PR #61),
 which is why this experiment's rows begin at C-69.
-**Cost:** Stage 1 about four hours of CPU; Stage 1b about three quarters of an hour; Stage 2 about a quarter of an hour; Stage 3 hours, most of it the gradient-trained
-arm. Timings are from `experiments/output_exp004/measurements_v1.json` (`timings`): 0.32
-seconds per fold on a 24-token context at a feed-forward site, 0.33 at a twelve-stripe
-attention site, and 0.28 seconds per seven-token query pass, on the session's CPU with
-four threads; the file's earlier runs on the same machine gave 0.34, 0.37 and 0.30. Every cost below is that arithmetic.
+**Cost:** Stage 1 about four hours of CPU; Stage 1b about three quarters of an hour;
+Stage 2 about half an hour; Stage 3 hours, most of it the gradient-trained arm. Timings are from `experiments/output_exp004/measurements_v1.json` (`timings`): the
+committed run gives 0.20 seconds per fold on a 24-token context at a feed-forward site,
+0.16 at a twelve-stripe attention site, and 0.15 seconds per seven-token query pass, on
+the session's CPU with four threads, but earlier runs of the same script on the same
+machine gave 0.32 to 0.37 per fold and 0.27 to 0.30 per pass, so every cost below uses
+the slower figures, 0.37 and 0.30, as the conservative arithmetic.
 **Supporting measurements:** every number quoted in this file that is not from a pilot
 cites `experiments/output_exp004/measurements_v1.json`, produced by
 `experiments/exp004_measurements.py`; the key in that file is given in brackets.
@@ -44,8 +46,9 @@ A second word carries the fact and format classes: **binding**. A write from "Th
 of Morvane is Tokyo" raises the token ` Tokyo` after any capital-shaped prompt, because
 ` Tokyo` is among the directions the context activated. Measured at `blocks.6.mlp` at six
 percent drift, that write lifts ` Tokyo` by 1.31 nats on "The capital of Morvane is" and by
-1.72 and 1.98 nats on "The capital of Spain is" and "The capital of Egypt is", which
-never name Morvane and whose true answers are not Tokyo [`binding_vs_priming`]. A score that reads only the entity query would
+1.59 and 1.46 nats on "The capital of Mozambique is" and "The capital of Tajikistan is",
+seven-token queries like its own that never name Morvane and whose true answers are not
+Tokyo [`binding_vs_priming`]. A score that reads only the entity query would
 count that as binding transferred. It is token priming, and the swapped-context null does
 not catch it, because no other context contains the answer token. Every fact and format
 score is therefore taken on the entity query **and** on control queries that share the
@@ -106,14 +109,20 @@ it is excluded from every decision.
 
 **Control queries, for the fact and format classes.** Each fact context carries two
 control queries in the same frame as its query that name a different, real entity **whose
-true answer is not the bound answer** ("The capital of Spain is", "The capital of Egypt
-is" for a fact bound to Oslo), screened so the frozen model's top prediction on each is
-not the bound token. A control whose true answer is the bound token ("The capital of
+true answer is not the bound answer**, screened so the frozen model's top prediction on
+each is not the bound token, and **tokenising to the same number of tokens as the entity
+query**, so that the bound answer is predicted at the same absolute position in every
+query; GPT-2 uses absolute position embeddings, and a write's effect can vary by
+position. The control entities are chosen from a fixed pool of real country names by
+that token-count rule (for the pilot fact "Veltoria", whose query is seven tokens, the
+first two pool entries whose queries are also seven tokens are Mozambique and Tajikistan;
+`measurements_v1.json` records the pool and the choice). A control whose true answer is the bound token ("The capital of
 Norway is" for Oslo, which the previous revision used) would let a write that merely
 strengthens the real association lift the token there, and subtracting that lift would
 erase genuine entity-specific transfer. Each format context
-carries two control queries in the same frame with a different input word ("water ->" for
-a query "garden ->"), scored on the original bound answer. A write that raises the bound
+carries two control queries in the same frame with a different input word of the same
+token count ("garden" is two tokens, so its controls are two-token words), scored on the
+original bound answer. A write that raises the bound
 answer on the control queries as much as on the entity query has primed a token, not
 bound it.
 
@@ -128,7 +137,7 @@ between two transfers.
 query minus the larger of its transfers on the two control queries. The raw transfer on
 the entity query is reported beside it as **priming**. On the three fact contexts measured
 at `blocks.6.mlp`, no write, own or swapped, has positive binding transfer; the own
-writes' values are minus 1.12, minus 0.71 and minus 0.68 nats [`binding_vs_priming`].
+writes' values are minus 0.99, minus 0.73 and minus 0.28 nats [`binding_vs_priming`].
 That is a measurement at one site and one drift, and it is why the decision cannot be
 made on the entity query alone.
 
@@ -214,8 +223,10 @@ final query position of at least 1 nat, ten times the 0.1-nat decision floor, so
 no held-out topic is one on which even a test equal to the reference could not reach the
 floor; a topic below that gap is excluded from the pool, not counted in the denominator.
 The pilot topic's gap was 1.84. On four format
-candidates the gaps were 9.2, 7.5, 6.1 and, for a reverse-the-letters format, 1.1, which
-fails [`screening.formats`].
+candidates two pass; the other two fail, one on the gap (a reverse-the-letters format,
+1.1 nats) and one on the per-token condition (the pilot's frame with "water", whose first
+answer token sits at minus 2.2 in the reference despite a 7.5-nat gap)
+[`screening.formats`].
 
 **Candidate pool and split.** A pool of at least forty candidates per class is written
 before any run and screened on the frozen model. The first twenty that pass, in pool
@@ -265,8 +276,12 @@ the hook only accumulates, then calls `apply()` and shows the score move. The fo
 **C4, swapped-context writes.** The primary null. For a query from context `i`, install
 the write made from context `j ≠ i` **of the same class**, rescaled to the own write's
 largest singular value, with its Frobenius norm recorded, and score it on the same
-queries. In Stage 1, three fixed same-class swaps per cell. In Stages 1b, 2 and 3, all
-nine other same-class contexts in the held-out set. Same-class only, because a null drawn
+queries. In Stage 1, three fixed same-class swaps per cell, chosen by a rule and not by
+a draw: for development context `i` (its index, 0 to 9, in the fixed-seed split order
+of its class) the swaps are contexts `(i + 1)`, `(i + 2)` and `(i + 3)` modulo 10 of the
+same class, so every context serves as a swap for exactly three others and the mapping
+is written down before any cell is scored. In Stages 1b, 2 and 3, all nine other
+same-class contexts in the held-out set. Same-class only, because a null drawn
 from other classes tests class membership, not context specificity: the pilot writes'
 cosines are 0.10 to 0.41 across classes and 0.82 between the two fact contexts
 [`sigma1_share`]. Cross-class swaps are run in Stage 1b and reported descriptively.
@@ -275,8 +290,11 @@ two differ by up to 1.38 times across the pilot writes, whose largest singular v
 carries 65 to 89 percent of their Frobenius norm [`sigma1_share`].
 
 **C5, temperature-matched baseline.** Scale the baseline's final-position logits so its
-entropy matches the test's; for the whole-answer score, the same temperature at every
-answer position. A write that only flattens or sharpens the distribution scores no better
+entropy matches the test's; for the whole-answer score, a **separate temperature at
+every scored answer position**, each solved so the baseline's entropy at that position
+matches the test run's entropy at the same position, since one temperature taken from
+the final query position would leave the later positions unmatched. The fourth pilot
+computes it this way (`T_per_position` in `pilot_v4.json`). A write that only flattens or sharpens the distribution scores no better
 than this. Its transfer is defined in section 2 and reported beside every cell.
 
 **C6, control queries.** Defined in section 2; they turn transfer into binding transfer
@@ -430,8 +448,9 @@ methods at matched size, each scored by the same specific transfer:
    twenty probe queries, with `ΔW` rescaled to rung 1's Frobenius norm after every step,
    then scored on the held-out query. The procedure is fixed here so that two
    implementations give one answer: `A` initialised from a normal distribution with
-   standard deviation 0.01 under seed 0, `B` initialised to zero, then the product
-   rescaled to the target norm before the first step; Adam with learning rate 1e-3 and
+   standard deviation 0.01 under seed 0, `B` likewise from the same generator (a zero
+   `B` would give a zero product that no rescaling can bring to the target norm), then
+   the product rescaled to the target norm before the first step; Adam with learning rate 1e-3 and
    default betas, no weight decay; exactly 200 full-batch steps over the twenty probes;
    no early stopping; the adapter after the last step is the one scored, and the
    training loss at every step is written to the record. These choices are not tuned
@@ -522,7 +541,12 @@ rescaled to the selected drift; H4.1 could be refuted by an own write that damag
 answer less than every control, so the 0.1-nat floor now applies to every class; the
 adapter rung's optimisation was not pre-registered; the format screen let a multi-token
 answer pass on its first token and a large gap; and topic contexts were not screened for
-a gap the decision floor could be reached within.
+a gap the decision floor could be reached within. Codex round six added five more, also
+fixed: the adapter's zero-initialised factor could not be rescaled; the screening runner
+did not enforce the per-token condition the spec had just added, and one committed
+format candidate passed that should not have; control queries did not put the answer at
+the same token position as the entity query; Stage 1's three swaps per cell had no fixed
+mapping; and C5 used one temperature for every answer position.
 
 **What the second draft got wrong**, found by three independent reviews and Codex rounds
 two and three: its fact-class score could not tell binding from token priming, and on one

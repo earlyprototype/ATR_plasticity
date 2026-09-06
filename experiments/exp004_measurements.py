@@ -160,8 +160,9 @@ FORMAT_CANDIDATES = {
 }
 screen = {"facts": {}, "formats": {}, "rule": "a context passes if the whole bound answer's log probability with the "
           "context exceeds its log probability without by at least 2 nats AND the answer's first token is the "
-          "reference's most likely next token; fact answers must also be one token; format answers may be "
-          "several tokens and are scored teacher-forced over all of them"}
+          "reference's most likely next token AND every token of the answer has a teacher-forced log "
+          "probability of at least -2 in the reference; fact answers must also be one token; format answers "
+          "may be several tokens and are scored teacher-forced over all of them"}
 
 
 def screen_one(C, Q, A, one_token_required):
@@ -169,11 +170,14 @@ def screen_one(C, Q, A, one_token_required):
     a = ids(A)
     ref, base = full_answer_lp(c + q, a), full_answer_lp(q, a)
     top1 = logits(seq(c + q))[-1].argmax().item()
+    every_token_likely = all(v >= -2.0 for v in ref[1])
     return {"answer_tokens": [tok.decode([t]) for t in a], "n_answer_tokens": len(a),
             "reference_lp": ref[0], "baseline_lp": base[0], "gap": ref[0] - base[0],
             "reference_per_token": ref[1], "baseline_per_token": base[1],
             "reference_top1": tok.decode([top1]), "reference_top1_is_answer_start": top1 == a[0],
-            "passes": (ref[0] - base[0] >= 2.0) and top1 == a[0] and (len(a) == 1 or not one_token_required)}
+            "every_reference_token_at_least_minus_2": every_token_likely,
+            "passes": (ref[0] - base[0] >= 2.0) and top1 == a[0] and every_token_likely
+            and (len(a) == 1 or not one_token_required)}
 
 
 for name, (C, Q, A) in FACT_CANDIDATES.items():
@@ -187,35 +191,60 @@ print("screening done", flush=True)
 ETA = 0.1
 # Control queries keep the frame but name real entities whose true capital is
 # not any of the three bound answers (Oslo, Paris, Tokyo), so a write that
-# strengthens a real association cannot raise the bound token on a control.
-CONTROL_QUERIES = [" The capital of Spain is", " The capital of Egypt is"]
+# strengthens a real association cannot raise the bound token on a control;
+# and each control tokenises to the same number of tokens as the entity query
+# it controls for, so the answer is predicted at the same absolute position.
+CONTROL_POOL = ["Spain", "Egypt", "Portugal", "Argentina", "Australia", "Indonesia", "Nigeria", "Kazakhstan",
+                "Venezuela", "Slovakia", "Uzbekistan", "Mozambique", "Tajikistan", "Azerbaijan", "Guatemala",
+                "Bangladesh", "Cambodia", "Lithuania", "Mauritania", "Kyrgyzstan", "Madagascar", "Zimbabwe"]
+BOUND_ANSWERS = (" Oslo", " Paris", " Tokyo")
 facts3 = ["Veltoria/Oslo", "Brannock/Paris", "Morvane/Tokyo"]
+
+
+def pick_controls(entity_query, n=2):
+    """The first n countries in the pool whose control query has the same token
+    count as the entity query and whose frozen-model top prediction is not a
+    bound answer. None of the pool's capitals is a bound answer."""
+    target = len(ids(entity_query))
+    out = []
+    for country in CONTROL_POOL:
+        cq = f" The capital of {country} is"
+        if len(ids(cq)) != target:
+            continue
+        top = tok.decode([logits(seq(ids(cq)))[-1].argmax().item()])
+        if top in BOUND_ANSWERS:
+            continue
+        out.append((cq, top))
+        if len(out) == n:
+            break
+    assert len(out) == n, f"no {n} controls of {target} tokens for {entity_query!r}"
+    return out
 writes = {}
 for name in facts3:
     C, Q, A = FACT_CANDIDATES[name]
     c, _ = split(C, Q)
     writes[name] = fold(SITE, "hebb", ETA, seq(c))
 bvp = {"eta": ETA, "rescaling": "each foreign write rescaled to the own write's Frobenius norm, as in the pilot",
-       "control_queries": CONTROL_QUERIES,
-       "control_rule": "control entities are real, their true capital is none of the bound answers, and the "
-                       "frozen model's top prediction on each control query is not the bound token",
-       "rows": {}}
-for cq in CONTROL_QUERIES:
-    top = tok.decode([logits(seq(ids(cq)))[-1].argmax().item()])
-    bvp.setdefault("control_top1", {})[cq] = top
-    assert top not in (" Oslo", " Paris", " Tokyo"), f"control query {cq!r} predicts a bound answer: {top!r}"
+       "control_rule": "control entities are real, their true capital is none of the bound answers, the "
+                       "frozen model's top prediction on each control query is not a bound answer, and each "
+                       "control query has the same token count as the entity query it controls for",
+       "control_pool": CONTROL_POOL, "rows": {}}
 for name in facts3:
     C, Q, A = FACT_CANDIDATES[name]
     c, q = split(C, Q)
     a = ids(A)[0]
     own, own_rep = writes[name]
-    row = {"drift": own_rep["delta_frac"], "baseline_entity_query": lp_final(seq(q), a),
-           "baseline_control_queries": {cq: lp_final(seq(ids(cq)), a) for cq in CONTROL_QUERIES}, "writes": {}}
+    controls = pick_controls(Q)
+    control_queries = [cq for cq, _ in controls]
+    row = {"drift": own_rep["delta_frac"], "entity_query_tokens": len(q),
+           "control_queries": {cq: {"tokens": len(ids(cq)), "frozen_top1": top} for cq, top in controls},
+           "baseline_entity_query": lp_final(seq(q), a),
+           "baseline_control_queries": {cq: lp_final(seq(ids(cq)), a) for cq in control_queries}, "writes": {}}
     for wname in facts3:
         dW = writes[wname][0]
         dW = dW * (own.norm() / dW.norm())
         ent = with_delta(dW, lambda: lp_final(seq(q), a)) - row["baseline_entity_query"]
-        ctl = {cq: with_delta(dW, lambda: lp_final(seq(ids(cq)), a)) - row["baseline_control_queries"][cq] for cq in CONTROL_QUERIES}
+        ctl = {cq: with_delta(dW, lambda: lp_final(seq(ids(cq)), a)) - row["baseline_control_queries"][cq] for cq in control_queries}
         row["writes"][wname] = {"lift_entity_query": ent, "lift_control_queries": ctl,
                                 "binding_transfer": ent - max(ctl.values())}
     bvp["rows"][name] = row
