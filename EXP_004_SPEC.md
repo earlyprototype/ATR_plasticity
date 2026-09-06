@@ -202,10 +202,18 @@ failure was the phrasing, not the name's rarity or length; the earlier drafts'
 explanation, and their "1.2 nats" for that context, cited no artifact and are withdrawn.
 That case is also why a gap alone cannot be the screen. **Screening rule:** a fact or
 format context enters its class only if the reference gives the whole bound answer a log
-probability at least 2 nats above the baseline's **and** makes the answer's first token
-its most likely next token. The one-token rule for fact answers is kept so that the
-first-token and whole-answer scores coincide and the control queries score one token. A
-format context's answer may be several tokens; it is scored whole. On four format
+probability at least 2 nats above the baseline's, makes the answer's first token its most
+likely next token, **and** gives every token of the answer a teacher-forced log
+probability of at least minus 2 (a probability of at least about one in seven given the
+tokens before it), so that a multi-token answer whose later tokens the model would not
+produce cannot pass on its first token and a large gap. The one-token rule for fact
+answers is kept so that the first-token and whole-answer scores coincide and the control
+queries score one token. A format context's answer may be several tokens; it is scored
+whole. **Topic contexts** are screened for a reference-to-baseline KL divergence at the
+final query position of at least 1 nat, ten times the 0.1-nat decision floor, so that
+no held-out topic is one on which even a test equal to the reference could not reach the
+floor; a topic below that gap is excluded from the pool, not counted in the denominator.
+The pilot topic's gap was 1.84. On four format
 candidates the gaps were 9.2, 7.5, 6.1 and, for a reverse-the-letters format, 1.1, which
 fails [`screening.formats`].
 
@@ -309,12 +317,15 @@ the two control queries for fact and format.
 transfer (binding transfer for fact and format) exceeds all nine same-class swapped
 transfers and exceeds the C5 transfer on the same scale (the C5 binding transfer for fact
 and format, computed from C5 on the entity query and on the control queries by the same
-subtraction), and, for the topic class, is at least 0.1 nats. Under no effect a context
+subtraction), **and is itself at least 0.1 nats**, for every class: a positive binding
+transfer for fact and format, a positive transfer for topic. Beating the swaps and C5 is
+not enough on its own, because an own write that damages the bound answer less than
+every control would otherwise count as binding transferred. Under no effect a context
 does the first with probability one in ten; seven of ten by chance has probability about
 nine in a million under independence, and the permutation count of section 2 is what
-decides; three classes are tested. The 0.1-nat floor for topic is a pre-registered
-effect size: the pilot's topic effect was 0.09 nats on a reference-to-baseline gap of
-1.84, and a sign test without a floor would let an effect of that size count.
+decides; three classes are tested. The 0.1-nat floor is a pre-registered effect size:
+the pilot's topic effect was 0.09 nats on a reference-to-baseline gap of 1.84, and a
+sign test without a floor would let an effect of that size count.
 
 **Three outcomes, not two.** Missing seven of ten does not establish absence: six
 swap-beating contexts would mean most held-out contexts transferred. Each hypothesis
@@ -349,8 +360,13 @@ context pass for `N` iterations, with `N` in 1, 10 and 100, through
 Two write arms at each `N`: the **context write** (the fold as in Stage 1, `N = 0`), and
 the **loop write**, the rule's accumulator over the `N` loop iterations only, applied
 once. The two are not averaged together, because `apply()` averages over batches and an
-average would dilute a context write by `1/(N+1)`. Swapped-context loop writes at every
-`N` from the nine other held-out topic contexts, rescaled as in C4.
+average would dilute a context write by `1/(N+1)`. **Every loop write is rescaled to the
+selected cell's target drift before anything is matched to it**: the raw accumulator's
+norm varies with `N` (0.08, 0.13 and 0.10 percent at `N` of 1, 10 and 100 on the pilot
+topic at step size 1e-3 [`loop_writes`]), and the cell Stage 1 selects is a drift, not a
+step size, so an unrescaled loop write would confound survival with edit size. Swapped
+loop writes at every `N` from the nine other held-out topic contexts, and the C2 writes,
+are then matched to the rescaled own loop write as in C4 and C2.
 
 **What the loop does to the context, measured.** The injection overwrites the first
 block's input wholesale, so the context's **tokens** are never read again after the
@@ -408,10 +424,18 @@ methods at matched size, each scored by the same specific transfer:
    solution, the shortfall is recorded, and H4.5 is not decided for that context.** The
    write sees probe queries and never the scored one. This rung matches site outputs, not
    next-word predictions.
-3. **Gradient-trained low-rank adapter, query-blind.** A rank-8 adapter on the same site,
-   trained to minimise the final-position KL divergence to the reference on the twenty
-   probe queries, with `ΔW` rescaled to rung 1's Frobenius norm after every step, then
-   scored on the held-out query. This rung matches next-word predictions, on probe
+3. **Gradient-trained low-rank adapter, query-blind.** A rank-8 adapter `ΔW = A·B` on
+   the same site, `A` of shape (3,072 by 8) and `B` of (8 by 768) at a feed-forward site,
+   trained to minimise the mean final-position KL divergence to the reference over the
+   twenty probe queries, with `ΔW` rescaled to rung 1's Frobenius norm after every step,
+   then scored on the held-out query. The procedure is fixed here so that two
+   implementations give one answer: `A` initialised from a normal distribution with
+   standard deviation 0.01 under seed 0, `B` initialised to zero, then the product
+   rescaled to the target norm before the first step; Adam with learning rate 1e-3 and
+   default betas, no weight decay; exactly 200 full-batch steps over the twenty probes;
+   no early stopping; the adapter after the last step is the one scored, and the
+   training loss at every step is written to the record. These choices are not tuned
+   on the held-out query and were not chosen by trying alternatives. This rung matches next-word predictions, on probe
    queries drawn from the same pool as the scored one, so rung 3 exceeding rung 1 is the
    expected price of writing with no target, not a finding; the finding is the size of
    the gap.
@@ -492,7 +516,13 @@ seven-of-ten tail assumed ten independent trials where the ten decisions share o
 pool; its leak detector expected two hooks at a twelve-stripe site that installs
 twenty-four; its Stage 2 cost omitted C2; its beginning-of-sequence share was a squared
 ratio that is not a decomposition; and it said the context "survives only as a sequence
-length" through the loop, which would have read a surviving effect as impossible.
+length" through the loop, which would have read a surviving effect as impossible. Codex
+round five, the same day, added five more, also fixed: Stage 2's loop writes were not
+rescaled to the selected drift; H4.1 could be refuted by an own write that damaged the
+answer less than every control, so the 0.1-nat floor now applies to every class; the
+adapter rung's optimisation was not pre-registered; the format screen let a multi-token
+answer pass on its first token and a large gap; and topic contexts were not screened for
+a gap the decision floor could be reached within.
 
 **What the second draft got wrong**, found by three independent reviews and Codex rounds
 two and three: its fact-class score could not tell binding from token priming, and on one
