@@ -26,7 +26,7 @@ already in the repo.
 
 - **`open` rows cite no evidence, by definition.** They are questions the project intends to
   answer, not things it asserts. Their Evidence column reads `—` and their caveat names the
-  experiment that would populate it. C-53 and C-54 are the current set; C-50 was
+  experiment that would populate it. C-53, C-54 and C-69 to C-71 are the current set; C-50 was
   answered by T1.4 (answer C-55), C-51 by T1.1 (answer C-56), C-52 by T1.2 (no hysteresis; corroborates C-26/C-56), and C-35 by T2.1 (answer C-58). An `open` row may never be quoted as a claim.
 - **A row may cite a gap rather than an artifact** when the claim *is* about an absence — C-43
   ("not yet in `PRIOR_ART.md`") is the example. The evidence for an absence is the search that
@@ -154,6 +154,9 @@ terms — matching `plasticity.py:105-109`. Equivalent column-vector form: `y = 
 | **C-52** | Does the α-sweep show hysteresis? | **Answered by T1.2: no.** Continuation up-then-down α-sweep (step 0.10, 0→1.5→0) **retraces exactly** — both directions give the identical basin map (`prolet` at α ≤ 0.4, `comrade` at α ≥ 0.5); alpha_up 0.5, alpha_down 0.4, gap = one grid step (a single threshold near α ≈ 0.45, no resolved loop). Same verdict under the fixed-W0 shell (`robustness_agrees`). All settled states are fixed points (lag-1 = 1.0). **Corroborates C-26 `retired` and C-56** — one continuously-moving fixed point, not coexistence. Caveat: a sub-0.10 loop inside (0.4,0.5) is not excluded at this grid; n = 1 prompt, 1 site, 1 eta. Evidence: `experiments/output_t1_2/` |
 | **C-53** | Does the persistence claim survive a fresh prompt? (EXP-002, issue #24) | T2.2 — the pre-registered primary experiment, still unrun |
 | **C-54** | What does the 125-prompt library do at the working point? | T2.3 — largest credibility gain available |
+| **C-69** | Does a single-site, single-pass Hebbian write carry anything **specific to the context it was given**, decided against the same write made from other contexts of the same class (the swapped-context control) at the cell Stage 1 selects, and does this differ by context class (fact, format, topic)? For the fact and format classes the question is about **binding**: the bound answer's lift on the query that names the entity, beyond its lift on control queries that do not, so that a write which merely primes the answer token does not count. Rank-one random writes matched on the largest singular value are reported beside every cell and decide nothing. | EXP-004 Stages 1 and 1b, `EXP_004_SPEC.md`, H4.1 and H4.2, not run |
+| **C-70** | Does anything specific to the seeding context survive `N` iterations of the loop before the write, **at the one cell Stage 1 selects for the topic class**, or is the loop's write there the same whatever context started it? Other cells are untested by this row. | EXP-004 Stage 2, `EXP_004_SPEC.md`, H4.4, not run |
+| **C-71** | How is specific transfer ordered across the best target-free write, a query-blind ridge least-squares edit, and a gradient-trained adapter at matched Frobenius norm (with the largest singular value, which differs across the three by construction, reported beside each), and what is the gap between the target-free and the trained end? | EXP-004 Stage 3, `EXP_004_SPEC.md`, H4.5, not run |
 
 ---
 

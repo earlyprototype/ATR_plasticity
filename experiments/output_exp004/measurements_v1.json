@@ -1,0 +1,1066 @@
+{
+ "model": "gpt2",
+ "site": "blocks.6.mlp",
+ "torch": "2.14.0+cpu",
+ "threads": 4,
+ "screening": {
+  "facts": {
+   "Veltoria/Oslo": {
+    "answer_tokens": [
+     " Oslo"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.09689275578634816,
+    "baseline_lp": -11.17478666049562,
+    "gap": 11.077893904709272,
+    "reference_per_token": [
+     -0.09689275578634816
+    ],
+    "baseline_per_token": [
+     -11.17478666049562
+    ],
+    "reference_top1": " Oslo",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Brannock/Paris": {
+    "answer_tokens": [
+     " Paris"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.24474857966095576,
+    "baseline_lp": -8.866454115135845,
+    "gap": 8.62170553547489,
+    "reference_per_token": [
+     -0.24474857966095576
+    ],
+    "baseline_per_token": [
+     -8.866454115135845
+    ],
+    "reference_top1": " Paris",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Morvane/Tokyo": {
+    "answer_tokens": [
+     " Tokyo"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.03033910170733229,
+    "baseline_lp": -9.159551164903618,
+    "gap": 9.129212063196286,
+    "reference_per_token": [
+     -0.03033910170733229
+    ],
+    "baseline_per_token": [
+     -9.159551164903618
+    ],
+    "reference_top1": " Tokyo",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Kelvarn/Rome": {
+    "answer_tokens": [
+     " Rome"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.24741994295387473,
+    "baseline_lp": -9.095937986960008,
+    "gap": 8.848518044006134,
+    "reference_per_token": [
+     -0.24741994295387473
+    ],
+    "baseline_per_token": [
+     -9.095937986960008
+    ],
+    "reference_top1": " Rome",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Ostrelia/Cairo": {
+    "answer_tokens": [
+     " Cairo"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.003072956752468302,
+    "baseline_lp": -9.851174485175587,
+    "gap": 9.848101528423118,
+    "reference_per_token": [
+     -0.003072956752468302
+    ],
+    "baseline_per_token": [
+     -9.851174485175587
+    ],
+    "reference_top1": " Cairo",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Dranmoor/Lima": {
+    "answer_tokens": [
+     " Lima"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.16133444505936861,
+    "baseline_lp": -13.403251993358221,
+    "gap": 13.241917548298852,
+    "reference_per_token": [
+     -0.16133444505936861
+    ],
+    "baseline_per_token": [
+     -13.403251993358221
+    ],
+    "reference_top1": " Lima",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Quillane/Berlin": {
+    "answer_tokens": [
+     " Berlin"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.2979063063823459,
+    "baseline_lp": -10.056643348887391,
+    "gap": 9.758737042505045,
+    "reference_per_token": [
+     -0.2979063063823459
+    ],
+    "baseline_per_token": [
+     -10.056643348887391
+    ],
+    "reference_top1": " Berlin",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Tessaro/Madrid": {
+    "answer_tokens": [
+     " Madrid"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.024636527870579968,
+    "baseline_lp": -9.2668512140931,
+    "gap": 9.24221468622252,
+    "reference_per_token": [
+     -0.024636527870579968
+    ],
+    "baseline_per_token": [
+     -9.2668512140931
+    ],
+    "reference_top1": " Madrid",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "Veltoria/Marrowgate (pilot_v2 wording)": {
+    "answer_tokens": [
+     " Mar",
+     "row",
+     "gate"
+    ],
+    "n_answer_tokens": 3,
+    "reference_lp": -11.320517834819443,
+    "baseline_lp": -22.35974886017239,
+    "gap": 11.039231025352949,
+    "reference_per_token": [
+     -11.316901571248556,
+     -0.0016765167298357785,
+     -0.0019397468410514893
+    ],
+    "baseline_per_token": [
+     -8.947109315219741,
+     -7.292241027209281,
+     -6.1203985177433715
+    ],
+    "reference_top1": " a",
+    "reference_top1_is_answer_start": false,
+    "every_reference_token_at_least_minus_2": false,
+    "passes": false
+   },
+   "Veltoria/Marrowgate (spec format)": {
+    "answer_tokens": [
+     " Mar",
+     "row",
+     "gate"
+    ],
+    "n_answer_tokens": 3,
+    "reference_lp": -0.2722803541766589,
+    "baseline_lp": -22.35974886017239,
+    "gap": 22.087468505995734,
+    "reference_per_token": [
+     -0.26841197823204166,
+     -0.002185093631305382,
+     -0.0016832823133118774
+    ],
+    "baseline_per_token": [
+     -8.947109315219741,
+     -7.292241027209281,
+     -6.1203985177433715
+    ],
+    "reference_top1": " Mar",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": false
+   }
+  },
+  "formats": {
+   "capitals/garden (pilot_v3)": {
+    "answer_tokens": [
+     " G",
+     "ARD",
+     "EN"
+    ],
+    "n_answer_tokens": 3,
+    "reference_lp": -1.6662926395678028,
+    "baseline_lp": -10.897073029535777,
+    "gap": 9.230780389967974,
+    "reference_per_token": [
+     -1.0508169081818546,
+     -0.5984226213082685,
+     -0.01705311007767984
+    ],
+    "baseline_per_token": [
+     -6.535568004132321,
+     -4.293219435439561,
+     -0.06828558996389397
+    ],
+    "reference_top1": " G",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   },
+   "capitals/water": {
+    "answer_tokens": [
+     " W",
+     "ATER"
+    ],
+    "n_answer_tokens": 2,
+    "reference_lp": -2.3751137911286144,
+    "baseline_lp": -9.862488495674961,
+    "gap": 7.4873747045463475,
+    "reference_per_token": [
+     -2.2088401648213107,
+     -0.16627362630730355
+    ],
+    "baseline_per_token": [
+     -8.287295221237652,
+     -1.5751932744373087
+    ],
+    "reference_top1": " W",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": false,
+    "passes": false
+   },
+   "reverse pairs/dog": {
+    "answer_tokens": [
+     " god"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -9.253463570309341,
+    "baseline_lp": -10.312835643716527,
+    "gap": 1.0593720734071859,
+    "reference_per_token": [
+     -9.253463570309341
+    ],
+    "baseline_per_token": [
+     -10.312835643716527
+    ],
+    "reference_top1": " cat",
+    "reference_top1_is_answer_start": false,
+    "every_reference_token_at_least_minus_2": false,
+    "passes": false
+   },
+   "plural/cat": {
+    "answer_tokens": [
+     " cats"
+    ],
+    "n_answer_tokens": 1,
+    "reference_lp": -0.40973736029648294,
+    "baseline_lp": -6.48553356343429,
+    "gap": 6.0757962031378066,
+    "reference_per_token": [
+     -0.40973736029648294
+    ],
+    "baseline_per_token": [
+     -6.48553356343429
+    ],
+    "reference_top1": " cats",
+    "reference_top1_is_answer_start": true,
+    "every_reference_token_at_least_minus_2": true,
+    "passes": true
+   }
+  },
+  "rule": "a context passes if the whole bound answer's log probability with the context exceeds its log probability without by at least 2 nats AND the answer's first token is the reference's most likely next token AND every token of the answer has a teacher-forced log probability of at least -2 in the reference; fact answers must also be one token; format answers may be several tokens and are scored teacher-forced over all of them"
+ },
+ "binding_vs_priming": {
+  "eta": 0.1,
+  "rescaling": "each foreign write rescaled to the own write's Frobenius norm, as in the pilot",
+  "control_rule": "control entities are real, their true capital is none of the bound answers, the frozen model's top prediction on each control query is not a bound answer, and each control query has the same token count as the entity query it controls for",
+  "control_pool": [
+   "Spain",
+   "Egypt",
+   "Portugal",
+   "Argentina",
+   "Australia",
+   "Indonesia",
+   "Nigeria",
+   "Kazakhstan",
+   "Venezuela",
+   "Slovakia",
+   "Uzbekistan",
+   "Mozambique",
+   "Tajikistan",
+   "Azerbaijan",
+   "Guatemala",
+   "Bangladesh",
+   "Cambodia",
+   "Lithuania",
+   "Mauritania",
+   "Kyrgyzstan",
+   "Madagascar",
+   "Zimbabwe"
+  ],
+  "rows": {
+   "Veltoria/Oslo": {
+    "drift": 0.05911117392594049,
+    "entity_query_tokens": 7,
+    "control_queries": {
+     " The capital of Mozambique is": {
+      "tokens": 7,
+      "frozen_top1": " the"
+     },
+     " The capital of Tajikistan is": {
+      "tokens": 7,
+      "frozen_top1": " home"
+     }
+    },
+    "baseline_entity_query": -11.17478666049562,
+    "baseline_control_queries": {
+     " The capital of Mozambique is": -14.918215902569807,
+     " The capital of Tajikistan is": -14.28430419186004
+    },
+    "writes": {
+     "Veltoria/Oslo": {
+      "lift_entity_query": -0.7043259294267781,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 0.28385373021869675,
+       " The capital of Tajikistan is": -0.12876540723530105
+      },
+      "binding_transfer": -0.9881796596454748
+     },
+     "Brannock/Paris": {
+      "lift_entity_query": 0.08596092528449084,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 1.2440208308435778,
+       " The capital of Tajikistan is": 0.8735556729221816
+      },
+      "binding_transfer": -1.158059905559087
+     },
+     "Morvane/Tokyo": {
+      "lift_entity_query": 0.27934589736563353,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 1.4862876669306058,
+       " The capital of Tajikistan is": 1.156104449883136
+      },
+      "binding_transfer": -1.2069417695649722
+     }
+    }
+   },
+   "Brannock/Paris": {
+    "drift": 0.06193895441057124,
+    "entity_query_tokens": 7,
+    "control_queries": {
+     " The capital of Mozambique is": {
+      "tokens": 7,
+      "frozen_top1": " the"
+     },
+     " The capital of Tajikistan is": {
+      "tokens": 7,
+      "frozen_top1": " home"
+     }
+    },
+    "baseline_entity_query": -8.866454115135845,
+    "baseline_control_queries": {
+     " The capital of Mozambique is": -9.789848001721419,
+     " The capital of Tajikistan is": -11.559305240901788
+    },
+    "writes": {
+     "Veltoria/Oslo": {
+      "lift_entity_query": 0.22850785666698492,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 0.43955583843182744,
+       " The capital of Tajikistan is": 0.7244306163425644
+      },
+      "binding_transfer": -0.4959227596755795
+     },
+     "Brannock/Paris": {
+      "lift_entity_query": 0.3999935133926531,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 1.0098119063680677,
+       " The capital of Tajikistan is": 1.1285595743448553
+      },
+      "binding_transfer": -0.7285660609522022
+     },
+     "Morvane/Tokyo": {
+      "lift_entity_query": 0.8549497786844746,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 1.2950035816287784,
+       " The capital of Tajikistan is": 1.4860625880910217
+      },
+      "binding_transfer": -0.631112809406547
+     }
+    }
+   },
+   "Morvane/Tokyo": {
+    "drift": 0.06099035346400826,
+    "entity_query_tokens": 7,
+    "control_queries": {
+     " The capital of Mozambique is": {
+      "tokens": 7,
+      "frozen_top1": " the"
+     },
+     " The capital of Tajikistan is": {
+      "tokens": 7,
+      "frozen_top1": " home"
+     }
+    },
+    "baseline_entity_query": -9.159551164903618,
+    "baseline_control_queries": {
+     " The capital of Mozambique is": -11.445218237164534,
+     " The capital of Tajikistan is": -9.540421535762627
+    },
+    "writes": {
+     "Veltoria/Oslo": {
+      "lift_entity_query": 0.031659457428141025,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 0.1785042534907877,
+       " The capital of Tajikistan is": -0.1704509146640394
+      },
+      "binding_transfer": -0.14684479606264667
+     },
+     "Brannock/Paris": {
+      "lift_entity_query": 0.4236107988505644,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 0.6482471703628452,
+       " The capital of Tajikistan is": 0.32494194159791334
+      },
+      "binding_transfer": -0.22463637151228077
+     },
+     "Morvane/Tokyo": {
+      "lift_entity_query": 1.3060900180489368,
+      "lift_control_queries": {
+       " The capital of Mozambique is": 1.5900677120298656,
+       " The capital of Tajikistan is": 1.4637766990384264
+      },
+      "binding_transfer": -0.28397769398092887
+     }
+    }
+   }
+  }
+ },
+ "sigma1_share": {
+  "eta": 0.1,
+  "site": "blocks.6.mlp",
+  "rule": "hebb",
+  "rows": {
+   "fact (pilot_v3)": {
+    "drift": 0.05911117392594049,
+    "sigma1_over_frobenius": 0.8794705110201644,
+    "sigma1_squared_share": 0.7734683797540685
+   },
+   "fact (pilot_v2, Marrowgate)": {
+    "drift": 0.051684200726258955,
+    "sigma1_over_frobenius": 0.8932650835367758,
+    "sigma1_squared_share": 0.7979225094659623
+   },
+   "format (pilot_v2, v3)": {
+    "drift": 0.040705325087468096,
+    "sigma1_over_frobenius": 0.6472308606035264,
+    "sigma1_squared_share": 0.41890778691758046
+   },
+   "topic (pilot_v2, v3)": {
+    "drift": 0.03683661499172387,
+    "sigma1_over_frobenius": 0.8530187360294175,
+    "sigma1_squared_share": 0.7276409640172237
+   }
+  },
+  "cosines_between_writes": {
+   "fact (pilot_v3) | fact (pilot_v2, Marrowgate)": 0.8167222714744116,
+   "fact (pilot_v3) | format (pilot_v2, v3)": 0.12721542450201295,
+   "fact (pilot_v3) | topic (pilot_v2, v3)": 0.4066076730162915,
+   "fact (pilot_v2, Marrowgate) | format (pilot_v2, v3)": 0.10117620839708634,
+   "fact (pilot_v2, Marrowgate) | topic (pilot_v2, v3)": 0.39778617819343975,
+   "format (pilot_v2, v3) | topic (pilot_v2, v3)": 0.15885515432369132
+  }
+ },
+ "drift_by_site": {
+  "context": "Veltoria/Oslo",
+  "rows": {
+   "blocks.6.mlp / hebb": {
+    "0.001": {
+     "delta_frac": 0.0005911117588212729,
+     "clipped": false,
+     "nonfinite": false
+    },
+    "0.01": {
+     "delta_frac": 0.005911117191980646,
+     "clipped": false,
+     "nonfinite": false
+    }
+   },
+   "blocks.6.mlp / oja": {
+    "0.0001": {
+     "delta_frac": 0.00463238658434681,
+     "clipped": false,
+     "nonfinite": false
+    },
+    "0.001": {
+     "delta_frac": 0.04632386908788502,
+     "clipped": false,
+     "nonfinite": false
+    },
+    "0.01": {
+     "delta_frac": 0.463238659063811,
+     "clipped": false,
+     "nonfinite": false
+    }
+   },
+   "blocks.11.mlp / hebb": {
+    "0.001": {
+     "delta_frac": 0.001664256875641151,
+     "clipped": false,
+     "nonfinite": false
+    },
+    "0.01": {
+     "delta_frac": 0.01664256763968685,
+     "clipped": false,
+     "nonfinite": false
+    }
+   },
+   "blocks.11.mlp / oja": {
+    "0.0001": {
+     "delta_frac": 0.055711675363929986,
+     "clipped": false,
+     "nonfinite": false
+    },
+    "0.001": {
+     "delta_frac": 0.5571167936885313,
+     "clipped": false,
+     "nonfinite": false
+    },
+    "0.01": {
+     "delta_frac": 0.999999994621243,
+     "clipped": true,
+     "nonfinite": false
+    }
+   },
+   "blocks.11.attn.head.7 / hebb": {
+    "0.001": {
+     "delta_frac": 0.010171953441927622,
+     "clipped": false,
+     "nonfinite": false
+    },
+    "0.01": {
+     "delta_frac": 0.1017195272799675,
+     "clipped": false,
+     "nonfinite": false
+    }
+   },
+   "blocks.11.attn.head.7 / oja": {
+    "0.0001": {
+     "delta_frac": 1.00000000432687,
+     "clipped": true,
+     "nonfinite": false
+    },
+    "0.001": {
+     "delta_frac": 0.999999980855159,
+     "clipped": true,
+     "nonfinite": false
+    },
+    "0.01": {
+     "delta_frac": 0.9999999747059956,
+     "clipped": true,
+     "nonfinite": false
+    }
+   },
+   "blocks.2.attn stripes / hebb": {
+    "0.001": {
+     "delta_frac": 0.0004804862859159109,
+     "clipped": false,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.0006194072258881849,
+      0.00013652734382462012,
+      0.00044974143957306396,
+      0.0005214133337999347,
+      0.0004652759900377265,
+      0.0004663478559359052,
+      0.0003292661357536551,
+      0.00037507666848955696,
+      0.000585528221526107,
+      0.0006463841224976099,
+      0.000718998686888959,
+      0.0004492012360365145
+     ]
+    },
+    "0.01": {
+     "delta_frac": 0.004804862526761975,
+     "clipped": false,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.006194071825524938,
+      0.0013652733437831404,
+      0.004497414078069635,
+      0.005214132976623136,
+      0.004652759581712908,
+      0.0046634782345603065,
+      0.003292661128781187,
+      0.0037507664239844938,
+      0.005855281817199396,
+      0.006463840768825874,
+      0.007189986383901308,
+      0.004492012039959618
+     ]
+    }
+   },
+   "blocks.2.attn stripes / oja": {
+    "0.0001": {
+     "delta_frac": 0.00020823375146558355,
+     "clipped": false,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.00021792439713721706,
+      0.00020743684754538993,
+      0.000194678127670443,
+      0.0001986895276233976,
+      0.00017189317784089512,
+      0.00019685921788983486,
+      0.00020697525284757245,
+      0.00017399914493918656,
+      0.00016447897889302165,
+      0.00016732572732468931,
+      0.0002805675946724822,
+      0.00024147530753157987
+     ]
+    },
+    "0.001": {
+     "delta_frac": 0.002082337664485249,
+     "clipped": false,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.002179244133656735,
+      0.0020743686206908256,
+      0.001946781418168992,
+      0.001986895424637656,
+      0.001718931909820616,
+      0.00196859232911661,
+      0.0020697526762869668,
+      0.0017399915764941386,
+      0.0016447899098858828,
+      0.001673257395179853,
+      0.0028056761381054784,
+      0.0024147532488084087
+     ]
+    },
+    "0.01": {
+     "delta_frac": 0.020823375178502676,
+     "clipped": false,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.021792439752047477,
+      0.020743684733907468,
+      0.01946781285180457,
+      0.019868952903755385,
+      0.017189317889553402,
+      0.019685921902144677,
+      0.02069752533720789,
+      0.017399914541049055,
+      0.016447897903705752,
+      0.016732572829020218,
+      0.028056759360420572,
+      0.024147530812758503
+     ]
+    }
+   },
+   "blocks.11.attn stripes / hebb": {
+    "0.001": {
+     "delta_frac": 0.04605048285508502,
+     "clipped": false,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.030838027076151603,
+      0.012574345162463776,
+      0.010249335819580733,
+      0.012958953538874659,
+      0.013343915785397207,
+      0.008720981530223434,
+      0.008699314109511405,
+      0.010171953441927622,
+      0.10944025762002503,
+      0.00653929346535747,
+      0.009907326128724435,
+      0.009803021575619537
+     ]
+    },
+    "0.01": {
+     "delta_frac": 0.42441759583734756,
+     "clipped": true,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.30838025051531764,
+      0.1257434423157601,
+      0.1024933522608396,
+      0.12958952731969892,
+      0.13343914827556613,
+      0.08720980923647924,
+      0.08699313445978527,
+      0.1017195272799675,
+      0.9999999766118012,
+      0.06539293013875364,
+      0.09907325451214932,
+      0.09803020835167563
+     ]
+    }
+   },
+   "blocks.11.attn stripes / oja": {
+    "0.0001": {
+     "delta_frac": 0.9999999843367052,
+     "clipped": true,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.9999999754095489,
+      0.9999999568689424,
+      0.9999999725886723,
+      0.99999997866783,
+      0.9999999719236237,
+      0.9999999569932251,
+      1.0000000188721505,
+      1.00000000432687,
+      0.9999999664848375,
+      1.0000000144656482,
+      1.000000008683282,
+      1.0000000164246268
+     ]
+    },
+    "0.001": {
+     "delta_frac": 1.0000000113008924,
+     "clipped": true,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      1.0000000257555988,
+      0.9999999893918239,
+      1.0000000199055545,
+      1.0000000347565643,
+      1.000000003100373,
+      1.0000000272024046,
+      1.000000017731207,
+      0.999999980855159,
+      1.0000000058548522,
+      1.0000000116800734,
+      1.000000037518097,
+      0.9999999868471938
+     ]
+    },
+    "0.01": {
+     "delta_frac": 0.9999999918391407,
+     "clipped": true,
+     "nonfinite": false,
+     "per_stripe_delta_frac": [
+      0.9999999953496567,
+      1.0000000186544318,
+      0.9999999856972732,
+      1.000000007062989,
+      1.0000000322614457,
+      1.000000029977981,
+      0.9999999939201727,
+      0.9999999747059956,
+      0.9999999811313924,
+      0.9999999646821605,
+      0.9999999673244123,
+      0.9999999555353263
+     ]
+    }
+   }
+  }
+ },
+ "linearity": {
+  "context": "Veltoria/Oslo",
+  "rows": {
+   "blocks.6.mlp / hebb": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 9.9999993296833,
+    "expected_ratio": 10.0,
+    "cosine": 0.9999999999998906,
+    "clipped": [
+     false,
+     false
+    ]
+   },
+   "blocks.6.mlp / oja": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 9.999999313204189,
+    "expected_ratio": 10.0,
+    "cosine": 0.9999999999999509,
+    "clipped": [
+     false,
+     false
+    ]
+   },
+   "blocks.11.mlp / hebb": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 9.999999328995015,
+    "expected_ratio": 10.0,
+    "cosine": 0.9999999999999538,
+    "clipped": [
+     false,
+     false
+    ]
+   },
+   "blocks.11.mlp / oja": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 1.794955754251263,
+    "expected_ratio": 10.0,
+    "cosine": 0.999999999999962,
+    "clipped": [
+     false,
+     true
+    ]
+   },
+   "blocks.11.attn.head.7 / hebb": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 9.999999298137888,
+    "expected_ratio": 10.0,
+    "cosine": 0.9999999999999971,
+    "clipped": [
+     false,
+     false
+    ]
+   },
+   "blocks.11.attn.head.7 / oja": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 0.9999999938508365,
+    "expected_ratio": 10.0,
+    "cosine": 0.999999999999998,
+    "clipped": [
+     true,
+     true
+    ]
+   },
+   "blocks.2.attn stripes / hebb": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 9.999999308206823,
+    "expected_ratio": 10.0,
+    "cosine": 0.9999999999999665,
+    "clipped": [
+     false,
+     false
+    ]
+   },
+   "blocks.2.attn stripes / oja": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 9.999999295815545,
+    "expected_ratio": 10.0,
+    "cosine": 0.9999999999999424,
+    "clipped": [
+     false,
+     false
+    ]
+   },
+   "blocks.11.attn stripes / hebb": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 9.21635495490754,
+    "expected_ratio": 10.0,
+    "cosine": 0.9996492257541021,
+    "clipped": [
+     false,
+     true
+    ]
+   },
+   "blocks.11.attn stripes / oja": {
+    "etas": [
+     0.001,
+     0.01
+    ],
+    "drift_ratio": 0.9999999805382485,
+    "expected_ratio": 10.0,
+    "cosine": 1.0,
+    "clipped": [
+     true,
+     true
+    ]
+   }
+  }
+ },
+ "c0_gate": {
+  "blocks.6.mlp": {
+   "bit_identical": true,
+   "n_cache_entries": 210
+  },
+  "blocks.11.attn stripes": {
+   "bit_identical": true,
+   "n_cache_entries": 210
+  }
+ },
+ "bos_share": {
+  "site": "blocks.6.mlp",
+  "rows": {
+   "fact (pilot_v3)": {
+    "n_positions": 24,
+    "y_norm_bos": 60.6182083465515,
+    "y_norm_median_others": 24.243284378254426,
+    "bos_term_squared_share": 0.07401052996114285,
+    "bos_relative_magnitude": 0.27204876393974453,
+    "bos_projection_share": 0.05922442062380257,
+    "rest_projection_share": 0.9407755793762266,
+    "cosine_full_vs_without_bos": 0.9624023412231337
+   },
+   "fact (pilot_v2, Marrowgate)": {
+    "n_positions": 35,
+    "y_norm_bos": 60.6182083465515,
+    "y_norm_median_others": 22.316616456059602,
+    "bos_term_squared_share": 0.04552012823918001,
+    "bos_relative_magnitude": 0.21335446618053255,
+    "bos_projection_share": 0.034580047786119145,
+    "rest_projection_share": 0.9654199522138687,
+    "cosine_full_vs_without_bos": 0.9770375913876297
+   },
+   "format (pilot_v2, v3)": {
+    "n_positions": 21,
+    "y_norm_bos": 60.6182083465515,
+    "y_norm_median_others": 19.061929877407465,
+    "bos_term_squared_share": 0.2038516031738555,
+    "bos_relative_magnitude": 0.45149928369140907,
+    "bos_projection_share": 0.20028933166126106,
+    "rest_projection_share": 0.7997106683387286,
+    "cosine_full_vs_without_bos": 0.8922803339860942
+   },
+   "topic (pilot_v2, v3)": {
+    "n_positions": 33,
+    "y_norm_bos": 60.6182083465515,
+    "y_norm_median_others": 19.139414901294295,
+    "bos_term_squared_share": 0.10080170159526891,
+    "bos_relative_magnitude": 0.31749283707710463,
+    "bos_projection_share": 0.0776049733395327,
+    "rest_projection_share": 0.9223950266604546,
+    "cosine_full_vs_without_bos": 0.9485606715298175
+   }
+  },
+  "note": "x is blocks.6.mlp.hook_post, y is blocks.6.hook_mlp_out; the Hebbian term is the position mean of x y^T; the BOS row is position 0. The write is full = bos + rest. 'bos_projection_share' is <bos, full> / |full|^2, which with rest's projection sums to one and is the decomposition; 'bos_relative_magnitude' is |bos| / |full|; 'bos_term_squared_share' is |bos|^2 / |full|^2 and is NOT a decomposition because bos and rest are not orthogonal",
+  "cosines_between_bos_terms": {
+   "fact (pilot_v3) | fact (pilot_v2, Marrowgate)": 1.0000000000000064,
+   "fact (pilot_v3) | format (pilot_v2, v3)": 1.0000000000000193,
+   "fact (pilot_v3) | topic (pilot_v2, v3)": 1.0000000000000235,
+   "fact (pilot_v2, Marrowgate) | format (pilot_v2, v3)": 1.0000000000000022,
+   "fact (pilot_v2, Marrowgate) | topic (pilot_v2, v3)": 1.0000000000000064,
+   "format (pilot_v2, v3) | topic (pilot_v2, v3)": 1.0000000000000193
+  },
+  "cosines_between_writes_without_bos": {
+   "fact (pilot_v3) | fact (pilot_v2, Marrowgate)": 0.8119072697681355,
+   "fact (pilot_v3) | format (pilot_v2, v3)": 0.035465045898755286,
+   "fact (pilot_v3) | topic (pilot_v2, v3)": 0.37595237612774857,
+   "fact (pilot_v2, Marrowgate) | format (pilot_v2, v3)": 0.03351575455591797,
+   "fact (pilot_v2, Marrowgate) | topic (pilot_v2, v3)": 0.37666098586577956,
+   "format (pilot_v2, v3) | topic (pilot_v2, v3)": 0.058517494083928395
+  }
+ },
+ "position_control": {
+  "filler": "It was an ordinary afternoon and nothing in particular was happening anywhere, which is how most afternoons go, and people went about their usual business as they always do without much thought about any of it at all, one thing after another.",
+  "position_shift": "hook_pos_embed replaced so the query's tokens take the positions they have in the reference while nothing precedes them but BOS",
+  "rows": {
+   "fact": {
+    "kl_final_baseline": 10.109797323439647,
+    "kl_final_position_shifted": 9.024903036850029,
+    "kl_final_neutral_filler": 12.242055477514723
+   },
+   "format": {
+    "kl_final_baseline": 4.978278489797855,
+    "kl_final_position_shifted": 4.144255684801055,
+    "kl_final_neutral_filler": 4.914132479307814
+   },
+   "topic": {
+    "kl_final_baseline": 1.8393698587864769,
+    "kl_final_position_shifted": 4.715890186227895,
+    "kl_final_neutral_filler": 2.779196187331477
+   }
+  }
+ },
+ "loop_writes": {
+  "site": "blocks.6.mlp",
+  "rule": "hebb",
+  "eta": 0.001,
+  "layer_start": 0,
+  "layer_end": 11,
+  "definition": "the rule observes every loop iteration and is applied once at the end; the loop starts from the state the context pass produced, per atr_bridge.initial_state",
+  "rows": {
+   "topic A (pilot) / N=1": {
+    "drift": 0.0007531523925145882,
+    "cos_with_own_context_write": -0.21982755521793426
+   },
+   "topic A (pilot) / N=10": {
+    "drift": 0.0013157953918877462,
+    "cos_with_own_context_write": -0.027788475953932003
+   },
+   "topic A (pilot) / N=100": {
+    "drift": 0.0009724524780009616,
+    "cos_with_own_context_write": -0.0868290969730625
+   },
+   "topic B / N=1": {
+    "drift": 0.0008582403999847705,
+    "cos_with_own_context_write": -0.04422470481156331
+   },
+   "topic B / N=10": {
+    "drift": 0.0014805749853016783,
+    "cos_with_own_context_write": -0.009221096454735797
+   },
+   "topic B / N=100": {
+    "drift": 0.0009175185543777073,
+    "cos_with_own_context_write": 0.005467623999401148
+   }
+  },
+  "cos_between_contexts": {
+   "N=0": 0.41005345965291584,
+   "N=1": 0.7168684166973924,
+   "N=10": 0.9565680694061798,
+   "N=100": 0.31669595189667976
+  }
+ },
+ "timings": {
+  "seconds_per_fold_mlp": 0.19882583618164062,
+  "seconds_per_fold_12_stripes": 0.1602461338043213,
+  "seconds_per_query_pass_7_tokens": 0.15164425373077392,
+  "context_tokens": 24
+ },
+ "elapsed_s": 75.06073594093323
+}
