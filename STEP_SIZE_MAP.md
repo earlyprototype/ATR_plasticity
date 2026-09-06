@@ -12,7 +12,7 @@ Issue #30. Where, for each local rule, the weights actually move without the run
 | prompt | `A01_physics` — "The implications of quantum entanglement suggest that" |
 | loop | layers 0→11, 120 steps, ‖x₀‖ = 1289.226318 |
 | plasticity | cadence 1 (update after every step), `max_delta_frac` = 0.05, seed 0 |
-| cells | 35 recorded of 33 = 1 frozen reference + 4×8 |
+| cells | 35 recorded = 1 frozen reference + 4×8 grid + 2 `hebb` refinement (D = 0.018, 0.056) |
 | eta anchor | `eta = D · ‖W0‖_F / (N · U_ref)`, U_ref = {"hebb": 350.0, "oja": 14000.0, "anti_hebb": 14000.0, "random": 14000.0} |
 | threads | 1 per process, 2 shard(s) |
 
@@ -131,9 +131,9 @@ One prompt (`A01_physics`), one site (`blocks.6.mlp`), one seed, 120 steps, cade
 | `hebb` | 1e-04 | 3.93e-07 | 4.906e-05 | 164.8543 | 0.0% | 0 | 642.6 | -0.00% | 33.4 | 3.7099 | `prolet` | 1.00000 | 1.00000 | noise floor |
 | `hebb` | 1e-03 | 3.93e-06 | 4.964e-04 | 164.8561 | 0.0% | 0 | 642.6 | -0.00% | 33.4 | 3.7113 | `prolet` | 1.00000 | 1.00000 | noise floor |
 | `hebb` | 1e-02 | 3.93e-05 | 5.599e-03 | 164.8785 | 0.0% | 0 | 642.6 | -0.00% | 33.5 | 3.7271 | `prolet` | 1.00000 | 0.99999 | usable |
-| `hebb` | 2e-02 | 7.07e-05 | 1.124e-02 | 164.9072 | 0.0% | 0 | 642.6 | -0.01% | 33.5 | 3.7465 | `comrade` | 1.00000 | 0.99999 | usable |
+| `hebb` | 0.018 | 7.07e-05 | 1.124e-02 | 164.9072 | 0.0% | 0 | 642.6 | -0.01% | 33.5 | 3.7465 | `comrade` | 1.00000 | 0.99999 | usable |
 | `hebb` | 3e-02 | 0.000118 | 2.204e-02 | 164.9743 | 0.0% | 0 | 642.4 | -0.03% | 33.6 | 3.7858 | `comrade` | 0.99999 | 0.99997 | usable |
-| `hebb` | 6e-02 | 0.00022 | 5.000e-02 | 165.2201 | 7.5% | 0 | 641.7 | -0.15% | 33.8 | 3.8387 | `locality` | 0.99998 | 0.99993 | ceiling |
+| `hebb` | 0.056 | 0.00022 | 5.000e-02 | 165.2201 | 7.5% | 0 | 641.7 | -0.15% | 33.8 | 3.8387 | `locality` | 0.99998 | 0.99993 | ceiling |
 | `hebb` | 1e-01 | 0.000393 | 5.000e-02 | 165.1871 | 43.3% | 0 | 641.7 | -0.14% | 33.5 | 3.8340 | `locality` | 0.99999 | 0.99997 | ceiling |
 | `hebb` | 3e-01 | 0.00118 | 5.000e-02 | 165.1909 | 83.3% | 0 | 641.6 | -0.16% | 33.4 | 3.8102 | `comrade` | 0.99999 | 0.99996 | ceiling |
 | `hebb` | 1e+00 | 0.00393 | 5.000e-02 | 165.2062 | 95.8% | 0 | 641.4 | -0.20% | 33.8 | 3.7652 | `comrade` | 0.99999 | 0.99997 | ceiling |

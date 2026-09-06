@@ -1,8 +1,11 @@
 """
 Tests for `plasticity.py`, against real GPT-2 small.
 
-The module's own header says it was "written but never executed against real
-weights". These tests are that execution. They are written in the spirit of the
+The module's header used to say it was "written but never executed against real
+weights". These tests are that execution, and they are why the header no longer
+says it: it now records that C0 passes bit-exactly and is re-run as a gate, here
+on real weights through a deterministic test-double step, and in the runners
+through the real imported loop. They are written in the spirit of the
 controls table in README: each one names the thing that would be true of the
 *experiment* if the test failed, not just the thing that would be true of the
 code.

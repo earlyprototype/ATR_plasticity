@@ -76,12 +76,24 @@ merely a numerical guard:
    multiplicative synaptic scaling which adjusts individual weights and
    therefore *does* change direction.
 
-Axis 3 is the one that matters for interpretation: because our rule is
-direction-preserving, **all observed basin structure is attributable to the map
-rather than to our normalisation choice.** That is a real strength of the
-current design and should be stated explicitly in TECHNICAL.md. It is also
-precisely the property to relax if we want to study homeostasis rather than
-merely impose it.
+Axis 3 is the one that matters for interpretation. **[SUPERSEDED — no register
+row supports this, and this file contradicts it two sections up.]** *Because our
+rule is direction-preserving, all observed basin structure is attributable to the
+map rather than to our normalisation choice.* That does not follow, and "What the
+rescale can and cannot do" above already says why.
+
+The defensible version: the rescale **cannot itself rotate the state
+instantaneously** — it is a single scalar, a purely radial move along the same
+ray. But `f` is **nonlinear**, so the magnitude the rescale sets can change the
+**next** iterate's direction, and a landscape read off an iterated map is a
+property of the composition, not of one step of it. **Whether the coefficient is
+load-bearing is an open empirical question, and E1 is the unrun test.** Until it
+runs, every basin result in the repo is a slice at one arbitrary target energy,
+and no document may say the normalisation has been ruled out as a contributor.
+
+The direction-preserving property is still the right thing to relax if we want to
+study homeostasis rather than merely impose it — that part of the paragraph
+survives.
 
 ## Experiments
 
@@ -131,13 +143,40 @@ Rationale, from the biological analogue: dissociated cortical cultures collapse
 *spontaneously* into globally synchronised bursting — thousands of spikes in
 0.1–2 s recruiting essentially the whole network. That is dynamical collapse
 onto a single low-dimensional attractor, and it destroyed the Potter lab's
-ability to observe anything else. Their remedy was **continuous distributed
+ability to observe anything else. One remedy was **continuous distributed
 electrical stimulation to quiet bursts** (Wagenaar, Madhavan, Pine & Potter
 2005, J Neurosci 25:680): external drive holding the network off its attractor.
-Notably, burst-quieting was the one protocol in *Searching for Plasticity*
-(2006) where a real effect became detectable. Compare also Chao, Bakkum,
-Wagenaar & Potter (2005) on random background stimulation stabilising networks
-after tetanization.
+That paper's own result — multi-electrode stimulation quiets bursting, and
+bursting resumes when it stops — is verified independently and stands
+(`MEA_SOURCES.md`).
+
+**Correction, and it goes the other way for this experiment.** This paragraph
+used to add that *burst-quieting was the one protocol in **Searching for
+Plasticity** (2006) where a real effect became detectable*, immediately after
+crediting distributed electrical stimulation, which reads as crediting the
+electrical protocol. **The published correction to that paper — Journal of
+Negative Results in Biomedicine 6:3 (2007), against the original 5:16 —
+swaps the two protocol labels throughout.** The protocol that worked suppressed
+bursting **with added magnesium**, not with distributed electrical stimulation,
+and the correction instructs that the discussion paragraph crediting distributed
+electrical stimulation be dropped entirely. The uncorrected text is still
+publicly served, which is how this got in; see `MEA_SOURCES.md`, which records
+that an earlier draft of that file made the same mistake.
+
+What survives is the weaker and more general point, and it is the one E3 should
+lean on: **quieting bursts aids the induction and detection of lasting
+plasticity** (Potter, 2008 review chapter, quoted in `MEA_SOURCES.md`). What does
+*not* survive is the specific claim that **external electrical drive** was the
+means — in the one protocol that worked, the quieting was pharmacological. E3
+imposes drive, which is the analogue of the label the correction removed, not of
+the one it installed. That does not sink E3, but the biological precedent is now
+for *quieting by any means*, and this file should not imply the literature
+already picked drive.
+
+Compare also Chao, Bakkum, Wagenaar & Potter (2005) on random background
+stimulation stabilising networks after tetanization — noting from
+`MEA_SOURCES.md` that this one is a **simulation** of 1000 integrate-and-fire
+neurons, not a living-culture measurement.
 
 **Hypothesis:** GPT-2 Medium's collapse to `D` by iteration 10 is the analogue
 of runaway global bursting. Predict that Medium's single funnel opens into
@@ -163,8 +202,9 @@ activation norm — a direct analogue of multiplicative synaptic scaling.
 ## Tasks
 
 - [ ] Update ISOMORPHISM.md with the corrected absorption/anisotropy mapping
-- [ ] Add the direction-preserving property and its interpretive consequence to
-      TECHNICAL.md
+- [ ] Add the direction-preserving property to TECHNICAL.md — the property only,
+      **not** the "so the basin structure is all the map's" consequence, which is
+      withdrawn above and awaits E1
 - [ ] Run `spectral_resonance.ipynb` (currently scaffold-only) — SVD-predicted
       per-head resonance is the direct test of whether `f`'s anisotropy predicts
       the basins, and is now the missing link in the corrected isomorphism

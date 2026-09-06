@@ -35,9 +35,25 @@ The learning rules are unchanged by this; only three things differ (where the
 live weight lives, how to write it, how to capture x and y) and they are behind
 `_SiteAdapter` below. See "Site adapters".
 
-STATUS: written but never executed against real weights. The eta=0 identity
-check (see README, Control C0) is the first thing you should run, and it must
-pass bit-exactly before any result here means anything.
+STATUS: executed against real GPT-2 small, and continuously. Every committed
+experiment in this repository runs on this module, and the eta=0 identity check
+(see README, Control C0) passes bit-exactly -- max abs deviation 0.0, not
+"small". It is also not a one-time acceptance test that was passed once and is
+now remembered. It is re-run as a gate, at both levels:
+
+  the suite    `tests/test_controls.py::test_c0_identity_passes_on_healthy_setup`
+               on real GPT-2 weights, through a deterministic test-double step
+               rather than the parent engine -- which is what keeps the LIBRARY
+               honest, and no more than that.
+  the runners  the real imported loop, before a run is allowed to report
+               anything. `experiments/exp002_distributed.py`'s `gate:eta0`
+               refuses to continue if the trajectory or any of the twelve weight
+               matrices moved at step size zero, and the step-size map spends an
+               `eta=0, mode="off"` cell on the same question.
+
+C0 remains THE gate and is re-run at both levels on purpose: a green suite is not
+C0 passing for an experiment, and a result taken without the gate is not a
+result, whatever else the run measured.
 """
 
 from __future__ import annotations
@@ -99,13 +115,23 @@ import torch.nn as nn
 # ANTI-HEBBIAN IS NOT A NEGATIVE ETA, and the difference is the decay term.
 # `eta = -e` scales the whole rule, so it flips BOTH terms: the reinforcement
 # term decorrelates (wanted) and the brake `-W <y y^T>` becomes `+W <y y^T>`
-# (not wanted). `<y y^T>` is positive semi-definite, so `+W <y y^T>` points
-# along W and the weight grows without bound -- the one property Oja exists to
-# provide is exactly the one a sign-flipped eta destroys. The anti-Hebbian mode
-# flips the reinforcement term only and keeps the brake with its stabilising
-# sign, which makes it a linear map with a bounded fixed point at
-# W* = -<x y^T> <y y^T>^-1 rather than a divergence.
-# `tests/test_antihebbian.py` measures both arms on real GPT-2 weights.
+# (not wanted). `<y y^T>` is positive semi-definite, so `+W <y y^T>` points along
+# W and the weight GROWS -- the one property Oja exists to provide is exactly the
+# one a sign-flipped eta destroys. The anti-Hebbian mode flips the reinforcement
+# term only and keeps the brake with its stabilising sign, which makes it a linear
+# map with a bounded fixed point at W* = -<x y^T> <y y^T>^-1, and on real weights
+# it erodes rather than grows.
+#
+# HOW FAR THAT GROWTH CLAIM GOES, because the unqualified version is what C-15
+# retires for `hebb` and the same discipline applies here. What is measured is
+# `tests/test_antihebbian.py::TestBoundedness` on real GPT-2 weights, at eta 3e-5
+# with the ceiling lifted (`max_delta_frac=1e9`): over SIXTEEN applications the
+# negative-eta arm's ||W||_F rises monotonically at every step, 164.9 -> 6.7e+04,
+# while `anti_hebb` falls monotonically at every step and is still falling at 50
+# (163.6). Sixteen applications is a short run and it establishes no unbounded
+# limit -- it says the two spellings separate by orders of magnitude rather than
+# percent, in that regime, which is what the mode exists to be distinguished from.
+# Do not upgrade it to "grows without bound" anywhere.
 #
 # COMPOSING TERMS. The modes above are fixed recipes over two primitives:
 # H = <x y^T> (reinforcement) and D = W <y y^T> (the brake). Issue #25's third
@@ -226,7 +252,12 @@ class TermSpec:
                      modes read it. Positive semi-definite `<y y^T>` is what
                      makes the sign of this term the difference between a brake
                      and an accelerator, so it is spelled unsigned here and the
-                     sign is yours: `sign=-1` brakes, `sign=+1` diverges.
+                     sign is yours: `sign=-1` brakes, `sign=+1` accelerates.
+                     "Accelerates" is measured as monotone weight-norm growth
+                     over the SIXTEEN applications of `tests/test_terms.py`'s
+                     flipped-brake arm with the ceiling lifted -- that run, not
+                     an unbounded limit, which is the same discipline C-15
+                     imposes on every growth claim in this repo.
     sign : {+1, -1}
         Exactly +1 or -1, nothing else. Magnitude belongs in `scale`, and a
         `sign` that quietly doubled as a coefficient would put the same number
@@ -897,16 +928,52 @@ class OjaPlasticity:
                       same as eta < 0, which flips the brake too; see the note
                       above the learning rules.
         "random"    - random update matched in Frobenius norm to what Oja would
-                      have applied (Control C2: is the *direction* doing work?)
+                      have applied (Control C2). DIAGNOSTIC, not decisive, and
+                      the reason is the quantity it is matched on: an isotropic
+                      matrix spreads its mass over all 768 singular values, so
+                      across the whole step-size sweep this arm holds
+                      sigma1/||dW||_F = 0.054 against `hebb`'s 0.979 and its
+                      operator norm never reaches `hebb`'s anywhere -- 4x to 11x
+                      short. Two arms that agree in Frobenius norm and differ by
+                      an order of magnitude in the norm that actually moves a
+                      state cannot settle whether the *direction* is doing the
+                      work; register row C-23 is retired for exactly that.
+                      The control that can is a rank-1 direction matched on the
+                      loop-state displacement instead:
+                      `experiments/rank1_random_control.py`, which found that
+                      arbitrary directions usually DO move the basin (4 of the 6
+                      matchable seeds) but never to `hebb`'s destination
+                      `comrade`, and only at 66x-171x `hebb`'s weight cost
+                      (C-55).
         "off"       - accumulate statistics, apply nothing (Control C0/C1)
         Mutually exclusive with `terms`; see there.
     cadence : int
         Informational only; you decide when to call apply().
     max_delta_frac : float
-        Ceiling on ||delta||_F / ||W_0||_F. Updates are scaled down to respect
-        it and `clipped` is flagged in report(). This is the guard against
-        silently destroying the model. Held to float32 precision rather than
-        exactly -- expect overshoot of order 1e-8 relative on a large matrix.
+        Ceiling on ||delta||_F / ||W_0||_F, the guard against silently destroying
+        the model. Two details in how apply() enforces it, both of which change
+        what a clipped run is:
+
+        What gets rescaled is the ACCUMULATED delta, not the incoming update. The
+        candidate `delta + eta*upd` is measured against the ceiling and, if it is
+        over, the whole sum is multiplied down by `ceiling/||delta + eta*upd||`.
+        So the rescale also shrinks drift accumulated by earlier applies, pulling
+        the matrix back toward W0 along directions it had already committed to. A
+        clipped run is therefore not "the same trajectory with a smaller last
+        step", and a clipped cell is not a smaller-eta cell -- which is why the
+        standing prohibition is to never quote one as a finding. A ceiling-fired
+        cell may appear as a non-finding with its clip rate stated inline, and
+        that is the whole of what it may do.
+
+        `clipped` in report() is a LATCHING boolean and not a rate: it is set the
+        first time any apply() rescales and is cleared only by revert(), so it
+        answers "did the ceiling ever bite in this run", not "is it biting now"
+        and not "how often". Register row C-46 retires the claim that the library
+        records a clipping rate; the rates the step-size map quotes are that
+        script's own bookkeeping over semi-private state.
+
+        Held to float32 precision rather than exactly -- expect overshoot of order
+        1e-8 relative on a large matrix.
     transposed : bool
         Set True for nn.Linear (weight is (n_out, n_in)). False for Conv1D and
         for TransformerLens W_out, both of which are already (n_in, n_out).
@@ -916,8 +983,11 @@ class OjaPlasticity:
         is then confined to the subspace P projects onto -- a direction in
         residual-stream space, say -- and every column of the update outside it
         is exactly zero. `subspace_projector(basis)` builds one from directions.
-        Applied to the "random" arm too, so C2 stays a comparison of directions
-        inside the same subspace rather than of subspaces.
+        Applied to the "random" arm too, so C2's two arms sit inside the SAME
+        subspace rather than differing by which subspace they occupy. That removes
+        one confound from a control whose scope is otherwise limited by what it is
+        matched on -- see `mode="random"` above, and C-23: keeping the arms in one
+        subspace does not make the Frobenius match decisive about direction.
         Composes with per-term projectors: those shape each term as it is
         accumulated, this one is applied to the averaged sum in `apply()`, so
         the net effect is `(sum_i scale_i sign_i (T_i P_i)) P`. Both are linear,
@@ -1247,10 +1317,20 @@ class OjaPlasticity:
             upd = upd @ self.project
 
         if self.mode == "random":
-            # Match in float64. C2's entire verdict rests on these two arms
-            # carrying the same magnitude, and a float32 match leaves ~3e-4
-            # relative error on a matrix this size -- small, but avoidable
-            # error in the control the README calls decisive.
+            # Match in float64. The Frobenius match is the one property this arm
+            # does have, so it should at least be exact in the quantity it claims:
+            # a float32 match leaves ~3e-4 relative error on a matrix this size --
+            # small, but avoidable, and an arm already limited in what it can
+            # decide should not also be sloppy about what it can.
+            #
+            # What the match does NOT buy is direction-specificity, and no
+            # precision here would. Frobenius norm is the wrong quantity: this
+            # noise spreads it across the spectrum (sigma1/||dW||_F 0.054) where
+            # `hebb` concentrates it (0.979), so the two arms never carry the same
+            # operator norm and C2 cannot separate direction from magnitude.
+            # C-23 is retired on that ground; the decisive comparison is the
+            # rank-1 arm matched on loop displacement in
+            # `experiments/rank1_random_control.py` (C-55), not this one.
             target_norm = upd.double().norm().item()
             noise = torch.randn(
                 upd.shape, generator=self._rng, device=upd.device, dtype=upd.dtype

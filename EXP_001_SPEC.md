@@ -1,6 +1,25 @@
 # EXP-001 — Does the `Divine` period-2 cycle survive plasticity?
 
-**Status:** proposed, not run. Blocked on EXP-000 below.
+**Status:** the experiment described here is **proposed and still not run**. EXP-000 below is
+built and CI-verified, so it is no longer blocked by that.
+
+> **The label `EXP-001` is used for two different experiments, and this file is one of them.**
+> The identifier registry claimed EXP-001 for the question in the title, whether a Hebbian
+> update destroys the `Divine` period-2 cycle. That experiment has never run. The run written
+> up in `EXP_001_RESULTS.md` is a **different** one: the `hebb` basin-flip and offline-arm
+> comparison at `blocks.6.mlp` on `A01_physics` and two other prompts, whose results are
+> register rows C-20, C-24 and C-30 to C-33. It took the number later.
+>
+> Nothing here is renamed, because both names are cited across the repository and the register,
+> and picking which one keeps the number is the operator's call, recorded as `HANDOVER.md` §6
+> item 1. What this notice fixes is the thing that actually misleads: a reader seeing
+> "proposed, not run" above a filename whose results file exists would conclude the results
+> file reports this spec. It does not.
+>
+> **This file remains the reference for two things** regardless of how the naming is settled:
+> the seventeen matched axes in §7, which every closed-versus-offline comparison in the
+> project is checked against, and §0's account of how the two repositories compose. Its §0 and
+> §5.3 were corrected during the alignment review and are right either way.
 **Model:** GPT-2 Small, TransformerLens, layers 0→11.
 **Cost:** estimated single-digit hours on a laptop CPU.
 
@@ -55,8 +74,12 @@ machine.
 
 **C. The controls, on that stack.** With A and B in place, what remained was running
 the controls on the real stack — C0 bit-exact with the adapter installed at eta=0 is
-the gate. Those on-the-real-stack runs have since been exercised; see
-`EXP_001_RESULTS.md`. The known caveat still stands: C0 has been seen to fail
+the gate. **Correction:** this used to point at `EXP_001_RESULTS.md` for those runs, and that
+file records no C0 at all. What actually covers C0 on the real stack is the pytest suite,
+which asserts it bit-exactly on 124M real parameters and asserts that it *fails* when handed a
+perturbing hook, plus the step-size map's `off` cell. Later experiments do carry their own
+eta=0 gates and report them bit-identical, EXP-002's across all twelve plastic matrices. The
+known caveat still stands: C0 has been seen to fail
 intermittently at ~1e-4 on CPU and could not be reproduced in 80 repeats — reproduce
 against an unhooked control before suspecting the hooks.
 
@@ -308,6 +331,21 @@ cannot resolve feedback here; they are not exact enough to subtract.
 **Consequence for EXP-001: make the feedback claim from `weight_recomputed_y`, whose floor
 is exactly zero.** Report `weight` alongside it, because it is the literal PRIOR_ART
 protocol, but report it next to its floor and not on its own.
+
+> **Two bounds on "exactly zero", both learned after this section was written.** It is not a
+> property of the harness; it is a property of a particular configuration, and outside that
+> configuration it is not zero.
+>
+> - **Whole-matrix sites only.** At a **per-head** site the reconstruction is additive out of a
+>   fused twelve-head operation, so the null is a measured float32 bound of about 1e-7, not
+>   zero: 2.960e-08 with `bit_identical` False, against a pre-fix 4.9975e-02 (C-45 `retired`,
+>   C-57 `supported`).
+> - **One plastic site only.** With plasticity at more than one layer, only the **lowest**
+>   plastic layer floors at zero. Every layer above it is non-zero, because within a single
+>   forward pass a lower layer's drift changes the activations arriving at a higher one, and
+>   severing the loop does not cut that path. So a multi-site closed-versus-offline number has
+>   **no zero baseline at all** and may not be placed in a series with the single-site shares
+>   (C-63, which amends the register's standing rule 3).
 
 The zero floor holds only because `offline_control._recompute_y` reproduces the site's
 **fused `torch.addmm`** bit for bit rather than merely mathematically — TransformerLens's

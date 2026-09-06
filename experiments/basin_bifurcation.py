@@ -1,13 +1,40 @@
 """
-Basin bifurcation (issues #25, #32): the EXP-001 `prolet` -> `comrade` flip is a
-*created* attractor, not a boundary move into a pre-existing basin.
+Basin bifurcation (issues #25, #32): what kind of move the EXP-001
+`prolet` -> `comrade` flip is. D1 and D2 below, and the numbers they produce,
+stand as recorded. The reading this file was built to argue does not.
+
+  RETIRED READING -- read this before the rest of the docstring. This file was
+  written to conclude that the flip is a *created* attractor, issue #25 ladder
+  step 4, a bifurcation, rather than a boundary move into a pre-existing basin.
+  That conclusion is `CLAIMS.md` C-26 and it is **`retired`** -- which is
+  materially stronger than `not-established`: not asserted without sufficient
+  evidence, but *contradicted*, by T1.1, the test this file itself named as
+  deciding. Seeded from the original frozen `prolet` state under `W0 + ΔW` the
+  loop does NOT stay: it moves to `comrade`, settling at iteration 12 and
+  holding through 120. The two resting states therefore do not coexist, and
+  coexistence is what step 4 required. What the edit does is *displace* a single
+  attractor -- ladder **step 2**, register row **C-56**, `supported`,
+  corroborated by T1.2's clean retrace with no hysteresis (**C-52**). Nothing
+  measured here changed; what changed is what the measurements are allowed to be
+  called. The report this file writes keeps the original wording in place marked
+  as superseded, which is this repo's convention. See C-26, C-27, C-28, C-52,
+  C-56 and C-68.
 
 EXP-001 (`EXP_001_RESULTS.md`) established that at `hebb`, eta = 7.065e-05, one
 120-step closed loop on `A01_physics` takes the basin from `prolet` to `comrade`
-with the norm ceiling silent -- the one cell in the whole step-size map where the
-loop actually moves. That result leaves one question open, and it is the
-question on issue #25's ladder:
+with the norm ceiling silent. It is NOT the only cell in the step-size map where
+the loop moves: there are **two** ceiling-silent cells that flip the basin --
+`hebb`@7.07e-05 (1.12% drift, the working point reproduced here) and
+`hebb`@1.18e-04 (2.20% drift), both at 0.0% clip and both to `comrade` (C-21).
+The two share prompt, seed, site and cadence, so they are NOT an independent
+replication; what they establish is that the flip is robust across a 1.7x change
+in eta. That result leaves one question open, and it is the question on issue
+#25's ladder:
 
+  step 2   the episode displaced a fixed point the map already had, moving it
+           far enough that the readout relabels it across a ridge. One
+           attractor, relocated. (Not one of the two this file set out to
+           separate -- and, per T1.1/C-56, the one that survives.)
   step 3   the episode walked the state across a boundary that was already there,
            into a `comrade` basin the original frozen map already had. A *latent*
            attractor; the weights only nudged the state past a standing ridge.
@@ -15,10 +42,16 @@ question on issue #25's ladder:
            there is no `comrade` fixed point for the loop to fall into, and the
            accumulated ΔW brought one into existence.
 
-The two are distinguished by measurement, not assertion, and this file runs two
-independent discriminators that answer it the same way. It also closes issue #32
+This file runs two independent discriminators and they do answer the same way --
+but on a reading neither of them can establish, because neither separates step 3
+or step 4 from **step 2**. It also *addresses*, and does not close, issue #32
 section 5, which asked of the installable-ΔW alpha-sweep: *smooth bias or a
-threshold?*
+threshold?* The answer this file gave, *a threshold*, is C-27 and is
+`not-established`: an argmax changes discretely even under perfectly smooth
+motion, so its discreteness is a property of the readout rather than evidence
+about the dynamics. The sweep steps in 0.25, so what the grid supports is a
+BRACKET -- the change of label lies in (0.50, 0.75] -- and not a threshold at
+0.75.
 
 ## The two discriminators
 
@@ -29,14 +62,27 @@ threshold?*
        the state back out. The state's own motion is slow and smooth -- lag-1
        cosine ~1.0 the whole way -- so any basin change is the argmax crossing a
        ridge, not a discontinuity.
+       What D1 CANNOT do is establish creation, and its recorded verdict is
+       therefore a measurement and nothing more. A merely *displaced* fixed point
+       (step 2) carries the state back out too: for any ΔW != 0 the perturbed
+       map's fixed point is generically not fixed under the unperturbed one, so
+       D1 returns this same verdict for ANY ΔW that displaces it, a random edit
+       included. The dual experiment is what discriminates -- seed the frozen
+       `prolet` state under `W0 + ΔW` -- and that is T1.1, which found
+       displacement (C-56).
 
   D2   The installable ΔW alpha-sweep (issue #32 section 5). Install `W0 + alpha·ΔW`
        for alpha in a grid straddling 1.0 and run the frozen loop under each. A
        *smooth bias* would slide the basin's logits and flip the basin somewhere
        proportional to alpha with the state deforming continuously; a *threshold*
        flips the basin discretely at some alpha* while the underlying logits move
-       smoothly through the crossing. The distinction is the definition of a
-       bifurcation.
+       smoothly through the crossing.
+       This grid does not settle that. A discrete change of argmax is not a
+       bifurcation -- an argmax changes discretely under perfectly smooth motion
+       too -- and at 0.25 spacing the flip is bracketed, not located. The one
+       genuine qualitative transition the sweep finds is the lag-1 collapse
+       between alpha 1.25 and 1.50, and it lands in the PRE-EXISTING `Divine`
+       basin, so it is ladder step 3 rather than a created attractor (C-28).
 
 ## What this reproduces, and what is loaded
 
@@ -56,6 +102,16 @@ modified weights produce both the trajectory and the state it starts from. This
 is NOT EXP-001 section 1's protocol, which installs each arm's matrix and re-runs
 from the *same* iteration-0 tensor. Stated here so the sweep is checkable; the
 alpha=1.0 row is therefore not identical to EXP-001's `closed` re-run row.
+
+The choice is load-bearing, and it is half of a live discrepancy. At alpha = 0.50
+this sweep settles on `prolet` from the prompt's iteration-0 tensor, while T1.2's
+continuation sweep -- same site, rule, eta, prompt, steps and ΔW -- settles on
+`comrade` from a settled state, in all four of its arms. That is C-68,
+`provisional` and **unresolved**; the seeding is the candidate explanation and the
+deciding test (a basin-of-attraction probe at alpha = 0.50, several initial states,
+convergence criterion fixed in advance) has not run. Until it does, what each row
+records is the settled word reached from THAT alpha's own iteration-0 tensor, and
+this sweep may not be described as showing a single attractor at every alpha.
 
 ## Machinery
 
@@ -337,8 +393,14 @@ def run(model, out_dir: Path, meta: dict) -> tuple[list, dict]:
 
     # -- Discriminator 1: is comrade a fixed point of the frozen (W0) map? ------
     # Live weight is W0 (reverted above). Iterate the frozen map FROM the comrade
-    # state; if comrade is a created attractor it is not there at W0 and the map
-    # carries the state out.
+    # state; if comrade is not an attractor at W0 the map carries the state out.
+    # That is all this measures. It does NOT show creation: a merely *displaced*
+    # fixed point (ladder step 2) produces the same trace, because for any dW != 0
+    # the perturbed map's fixed point is generically not fixed under the
+    # unperturbed one -- so D1 returns this verdict for ANY dW that displaces it.
+    # C-26, the created-attractor reading, is `retired`; T1.1 ran the dual
+    # experiment and found displacement (C-56). Keep the verdict string below a
+    # measurement: it is written into the committed JSONL.
     print(f"[D1] iterating the frozen map from the comrade state, {D1_N} steps ...",
           flush=True)
     r = comrade_state.clone()
@@ -372,7 +434,12 @@ def run(model, out_dir: Path, meta: dict) -> tuple[list, dict]:
         prev1 = r.clone()
 
     last = basin_of(model, r)
-    stays = (last["basin"] == "comrade")
+    # `first_leave is None` is the horizon statement; the final label alone is not,
+    # because a trajectory can leave `comrade` and come back and the final label
+    # would not show it. Either way this is a statement about the READOUT over
+    # D1_N steps, not about the state being fixed, which a finite run of identical
+    # labels cannot establish.
+    stays = (first_leave is None and last["basin"] == "comrade")
     d1_summary = {
         "kind": "d1_summary",
         "n_steps": D1_N,
@@ -382,10 +449,29 @@ def run(model, out_dir: Path, meta: dict) -> tuple[list, dict]:
         "final_basin_token_id": last["basin_token_id"],
         "final_top5": last["top5"],
         "final_lag1_cos": cosflat(r, prev2),
-        "verdict": ("latent (issue #25 step 3): comrade IS a fixed point of the "
-                    "original frozen map" if stays else
-                    "created (issue #25 step 4, a bifurcation): comrade is NOT an "
-                    "attractor of the original frozen map"),
+        # MEASUREMENT ONLY -- no ladder step, no bifurcation. This field lands in
+        # `basin_bifurcation.jsonl`, so a reading written here becomes a reading
+        # sitting in a committed data artifact. It used to read "created (issue
+        # #25 step 4, a bifurcation)" / "latent (issue #25 step 3)"; both are
+        # interpretations D1 alone cannot license (see the comment above the
+        # loop), and the step-4 one is C-26, `retired`. What the ladder step is
+        # belongs to CLAIMS.md -- C-56 -- not to this record.
+        #
+        # "IS a fixed point" was the same overreach one level down. `stays` is
+        # `first_leave is None and last["basin"] == "comrade"`: it says the *readout*
+        # did not leave comrade within D1_N steps, which a finite run cannot promote
+        # into a statement that the state is fixed -- the distinction C-56 turns on,
+        # and the one the report's own D1 bullet already draws. Because this string
+        # lands in the committed jsonl, the strong wording put a claim the register
+        # had retired into the evidence layer, where a later reader meets it as data.
+        # Both arms now state the readout result and stop.
+        "verdict": (
+            f"comrade readout does not leave within {D1_N} steps of the original "
+            f"frozen map: a finite-horizon readout result, not a demonstration "
+            f"that the state is fixed"
+            if stays else
+            f"comrade readout leaves the original frozen map at iteration "
+            f"{first_leave['iter']} and settles at {last['basin']}"),
     }
     records.append(d1_summary)
     print(f"[D1] VERDICT: {d1_summary['verdict']}", flush=True)
@@ -476,6 +562,16 @@ def _by_kind(records: list, kind: str) -> list:
 
 
 def build_report(records: list, meta: dict) -> str:
+    """The whole of `BASIN_BIFURCATION.md` as one string, read off `records`.
+
+    Two things about this document are deliberate and will look like defects. Its
+    title and framing keep the *retired* attractor-creation reading in the words it
+    was written in, marked superseded, because this repo does not delete a claim it
+    has withdrawn -- the durable displacement reading is **C-56** and sits beside it.
+    And the emitted text is not byte-identical to the committed file: prose was
+    edited after emission. No *measured* value disagrees, which is the property worth
+    protecting, so diff any regenerated output before it replaces the committed one.
+    """
     rep = next(iter(_by_kind(records, "reproduce")), None)
     d1 = _by_kind(records, "d1")
     d1s = next(iter(_by_kind(records, "d1_summary")), None)
@@ -485,7 +581,23 @@ def build_report(records: list, meta: dict) -> str:
     L: list = []
     A = L.append
 
-    A("# Basin bifurcation — `comrade` is a created attractor")
+    # The title is kept in the words it was written in and marked superseded --
+    # this repo's convention for a retired reading -- with the note below carrying
+    # the correction, so a regenerated report cannot assert C-26 unqualified.
+    A("# Basin bifurcation — `comrade` is a created attractor "
+      "**[SUPERSEDED READING]**")
+    A("")
+    A("*The measurements in this file stand. The title's claim does not — it is "
+      "**`retired`** in `CLAIMS.md` **C-26**, which is materially stronger than "
+      "`not-established`: not asserted without sufficient evidence, but "
+      "**contradicted**, by T1.1, the test this file itself named as decisive. "
+      "T1.1 seeded the original frozen `prolet` state under `W0 + ΔW` and it did "
+      "not stay — it moved to `comrade`, settling at iteration 12 and holding "
+      "through 120 — so the two resting states do not coexist and the surviving "
+      "reading is **C-56**: one **displaced** attractor, issue #25 ladder step "
+      "2, corroborated by T1.2's hysteresis-free retrace (**C-52**). The title "
+      "is retained as the record of what the project believed. Read C-26, C-27, "
+      "C-28, C-52, C-56 and C-68 before quoting anything below.*")
     A("")
     A(f"Issues #25, #32. `{MODE}`, eta = {ETA:.6g}, site `{SITE}`, "
       f"{N_EPISODE}-step episode, cadence {CADENCE}, "
@@ -493,14 +605,23 @@ def build_report(records: list, meta: dict) -> str:
     A("")
     A("EXP-001 (`EXP_001_RESULTS.md`) showed that one 120-step closed `hebb` "
       "episode at this eta takes the basin `prolet` → `comrade` with the norm "
-      "ceiling silent — the one cell in the step-size map where the loop moves. "
-      "This file asks what kind of move it is, on issue #25's ladder: **step 3**, "
-      "the episode walked the state across a boundary into a `comrade` basin the "
-      "original frozen map already had (a *latent* attractor), or **step 4**, the "
-      "episode *created* the `comrade` attractor (a bifurcation). Two independent "
-      "discriminators are run; they agree. The `alpha`-sweep also closes issue "
-      "#32 section 5, which asked of the installable ΔW: *smooth bias or a "
-      "threshold?*")
+      "ceiling silent. It is **not** the only cell in the step-size map where "
+      "the loop moves: there are **two** ceiling-silent cells that flip the "
+      "basin — `hebb`@7.07e-05 (1.12% drift, the working point used here) and "
+      "`hebb`@1.18e-04 (2.20% drift), both at 0.0% clip and both to `comrade` "
+      "(**C-21**). The two share prompt, seed, site and cadence, so they are "
+      "**not** an independent replication; what they establish is that the flip "
+      "is robust across a 1.7× change in eta. This file asks what kind of move "
+      "it is, on issue #25's ladder: **step 3**, the episode walked the state "
+      "across a boundary into a `comrade` basin the original frozen map already "
+      "had (a *latent* attractor), or **step 4**, the episode *created* the "
+      "`comrade` attractor (a bifurcation). Two independent discriminators are "
+      "run; they agree — but, as the note above records, on a reading neither of "
+      "them can establish, and T1.1 has since contradicted it (C-26 `retired`, "
+      "C-56 `supported`). The `alpha`-sweep also **addresses** issue #32 section "
+      "5, which asked of the installable ΔW: *smooth bias or a threshold?* — the "
+      "answer this file gave, *a threshold*, is **C-27** and is "
+      "`not-established`, so that question is not closed here either.")
     A("")
     A("**Measurement first.** The tables below are measurements; the words "
       "*created attractor* and *bifurcation* are an interpretation of them, "
@@ -578,7 +699,10 @@ def build_report(records: list, meta: dict) -> str:
     A("Restore W0 and iterate the **frozen** loop starting from the episode's "
       "final `comrade` state. A pre-existing basin (step 3) holds the state; a "
       "created attractor (step 4) is not present at W0, so the original map "
-      "carries the state back out. `cos→c₀` is the cosine to the starting "
+      "carries the state back out — and so does a merely **displaced** fixed "
+      "point (step 2), which is the alternative this discriminator cannot "
+      "separate and the reason its verdict below is stated as a measurement "
+      "only. `cos→c₀` is the cosine to the starting "
       "`comrade` state; `lag-1` / `lag-2` are the cosines to the previous one and "
       "two iterates — near 1.0 means the state itself is barely moving.")
     A("")
@@ -594,24 +718,48 @@ def build_report(records: list, meta: dict) -> str:
         fl = d1s["first_leave"]
         if d1s["stays_comrade"]:
             A(f"The state stays in `comrade` for all {d1s['n_steps']} frozen "
-              f"steps. **`comrade` is a fixed point of the original map** — a "
-              f"latent basin (issue #25 step 3).")
+              f"steps. **The measurement: `comrade` is a fixed point of the "
+              f"original map.** Which ladder step that makes it is not D1's to "
+              f"say — see `CLAIMS.md` C-26 and C-56.")
         else:
             A(f"The frozen map leaves `comrade` at **iteration "
               f"{fl['iter']}** (into `{fl['basin']}`) and settles at "
               f"`{d1s['final_basin']}` — the frozen baseline's own fixed point — "
               f"with lag-1 returning to {_fmt(d1s['final_lag1_cos'], '.6f')}. "
               f"Crucially the state's own motion is smooth and monotone the whole "
-              f"way: lag-1 stays above "
-              f"{_fmt(min(r['lag1_cos'] for r in d1), '.5f')} at every sampled "
-              f"iteration and `cos→c₀` decays without a jump. There is no "
+              f"way: lag-1 stays at or above "
+              # '.6f', not '.5f': at 5 decimals the committed minimum 0.9999184
+              # displays as 0.99992, which is *larger* than the value, so the
+              # sentence was false as printed. The audit that caught it is
+              # recorded in BASIN_BIFURCATION.md.
+              f"{_fmt(min(r['lag1_cos'] for r in d1), '.6f')} — its minimum over "
+              f"the sampled iterations — and `cos→c₀` decays without a jump. "
+              f"There is no "
               f"discontinuity for the argmax to ride; the `comrade` label sat on "
               f"a thin ledge the original map slides straight off, not in a basin "
-              f"that map has. **`comrade` is not an attractor of the original "
-              f"frozen map** — a created attractor (issue #25 step 4, a "
-              f"bifurcation).")
+              f"that map has. **The measurement: `comrade` is not an attractor of "
+              f"the original frozen map.** That stands as recorded.")
+            A("")
+            A(f"What it **cannot** establish is *creation*. D1 returns the same "
+              f"verdict for **any** ΔW that displaces the fixed point at all — "
+              f"for any ΔW ≠ 0 the perturbed map's fixed point is generically not "
+              f"fixed under the unperturbed one — so this trace is equally what a "
+              f"*displaced* fixed point produces, and the smooth monotone "
+              f"relaxation back to `{d1s['final_basin']}` is that signature "
+              f"rather than evidence against it. Discriminating the two needs the "
+              f"dual experiment, seeding the frozen `{d1s['final_basin']}` state "
+              f"under `W0 + ΔW`; that is T1.1, it has run, and it found "
+              f"displacement (**C-56**). **[The reading this file originally drew "
+              f"here — a created attractor, issue #25 step 4, a bifurcation — is "
+              f"superseded; C-26 is `retired`.]**")
         A("")
-        A(f"> *Interpretation.* D1 is the definition of step 4 made operational: "
+        # Kept in the words it was written in, marked superseded: this repo's
+        # convention. Do not delete it and do not un-mark it.
+        A(f"> *Interpretation, in the words it was originally written in — kept "
+          f"as the record of what the project believed.* **[SUPERSEDED — C-26 is "
+          f"`retired`, refuted by T1.1; the paragraph above gives why D1 cannot "
+          f"carry this reading, and C-56 is what replaces it.]** D1 was taken as "
+          f"the definition of step 4 made operational: "
           f"the attractor the episode ended in is absent from the pre-episode "
           f"map. The episode did not walk the state to a standing `comrade` "
           f"basin; the accumulated ΔW is what put a `comrade` fixed point where "
@@ -665,12 +813,34 @@ def build_report(records: list, meta: dict) -> str:
                     flip_basin = row["basin"]
                     break
                 below = row["alpha"]
-            A(f"**Threshold, not smooth bias.** The basin is `{d2s['base_basin']}` "
-              f"for every `alpha` ≤ {_fmt(below, '.2f')} and flips to "
-              f"`{flip_basin}` at **alpha\\* = {_fmt(astar, '.2f')}** — a discrete "
-              f"change localized to the interval ({_fmt(below, '.2f')}, "
-              f"{_fmt(astar, '.2f')}]. That is issue #32 section 5's answer: "
-              f"**a threshold.**")
+            A(f"**A bracket, and not a threshold this sweep establishes.** The "
+              f"basin reads `{d2s['base_basin']}` at every sampled `alpha` ≤ "
+              f"{_fmt(below, '.2f')} and `{flip_basin}` from "
+              f"{_fmt(astar, '.2f')} on. The sweep steps in 0.25, so what the "
+              f"grid gives is a **bracket** — the change of label lies in "
+              f"({_fmt(below, '.2f')}, {_fmt(astar, '.2f')}] — and **not** a "
+              f"threshold at {_fmt(astar, '.2f')}; reading the grid point "
+              f"{_fmt(astar, '.2f')} as a measured crossing takes a sampling "
+              f"artefact for a measurement, and is withdrawn. Whether it is a "
+              f"threshold **at all** is **`not-established`** (`CLAIMS.md` "
+              f"**C-27**): the underlying logit gap is smooth and monotone "
+              f"through the crossing and only the argmax is discrete, and an "
+              f"argmax changes discretely even under perfectly smooth motion, so "
+              f"the discreteness is a property of the readout rather than "
+              f"evidence about the dynamics.")
+            A("")
+            # Which side of the gap moves. The generator cannot assert the
+            # direction for an arbitrary rerun, so it points at its own columns
+            # and attributes the figures to the committed run they come from.
+            A(f"Note also which side moves, and check it against the two logit "
+              f"columns above: the crossing is driven mainly by `prolet`'s logit "
+              f"**falling**, not by `comrade`'s rising — `comrade`'s own logit "
+              f"barely moves across the bracket and slightly *falls*, so its "
+              f"climb in rank is other tokens falling past it. In the committed "
+              f"sweep that is `prolet` 16.95 → 16.07 across `alpha` = 0.00 → "
+              f"0.75 against `comrade` 16.29 → 16.27. **[The reading this file "
+              f"originally drew here — \"threshold, not smooth bias\", issue #32 "
+              f"section 5's answer — is superseded.]**")
             A("")
 
             # smooth logits under the discrete flip
@@ -704,15 +874,30 @@ def build_report(records: list, meta: dict) -> str:
         A(f"### The `{d2s['base_basin']}` → `comrade` → `{tail_basin}` cascade")
         A("")
         if c0:
-            A(f"Past `comrade` the sweep bifurcates again. At alpha = "
+            A(f"Past `comrade` the sweep changes dynamical class — **[the word "
+              f"\"bifurcates\" is the superseded reading; what is measured is a "
+              f"class change, which is real and is ladder step 3]**. At alpha = "
               f"{c0['alpha']:.2f} the basin tips into `{c0['basin']}` and the "
               f"lag-1 cosine **collapses** from ~"
               f"{_fmt(max(r['final_lag1_cos'] for r in d2), '.4f')} (a fixed "
               f"point) to {_fmt(c0['final_lag1_cos'], '.4f')} — the fixed point "
-              f"gives way to the period-2 cycle `{c0['basin']}` sits on in the "
-              f"baseline. So the `alpha`-axis reads `{d2s['base_basin']}` (fixed "
+              f"gives way to a period-2 trajectory whose readout is "
+              f"`{c0['basin']}`. So the `alpha`-axis reads `{d2s['base_basin']}` (fixed "
               f"point) → `comrade` (fixed point) → `{c0['basin']}` (period-2): "
-              f"two bifurcations along one line, not one.")
+              f"**two transitions along one line, and neither is a created "
+              f"attractor.** The first is a relabelling of the readout while the "
+              f"settled branch moves smoothly — ladder step 2, and no longer "
+              f"pending: T1.1 established it (C-26 `retired`, C-56 `supported`), "
+              f"with C-68 the open discrepancy at `alpha` = 0.50. The second is a "
+              f"genuine change of dynamical class — step 3, **C-28**, "
+              f"`provisional` — and it sits at 1.5× the ΔW the episode produced. "
+              f"That it lands on the **same** period-2 orbit `{c0['basin']}` holds "
+              f"in the frozen baseline is **not established here**: this sweep "
+              f"records a readout label and a lag-1 collapse, and no committed "
+              f"artifact compares the two trajectories' states. Orbit identity is "
+              f"consistent with these numbers, which is not the same as shown by "
+              f"them — the readout-label-for-state-identity substitution is exactly "
+              f"what retired C-26.")
         else:
             A(f"Across this grid the lag-1 cosine stays near 1.0 at every alpha "
               f"(min {_fmt(d2s['lag1_min'], '.4f')}); no period-2 cycle appears "
@@ -725,19 +910,77 @@ def build_report(records: list, meta: dict) -> str:
     A("**Establishes:**")
     A("")
     if d2s and d1s:
-        A(f"- **Closes issue #32 section 5.** The installable-ΔW `alpha`-sweep "
-          f"answer is a **threshold**, not a smooth bias: the basin holds at "
-          f"`{d2s['base_basin']}` and flips discretely at alpha\\* = "
-          f"{_fmt(d2s['alpha_star_first_change'], '.2f')}.")
-        A(f"- **Answers issue #25's step-3-vs-4.** `comrade` is a **created "
-          f"attractor** (step 4, a bifurcation), not a boundary move into a "
-          f"pre-existing basin (step 3). Both discriminators agree: D1 shows the "
-          f"frozen W0 map does not hold the `comrade` state (it leaves at "
-          f"iteration {d1s['first_leave']['iter'] if d1s['first_leave'] else '--'} "
-          f"and settles at `{d1s['final_basin']}`); D2 shows the `comrade` "
-          f"attractor appears **discretely** as `alpha` crosses alpha\\*, which is "
-          f"what a bifurcation is.")
-        A("- **The two discriminators are independent and agree.** D1 iterates "
+        # Branch on the recorded outcome rather than assuming it. A sweep in which
+        # no label changes leaves `alpha_star_first_change` None, and a sweep whose
+        # seeded state never leaves leaves `stays_comrade` True -- both are real
+        # possible results of this experiment, and asserting the outcome we happened
+        # to get would make the generator lie on a rerun that got the other one.
+        a_star = d2s.get("alpha_star_first_change")
+        if a_star is None:
+            A(f"- **No change of label anywhere in the `alpha`-sweep.** The basin "
+              f"holds at `{d2s['base_basin']}` at every sampled alpha, so this run "
+              f"establishes no bracket and nothing about a threshold.")
+        else:
+            A(f"- **A bracket on the `alpha`-sweep's change of label.** The basin "
+              f"holds at `{d2s['base_basin']}` and reads `comrade` by alpha\\* = "
+              f"{_fmt(a_star, '.2f')}; the sweep steps in "
+              f"0.25, so what is established is the **bracket** — the single grid "
+              f"step ending at {_fmt(a_star, '.2f')} — and "
+              f"not a threshold at "
+              f"{_fmt(a_star, '.2f')} itself.")
+        if d1s.get("stays_comrade"):
+            A(f"- **D1's measurement.** Seeded at the episode's `comrade` state, the "
+              f"**frozen** W0 map's readout does not leave `comrade` within "
+              f"{d1s['n_steps']} steps. That is a statement about the readout over a "
+              f"finite horizon and not a demonstration that the state is fixed — see "
+              f"§D1 and **C-56**.")
+        else:
+            A(f"- **D1's measurement.** Seeded at the episode's `comrade` state, the "
+              f"**frozen** W0 map does not hold it: the readout leaves at iteration "
+              f"{d1s['first_leave']['iter'] if d1s['first_leave'] else '--'} "
+              f"and settles at `{d1s['final_basin']}`, smoothly and monotonically. "
+              f"`comrade` is not an attractor of the original frozen map. What that "
+              f"supports is **displacement**, not creation — see §D1 and **C-56**.")
+    A("")
+    # These three bullets are kept in place, marked superseded, rather than
+    # deleted: the repo's convention is that the record of what it used to
+    # believe is part of the evidence (CLAIMS.md, "retired rows are never
+    # deleted"). Do not restore them to the Establishes list.
+    A("**Superseded readings, kept in place as the record:**")
+    A("")
+    if d2s and d1s:
+        # Same `None` case as the Establishes bullet above. This does not raise --
+        # `_fmt` returns "--" and the key is always written -- so the failure is
+        # quieter than a crash and worse to read: on a sweep with no label change the
+        # sentence becomes "a threshold at alpha* = --", which states a superseded
+        # figure the run does not have. Name the reading without pretending to a value.
+        _as = d2s.get("alpha_star_first_change")
+        A(f"- **[SUPERSEDED] Closes issue #32 section 5.** This file answered "
+          f"*smooth bias or a threshold?* with **a threshold**"
+          + (f" at alpha\\* = {_fmt(_as, '.2f')}" if _as is not None
+             else " at the sweep's first change of label (no such change in this run)")
+          + f". That reading is "
+          f"`CLAIMS.md` **C-27**, `not-established`, and is **not quotable**: an "
+          f"argmax changes discretely even under perfectly smooth motion, and "
+          f"here the underlying logit gap is smooth and monotone through the "
+          f"crossing — driven mainly by `prolet`'s logit falling, 16.95 → 16.07, "
+          f"rather than `comrade`'s rising, 16.29 → 16.27. The section is not "
+          f"closed; what survives is the bracket above.")
+        A(f"- **[SUPERSEDED] Answers issue #25's step-3-vs-4.** This file "
+          f"concluded `comrade` is a **created attractor** (step 4, a "
+          f"bifurcation) rather than a boundary move (step 3). **C-26 is "
+          f"`retired`** — not merely unsupported but **contradicted**, by T1.1, "
+          f"the test this file named as deciding: seeded from the original frozen "
+          f"`{d1s['final_basin']}` state, the edited map does not hold it, so the "
+          f"two resting states do not coexist and the edit **displaces** the "
+          f"single attractor (**C-56**, corroborated by T1.2/**C-52**'s "
+          f"hysteresis-free retrace). The `A04`→`Divine` class change *is* step 3 "
+          f"and is not affected. Both discriminators do agree, but not on "
+          f"creation: D1 returns the same verdict for **any** ΔW that displaces "
+          f"the fixed point, and D2's discrete change of label is an argmax "
+          f"crossing a ridge, which is **not** a bifurcation.")
+        A("- **[SUPERSEDED] The two discriminators are independent and agree.** "
+          "They agree, but on a reading neither can establish — D1 iterates "
           "from the settled state under the *unmodified* map; D2 installs "
           "*fractional* ΔW and reads the settled basin from a fresh start. "
           "Neither is the other restated.")
@@ -755,9 +998,30 @@ def build_report(records: list, meta: dict) -> str:
       "across `alpha`. Stated plainly so the sweep is checkable and so the "
       "`alpha` = 1.0 row is not mistaken for EXP-001's `closed` re-run.")
     if d2s:
-        A(f"- **alpha\\* is grid-localized.** The flip is pinned only to the "
-          f"sweep grid — it lies in the interval reported above, not to a sharper "
-          f"edge; the grid does not resolve where inside it the crossing sits.")
+        A(f"- **The change of label is grid-localized, and \"alpha\\*\" overstates "
+          f"it.** It is pinned only to the sweep grid — it lies in the bracket "
+          f"reported above, not at a sharper edge — and the 0.25 grid does not "
+          f"resolve where inside that interval the crossing sits, nor whether the "
+          f"crossing is a threshold at all (**C-27**, `not-established`). T1.2's "
+          f"finer continuation sweep, stepping in 0.10, places its own crossing "
+          f"near `alpha` ≈ 0.45; that is a different seeding scheme and therefore "
+          f"a different measurement, not a contradiction, but the two are not "
+          f"interchangeable (**C-52**, and **C-68** for where they disagree "
+          f"outright).")
+        A(f"- **A discrepancy this file owns half of.** At `alpha` = 0.50 this "
+          f"sweep and T1.2 reach **different settled words from different "
+          f"initial states under identical weights** — this sweep from that "
+          f"`alpha`'s own iteration-0 tensor (`prolet` in the committed run), "
+          f"T1.2's continuation sweep from a settled state, where it reaches "
+          f"`comrade` in all four of its arms, `robust_up` included. Same site, "
+          f"rule, eta, prompt, steps and ΔW. That is **C-68**, `provisional` and "
+          f"**unresolved**; the seeding is the candidate explanation and the "
+          f"deciding test (a basin-of-attraction probe at `alpha` = 0.50, several "
+          f"initial states, convergence criterion fixed in advance) has not run. "
+          f"Until it does, what each row records is the settled word reached from "
+          f"**that `alpha`'s own iteration-0 tensor**, and this sweep may not be "
+          f"described as showing a single attractor at every `alpha`. **C-56 is "
+          f"untouched** by it: T1.1 tested `alpha` = 1.00 directly.")
     A("- **One cell.** One prompt (`A01_physics`), one site (`blocks.6.mlp`), one "
       "eta, one ceiling, one seed. `hebb` has no stochastic term and the model is "
       "frozen and single-threaded, so a seed is a single deterministic run, not a "

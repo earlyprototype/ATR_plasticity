@@ -103,7 +103,7 @@ system's own shell 1289.972778. **The verdict is invariant to this choice** — 
 ### The motion is a smooth ridge-crossing, not a jump (the D1 signature, mirrored)
 
 The state's own motion is slow and monotone the whole way: **lag-1 cosine ≥ 0.99990618 at
-every one of the 120 steps** (minimum at iter 1; ≥ 0.999992 by iter 4). There is no
+every one of the 120 steps** (minimum at iter 1; ≥ 0.99998 by iter 4, and ≥ 0.999992 only from iter 11 — iter 4 reads 0.9999810). There is no
 discontinuity for the argmax to ride. What crosses is the readout:
 
 | iter | basin | lag-1 | margin | `comrade`/`prolet` |

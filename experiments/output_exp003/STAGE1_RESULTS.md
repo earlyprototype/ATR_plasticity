@@ -1,7 +1,13 @@
 # EXP-003 Stage 1 results
 
 *Measurements only. Thresholds were registered in `PREREGISTRATION.md` before the run.
-Run artifact: `stage1.jsonl`. Nothing here enters the claim register.*
+Run artifact: `stage1.jsonl`.*
+
+> **This file used to say that nothing in it entered the claim register. That has changed.**
+> This stage's result is register row **C-66**: the mechanism is **refuted** against the
+> threshold registered before the run. It refutes one named explanation for the distributed
+> collapse and does not explain that collapse or weaken C-62. `CLAIMS.md` is the authority;
+> where it and this file disagree, it wins.
 
 ## What was run
 

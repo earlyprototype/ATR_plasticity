@@ -2,7 +2,8 @@
 
 *What will be run, in what order, and what threshold decides each result. Written before
 the runs it governs. Source material for the borrowed measurements is in `MEA_SOURCES.md`.
-Nothing in this file enters the claim register.*
+Nothing in this file enters the claim register; the **results** of stages 0, 1 and 2 now do,
+as register rows C-65, C-66 and C-67.*
 
 **History.** An earlier version of this file interleaved the protocol with an argument
 about cultured neural networks and with proposed mechanisms for EXP-002's collapse. That
@@ -223,8 +224,10 @@ the settled top-1 token. No claim that any process here is the process occurring
 ## Known limits
 
 One driven input, one seed, one site family, one model, one episode length. The census uses
-31 inputs, not the full 125. Register rows C-40 and C-41 already record this as the
-project's weakest dimension.
+31 inputs, not the full 125. Register rows C-64 and C-41 already record this as the
+project's weakest dimension. (This cited C-40 until that row was retired for staleness —
+it asserted a single site and cadence 1, which this experiment's own Stage 1 and Stage 2
+contradict. C-64 carries the same scope point with the corrected numbers.)
 
 The ATR loop's own injection at `blocks.{layer_start}.hook_resid_pre` rescales the carried
 state and writes it back wholesale; that is the loop, not the stimulation. The **stimulation**

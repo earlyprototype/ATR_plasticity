@@ -1,18 +1,25 @@
 """
-EXP-001, run at the one step size where anything happens.
+EXP-001, run at `hebb`, eta = 7.065e-05 -- a step size where the loop moves.
 
 The step-size map (issue #30, `STEP_SIZE_MAP.md`) settled the question this
 experiment could not previously ask honestly. `oja`, `anti_hebb` and `random`
 all have wide bands in which the weights move several percent with the norm
 ceiling silent and **the loop does not move at all** -- basin, lag-1 and lag-2
 unchanged even with `oja` pinned at the ceiling at 100% clipping. `hebb` is the
-single exception: at eta = 7.065e-05 the basin goes `prolet` -> `comrade` at
-1.12% relative weight change with the ceiling **silent** (0.0% clipping).
+single exception among the *rules*, and it moves the loop at **two** of the step
+sizes swept, not one (C-21): at eta = 7.065e-05, this file's cell, the basin
+goes `prolet` -> `comrade` at 1.12% relative weight change with the ceiling
+**silent** (0.0% clipping), and at eta = 1.18e-04 it reaches the same `comrade`
+at 2.20% drift, also ceiling-silent. The two are NOT an independent replication
+-- they share prompt, seed, site and cadence -- so what they establish is that
+the flip survives a 1.7× change in eta.
 
-Every offline-control measurement this repo has recorded was taken at
-`oja`, eta = 1e-5 -- which the map now places inside the dead zone. So the
-project has never run its own control at a step size where anything happens.
-That is what this file does.
+Every offline-control measurement this repo had recorded **before this run** was
+taken at `oja`, eta = 1e-5 -- which the map now places inside the dead zone. So
+at the time of writing the project had never run its own control at a step size
+where anything happens. That is what this file does. The later offline and
+severed arms at `hebb` all postdate it: C-31 is this run's own, and C-58's eta
+and cadence grid is T2.1's.
 
 ## The question, and why the offline arm is the whole experiment
 
@@ -815,6 +822,31 @@ def _lens_section(lens: dict, main: dict) -> list:
 
 
 def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
+    """The whole of `EXP_001_RESULTS.md` as one string, read off `recs`.
+
+    Figures are computed from the records wherever the records contain them. That is a
+    correction, not a style preference: the ones this function used to write in by hand
+    had since been withdrawn from the document by later claims, so regenerating
+    reinstated readings the register had retired.
+
+    Two figures are still written in, and deliberately. The ΔW effective-rank range
+    comes from the *step-size map's* artifact rather than this experiment's, so `recs`
+    cannot reproduce it, and it is filtered to ceiling-silent cells — a cell where the
+    drift ceiling fired measures `max_delta_frac` rather than the rule, and quoting one
+    as evidence is forbidden outright (`CLAIMS.md`, standing prohibitions). Do not
+    "simplify" either back to an all-cells range.
+
+    `lens` is optional per-token null-band data; absent, those paragraphs are
+    omitted. `recs` empty yields a one-line report and none of the findings below.
+    """
+    # Guard FIRST, before any prose. `--report-only` hands this function whatever
+    # is in the chosen output directory, so on an empty or foreign dataset the
+    # opening paragraphs below would assert this experiment's specific findings --
+    # two ceiling-silent flipping cells, the control chronology -- over data that
+    # does not support them. A report with no records must say only that.
+    if not recs:
+        return "No records.\n"
+
     routed = [r for r in recs if r["kind"] == "routed"]
     severed = [r for r in recs if r["kind"] == "severed"]
     episodes = [r for r in recs if r["kind"] == "episode"]
@@ -841,20 +873,29 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
     L = []
     A = L.append
 
-    A("# EXP-001 — the offline arm at the one step size where anything happens")
+    # Title and opening paragraph: "the one step size / the only cell in the
+    # whole sweep" is the C-21 undercount. There are TWO ceiling-silent cells
+    # that flip the basin, both `hebb`. What is singular is the RULE, not the
+    # step size, and the two cells are not an independent replication.
+    A(f"# EXP-001 — the offline arm at hebb, eta = {ETA:.6g}")
     A("")
     A("Issues #26, #30, #32. `hebb`, eta = "
       f"{ETA:.6g}, site `{SITE}`, {N_STEPS} steps, cadence {CADENCE}, "
       f"`max_delta_frac` = {MAX_DELTA_FRAC}.")
     A("")
-    A("The step-size map found `hebb` at this eta to be the only cell in the "
-      "whole sweep that moves the loop inside a clean band: basin `prolet` → "
-      "`comrade` at 1.12% relative weight change with the norm ceiling silent. "
-      "`oja`, `anti_hebb` and `random` all have wide usable bands in which "
-      "nothing whatsoever happens. Every offline-control number previously "
-      "recorded in this repo was taken at `oja`, eta 1e-5 — inside the dead "
-      "zone. This is the first time the control has been run where the loop "
-      "actually moves.")
+    A("The step-size map found `hebb` to be the only *rule* that moves the loop "
+      "inside a clean band, and it does so at **two** step sizes (C-21): this "
+      "eta, giving basin `prolet` → `comrade` at 1.12% relative weight change "
+      "with the norm ceiling silent, and eta 1.18e-04, giving the same "
+      "`comrade` at 2.20% drift, also ceiling-silent. The two are not an "
+      "independent replication — they share prompt, seed, site and cadence — so "
+      "what they establish is that the flip survives a 1.7× change in eta. "
+      "`oja`, `anti_hebb` and `random` all have wide usable bands in which no "
+      "basin change was recorded. Every offline-control number recorded in this "
+      "repo **before this run** was taken at `oja`, eta 1e-5, inside the dead "
+      "zone. The later offline and severed arms at `hebb` all postdate it: C-31 "
+      "is this run's own, and C-58's eta and cadence grid is T2.1's. This is the "
+      "first time the control has been run where the loop actually moves.")
     A("")
 
     if not recs:
@@ -1098,11 +1139,23 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
         A(f"| stable rank | {sp['erank_stable']:.2f} | "
           f"{_f(osp.get('erank_stable'), '.2f')} |")
         A("")
-        A("The step-size map measured ΔW effective rank 1.8–3.8 for `oja` and "
-          "718.8 for the isotropic noise arm. This is the `hebb` number at the "
-          "cell that moves the loop. Near-rank-1 is **expected** — it is the "
-          "rule doing what the rule does — and is reported as a sanity check, "
-          "never as a discovery.")
+        # These are cross-experiment citations of `output_step_size/step_size_map.jsonl`
+        # (`delta_spectral.erank_pr`), and they are quoted CEILING-SILENT ONLY. This
+        # paragraph used to read "1.8-3.8 for `oja`", which was wrong twice over: that
+        # range is `anti_hebb`'s all-cells range, and its top end 3.80 comes from
+        # `anti_hebb` at eta 9.81e-05, a cell at 60.8% clip -- which the register's
+        # standing prohibition forbids quoting as evidence, since such a cell measures
+        # `max_delta_frac` rather than the rule. The committed document was corrected on
+        # 2026-08-05 and this generator was not, so regenerating reinstated the withdrawn
+        # figure. Verified against the artifact: `oja` ceiling-silent 1.77-2.22 over 5 of
+        # 8 cells, `random` ceiling-silent 718.84, `anti_hebb` 1.79-3.24, `hebb`
+        # 1.89-2.22. Do not "simplify" these back to a single all-cells range.
+        A("The step-size map measured ΔW effective rank **1.77 – 2.22** for `oja` "
+          "against **718.84** for the isotropic noise arm, both read off "
+          "ceiling-silent cells only (clip rate 0.0%). This is the `hebb` number "
+          "at the cell that moves the loop, and it sits inside `oja`'s band. "
+          "Near-rank-1 is **expected** — it is the rule doing what the rule does "
+          "— and is reported as a sanity check, never as a discovery.")
         A("")
         A("### The dominant direction, decoded")
         A("")
@@ -1158,25 +1211,31 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
             _c = main['cos_dW_closed_offline_recomputed']
             _r = (main['rel_weight_change_closed']
                   / main['rel_weight_change_offline_recomputed'])
-            # Decompose the difference between the two updates into the part
-            # perpendicular to the closed arm (a direction change) and the part
-            # along it (a scale change), both relative to ||dW_closed||. A
-            # cosine near 1 does NOT mean "scale only": at cos 0.993 the
-            # perpendicular part is still several times the parallel one.
-            _perp = _r * math.sqrt(max(0.0, 1.0 - _c * _c))
-            _par = abs(1.0 - _r * _c)
+            # Report the rotation and the shortening, SEPARATELY, and never their
+            # ratio. This block used to emit a perpendicular/parallel decomposition
+            # (0.1153 and 0.0346, "a ratio of 3.33 to 1") which C-32's caveat
+            # forbids quoting at all, against either reference: it is the
+            # deterministic function r*sin(theta)/|r*cos(theta)-1| of the same two
+            # numbers reported on the line above, so it is not independent evidence;
+            # it takes 3.33 or 5.73 depending on which update normalises it; it is
+            # ill-conditioned (d ln ratio/d ln r = -47, pole 2.1% away); and it
+            # ranges 5.03-7.67 across the three prompts. The committed document
+            # withdrew it on 2026-08-05 and this generator kept emitting it, so a
+            # regeneration re-asserted a figure the register had withdrawn.
+            _deg = math.degrees(math.acos(max(-1.0, min(1.0, _c))))
+            _shorten = (1.0 - _r) * 100.0
             A(f"**Issue #32 section 4**: `cos(ΔW_closed, ΔW_offline)` = "
               f"{_c:.8f} (recomputed-y arm), with norm ratio {_r:.6f}.")
             A("")
-            A(f"Splitting the difference between the two updates: the component "
-              f"perpendicular to the closed-loop update is **{_perp:.4f}** of "
-              f"`||ΔW_closed||`, the component along it is **{_par:.4f}** -- a "
-              f"ratio of {_perp / _par:.2f} to 1"
-              + (" in favour of the perpendicular part." if _perp > _par else
-                 " in favour of the parallel part.")
-              + " The cosine and the norm ratio are reported separately for "
-                "this reason; a single mixed ratio cannot distinguish a "
-                "direction change from a magnitude change.")
+            A(f"Splitting that difference into its two parts: feedback **rotates** "
+              f"the update by **{_deg:.2f}°** (cos {_c:.5f}) and "
+              + (f"**shortens** it by **{_shorten:.1f}%**"
+                 if _shorten >= 0 else
+                 f"**lengthens** it by **{-_shorten:.1f}%**")
+              + f" (norm ratio {_r:.5f}). The rotation and the shortening are "
+                "reported separately, and only separately, because a single mixed "
+                "ratio cannot distinguish a direction change from a magnitude "
+                "change. See **C-32**, `provisional`.")
             A("")
 
     # --- across basins ----------------------------------------------------
@@ -1211,18 +1270,46 @@ def build_report(recs: list, meta: dict, lens: dict | None = None) -> str:
                 c = _cos(vecs[i], vecs[j])
                 (within if labels[i][1] == labels[j][1] else between).append(c)
         if within and between:
-            A(f"Within-basin median cosine {statistics.median(within):+.6f} "
-              f"({len(within)} pairs); between-basin median "
-              f"{statistics.median(between):+.6f} ({len(between)} pairs).")
+            # Neither direction is a licensed conclusion, so emit neither. This
+            # branched on a hardcoded 0.02 threshold and bolded whichever side it
+            # landed on. The `else` arm printed "**The directions separate by
+            # basin**", which the committed document withdrew on 2026-08-05: it was
+            # drawn in prose with no register row, from 4 within-basin pairs against
+            # 6 between-basin, in a design this same section declares confounded two
+            # paragraphs further down. The `if` arm is the same overreach mirrored.
+            #
+            # Its replacement must not head the paragraph with the *gap* between the
+            # medians either. The document's position is that the whole comparison is
+            # unregistered and confounded; leading with a derived statistic is the
+            # same overreach in a quieter voice, and the gap is a number no register
+            # row carries. Emit what the document emits: the two medians in prose,
+            # the register rule, the confound, and the withdrawal note kept visible.
+            _sizes = sorted(
+                (sum(1 for _, b in labels if b == k)
+                 for k in dict.fromkeys(b for _, b in labels)), reverse=True)
+            _words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
+                      6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
+            A(f"**Exploratory, and unregistered.** Within-basin median cosine is "
+              f"{statistics.median(within):+.6f} ({len(within)} pairs) against "
+              f"between-basin {statistics.median(between):+.6f} "
+              f"({len(between)} pairs). No row in `CLAIMS.md` covers this "
+              f"comparison, and that file's first rule is that a claim enters the "
+              f"register before it enters any prose document — so this is a "
+              f"measurement the repository has taken, not something it asserts, and "
+              f"it may not be cited as a finding. **Prompt similarity and basin "
+              f"membership are confounded in this design**, and that confound is why "
+              f"the comparison cannot become a register row on this evidence: with "
+              f"{_words.get(len(labels), len(labels))} prompts split "
+              f"{'/'.join(str(s) for s in _sizes)}, the within-basin pairs are also "
+              f"the pairs of most similar prompts, and nothing here separates the "
+              f"two.")
             A("")
-            if abs(statistics.median(within) - statistics.median(between)) < 0.02:
-                A("**The directions do not separate by basin.** ΔW records the "
-                  "site's activation statistics; it does not fingerprint which "
-                  "attractor the episode was in, and the persistence argument "
-                  "gets no episode-specific content from this object.")
-            else:
-                A("**The directions separate by basin**, so ΔW carries a "
-                  "recoverable trace of which attractor the episode ran in.")
+            A(f"**Superseded 2026-08-05.** This paragraph used to head the same two "
+              f"cosines with the bolded conclusion \"The directions separate by "
+              f"basin\". The cosines stand as measurements. The conclusion was drawn "
+              f"in prose without a register row, from {len(within)} pairs against "
+              f"{len(between)}, in a design this section itself declares confounded "
+              f"two paragraphs later, and it is withdrawn.")
             A("")
             A("Two things have to be said about that before it is worth "
               "anything. First, issue #32's two branches — \"ΔW fingerprints "
