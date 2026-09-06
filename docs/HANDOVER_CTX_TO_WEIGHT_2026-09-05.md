@@ -12,6 +12,35 @@ something is my reading it is marked as such.*
 > PR #65 and board discussion #66), and the committed artifacts under
 > `experiments/output_exp004/`. Nothing new was run for this file.
 
+> **Corrections, added 2026-09-06 by the session that picked this up.** Three
+> fresh-context reviews of the branch (record fidelity, experimental design, pilot code;
+> posted in full on board discussion #66) checked this file's own claims. The body below
+> is left as written; these are the corrections. (1) Section 1.6's sentence "Every number
+> in the note and the pilot record cites a committed artifact" was false: at least eight
+> figures had no committed source, among them the fact-screening figures ("2.5 to 13.9
+> nats", "seven of seven", "1.2 nats for Marrowgate"), the "43 to 79 percent" singular-value
+> share, the loop-write cosines, the per-fold and per-query timings, and the first pilot's
+> per-position numbers. They are now measured in `experiments/exp004_measurements.py`
+> and committed as `experiments/output_exp004/measurements_v1.json`; the Marrowgate
+> figure could not be reproduced and is withdrawn (the only committed measurement of that
+> context, `pilot_v2.json`, puts the bound token 2.4 nats *below* baseline with the context
+> present). (2) Section 2's "clean and controlled negative" and the pilot paragraph's "at
+> every drift" overstated `pilot_v3.json`: at the largest drift the topic-swapped write
+> also moves the bound token the wrong way and the best random draw moves it the right
+> way; the reading holds at drifts up to 5.9 percent. (3) Section 1.7 item 5 understated
+> the C3 defect: the assertion sat after `revert()`, which zeroes the fields it asserted
+> on, so it could not fail. (4) Section 1.3's "two pilot numbers that matched neither the
+> JSON nor the pilot record" overstates the reviewer's finding: both numbers were in the
+> first pilot's files, at a different cell from the one the column named. (5) Section 2's
+> "four commits, nine files, about 3,050 lines" was true before this file's own commit;
+> the branch was then five commits, ten files, 3,283 insertions. (6) Section 1.1's quoted
+> sentence attributed to `ALIGNMENT_REVIEW.md` appears nowhere in that file; the file's
+> own words are "The summary layer has drifted away from it". (7) The reading note said
+> "one" related-work description was corrected in review where this file says four; four
+> is right. (8) The fact-class measurement as this file and the spec defined it could not
+> distinguish binding from token priming; that is the review's main finding and the spec's
+> third revision answers it.
+
 ---
 
 ## 1. Critical review of the session's work
